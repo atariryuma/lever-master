@@ -9,6 +9,7 @@
     --neon-green: #00ff88;
     --neon-orange: #ff9500;
     --dark-bg: #0a0a1a;
+    --side-panel-width: 50px;
 }
 
 body {
@@ -1057,4 +1058,181 @@ body {
 .ios-banner-close {
     background: none; border: none; color: #888;
     font-size: 1.5rem; padding: 4px; cursor: pointer;
+}
+
+/* ==============================
+   スマホ横画面サイドバーレイアウト
+   - 縦幅を最大限活用
+   - ヘッダー→左、フッター→右
+   ============================== */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+    /* ヘッダー → 左サイドバー */
+    .header {
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: auto;
+        width: var(--side-panel-width);
+        height: 100%;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 8px 4px;
+        border-bottom: none;
+        border-right: 2px solid rgba(0, 245, 255, 0.4);
+        background: linear-gradient(90deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%);
+    }
+
+    .game-title {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        font-size: 0.55rem;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .header-icons {
+        flex-direction: column;
+        gap: 6px;
+        margin-top: auto;
+    }
+
+    .header-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    /* フッター → 右サイドバー */
+    .bottom-panel {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: auto;
+        width: var(--side-panel-width);
+        height: 100%;
+        border-top: none;
+        border-left: 2px solid rgba(255, 0, 255, 0.4);
+        background: linear-gradient(270deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 100%);
+        padding: 6px 4px;
+    }
+
+    .game-bar {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        height: 100%;
+        padding: 0;
+    }
+
+    .moment-group {
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+    }
+
+    .moment-label {
+        font-size: 0.5rem;
+    }
+
+    .moment {
+        font-size: 0.7rem;
+        min-width: unset;
+    }
+
+    .balance-icon {
+        font-size: 1rem;
+    }
+
+    .divider {
+        display: none;
+    }
+
+    .phase-badge {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        font-size: 0.5rem;
+        padding: 6px 3px;
+        letter-spacing: 0;
+    }
+
+    .action-btn {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        font-size: 0.45rem;
+        padding: 6px 3px;
+    }
+
+    /* Canvas位置調整 */
+    #game-canvas {
+        left: var(--side-panel-width);
+        right: var(--side-panel-width);
+        width: calc(100% - var(--side-panel-width) * 2);
+    }
+
+    /* プレイヤーパネル位置調整 */
+    .players-row {
+        top: 6px;
+        left: calc(var(--side-panel-width) + (100% - var(--side-panel-width) * 2) / 2);
+        gap: 3px;
+    }
+
+    .player-panel {
+        padding: 2px 5px;
+        gap: 3px;
+        font-size: 0.55rem;
+        border-radius: 8px;
+    }
+
+    .p-icon { font-size: 0.7rem; }
+    .p-name { font-size: 0.5rem; }
+    .p-stock { font-size: 0.5rem; }
+    .p-pts { font-size: 0.5rem; }
+    .dot { width: 5px; height: 5px; }
+
+    /* ゲームヒント位置調整 */
+    .game-hint {
+        bottom: auto;
+        top: 50%;
+        left: calc(var(--side-panel-width) + (100% - var(--side-panel-width) * 2) / 2);
+        transform: translate(-50%, -50%);
+        max-width: 60vw;
+    }
+
+    .hint-text { font-size: 0.7rem; }
+    .hint-sub { font-size: 0.55rem; }
+
+    /* ルーレットオーバーレイ調整 */
+    .roulette-title { font-size: 1.2rem; margin-bottom: 15px; }
+    .roulette-wheel { gap: 15px; margin-bottom: 20px; }
+    .roulette-player { width: 50px; height: 65px; font-size: 1.3rem; }
+    .roulette-player-name { font-size: 0.6rem; margin-top: 4px; }
+    .roulette-result { font-size: 1rem; }
+    .roulette-order { font-size: 0.75rem; margin-top: 10px; }
+}
+
+/* スマホ横画面サイドバー: セーフエリア対応 */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+    @supports (padding: env(safe-area-inset-left)) {
+        .header {
+            padding-left: calc(4px + env(safe-area-inset-left));
+            width: calc(var(--side-panel-width) + env(safe-area-inset-left));
+        }
+        .bottom-panel {
+            padding-right: calc(4px + env(safe-area-inset-right));
+            width: calc(var(--side-panel-width) + env(safe-area-inset-right));
+        }
+        #game-canvas {
+            left: calc(var(--side-panel-width) + env(safe-area-inset-left));
+            right: calc(var(--side-panel-width) + env(safe-area-inset-right));
+            width: calc(100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right));
+        }
+        .players-row {
+            left: calc(var(--side-panel-width) + env(safe-area-inset-left) + (100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);
+        }
+        .game-hint {
+            left: calc(var(--side-panel-width) + env(safe-area-inset-left) + (100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);
+        }
+    }
 }

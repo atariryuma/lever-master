@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- ネオングロー効果 -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- シアングラデーション -->
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f5ff"/>
+      <stop offset="100%" style="stop-color:#0088aa"/>
+    </linearGradient>
+    
+    <!-- マゼンタグラデーション -->
+    <linearGradient id="magentaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff00ff"/>
+      <stop offset="100%" style="stop-color:#aa0088"/>
+    </linearGradient>
+    
+    <!-- ゴールドグラデーション -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffcc00"/>
+      <stop offset="50%" style="stop-color:#ffee44"/>
+      <stop offset="100%" style="stop-color:#ffcc00"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="512" height="512" rx="102" fill="#0a0a1a"/>
+  
+  <!-- グリッドパターン -->
+  <g opacity="0.1">
+    <line x1="0" y1="128" x2="512" y2="128" stroke="#00f5ff" stroke-width="1"/>
+    <line x1="0" y1="256" x2="512" y2="256" stroke="#00f5ff" stroke-width="1"/>
+    <line x1="0" y1="384" x2="512" y2="384" stroke="#00f5ff" stroke-width="1"/>
+    <line x1="128" y1="0" x2="128" y2="512" stroke="#00f5ff" stroke-width="1"/>
+    <line x1="256" y1="0" x2="256" y2="512" stroke="#00f5ff" stroke-width="1"/>
+    <line x1="384" y1="0" x2="384" y2="512" stroke="#00f5ff" stroke-width="1"/>
+  </g>
+  
+  <!-- 背景グロー -->
+  <circle cx="150" cy="400" r="120" fill="#00f5ff" opacity="0.08"/>
+  <circle cx="380" cy="150" r="100" fill="#ff00ff" opacity="0.06"/>
+  
+  <!-- 支点台座 -->
+  <path d="M230 420 L282 420 L276 400 L236 400 Z" fill="url(#cyanGrad)" filter="url(#neonGlow)"/>
+  
+  <!-- 支点ピラミッド -->
+  <polygon points="256,260 230,320 282,320" fill="url(#cyanGrad)" filter="url(#neonGlow)"/>
+  
+  <!-- てこ本体 -->
+  <rect x="80" y="240" width="352" height="18" rx="4" fill="url(#goldGrad)" filter="url(#neonGlow)"/>
+  
+  <!-- 左側の吊り下げポイント -->
+  <line x1="130" y1="258" x2="130" y2="310" stroke="url(#cyanGrad)" stroke-width="3" filter="url(#neonGlow)"/>
+  <circle cx="130" cy="330" r="28" fill="url(#cyanGrad)" filter="url(#neonGlow)"/>
+  <text x="130" y="340" text-anchor="middle" fill="#0a0a1a" font-family="Arial Black" font-size="28" font-weight="bold">10</text>
+  
+  <!-- 右側の吊り下げポイント（2つのおもり） -->
+  <line x1="382" y1="258" x2="382" y2="290" stroke="url(#magentaGrad)" stroke-width="3" filter="url(#neonGlow)"/>
+  <circle cx="360" cy="320" r="22" fill="url(#magentaGrad)" filter="url(#neonGlow)"/>
+  <circle cx="404" cy="320" r="22" fill="url(#magentaGrad)" filter="url(#neonGlow)"/>
+  
+  <!-- タイトル -->
+  <text x="256" y="150" text-anchor="middle" fill="url(#cyanGrad)" font-family="Arial Black, sans-serif" font-size="48" font-weight="900" letter-spacing="4" filter="url(#neonGlow)">LEVER</text>
+  <text x="256" y="195" text-anchor="middle" fill="url(#magentaGrad)" font-family="Arial Black, sans-serif" font-size="36" font-weight="700" letter-spacing="6" filter="url(#neonGlow)">MASTER</text>
+</svg>

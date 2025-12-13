@@ -12,3 +12,8 @@ appsscript.json
 
 # Claude/Gemini
 .claude/
+.agent/
+
+# Node
+node_modules/
+
