@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# GAS specific files (not needed for GitHub Pages)
+.clasp.json
+*.gs
+appsscript.json
+
+# IDE
+.vscode/
+.idea/
+
+# Claude/Gemini
+.claude/
