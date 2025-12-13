@@ -431,13 +431,11 @@ function playSound(type) {
 
 function toggleSound() {
     isMuted = !isMuted;
-    const btn = document.getElementById('sound-btn');
-    btn.textContent = isMuted ? '🔇' : '🔊';
-    btn.classList.toggle('muted', isMuted);
-
     if (bgmGain) {
         bgmGain.gain.value = isMuted ? 0 : CONFIG.BGM_VOLUME;
     }
+    updateHeaderSoundBtn();
+    updateStartSoundBtn();
 }
 
 // ==============================
@@ -3380,15 +3378,86 @@ window.addEventListener('resize', checkDevice, { passive: true });
 window.addEventListener('orientationchange', () => setTimeout(checkDevice, 200), { passive: true });
 document.addEventListener('DOMContentLoaded', checkDevice, { passive: true });
 
-// iOS Safari バナー表示
-function checkIOSBanner() {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isStandalone = window.navigator.standalone === true;
-    const closed = localStorage.getItem('ios-banner-closed');
-    const banner = document.getElementById('ios-banner');
-    if (banner && isIOS && !isStandalone && !closed) {
-        banner.style.display = 'flex';
+// ==============================
+// デバイス検出 & インストールガイド
+// ==============================
+function getDeviceType() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isAndroid = /Android/.test(ua);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+    return { isIOS, isAndroid, isStandalone };
+}
+
+function showInstallGuide() {
+    const guide = document.getElementById('install-guide');
+    const text = document.getElementById('install-text');
+    if (!guide || !text) return;
+
+    const { isIOS, isAndroid, isStandalone } = getDeviceType();
+
+    // 既にインストール済み or 閉じた履歴あり
+    if (isStandalone || localStorage.getItem('install-guide-closed')) {
+        guide.style.display = 'none';
+        return;
     }
+
+    if (isIOS) {
+        text.innerHTML = '全画面でプレイ！<br><b>共有 → ホーム画面に追加</b>';
+        guide.style.display = 'flex';
+    } else if (isAndroid) {
+        text.innerHTML = '全画面でプレイ！<br><b>メニュー → アプリをインストール</b>';
+        guide.style.display = 'flex';
+    } else {
+        guide.style.display = 'none';
+    }
+}
+
+function closeInstallGuide() {
+    const guide = document.getElementById('install-guide');
+    if (guide) guide.style.display = 'none';
+    localStorage.setItem('install-guide-closed', '1');
+}
+
+// ==============================
+// スタート画面サウンドトグル
+// ==============================
+function toggleStartSound() {
+    if (!audioCtx) {
+        // 初回: オーディオ初期化してBGM開始
+        initAudio().then(() => {
+            isMuted = false;
+            updateStartSoundBtn();
+            updateHeaderSoundBtn();
+        });
+    } else {
+        // トグル
+        isMuted = !isMuted;
+        if (bgmGain) {
+            bgmGain.gain.value = isMuted ? 0 : CONFIG.BGM_VOLUME;
+        }
+        updateStartSoundBtn();
+        updateHeaderSoundBtn();
+    }
+}
+
+function updateStartSoundBtn() {
+    const btn = document.getElementById('start-sound-btn');
+    const icon = document.getElementById('start-sound-icon');
+    const label = document.getElementById('start-sound-label');
+    if (!btn || !icon || !label) return;
+
+    icon.textContent = isMuted ? '🔇' : '🔊';
+    label.textContent = isMuted ? 'BGM OFF' : 'BGM ON';
+    btn.classList.toggle('muted', isMuted);
+}
+
+function updateHeaderSoundBtn() {
+    const btn = document.getElementById('sound-btn');
+    if (!btn) return;
+    btn.textContent = isMuted ? '🔇' : '🔊';
+    btn.classList.toggle('muted', isMuted);
 }
 
 // ==============================
@@ -3398,7 +3467,7 @@ let audioInitAbortController = null;
 
 window.onload = () => {
     checkDevice();
-    checkIOSBanner();
+    showInstallGuide();
     initThree();
     updateUI();
 

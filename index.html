@@ -35,18 +35,6 @@
     <!-- スマホ縦画面ブロック -->
     <div class="device-overlay" id="device-overlay">📱↻ 横向きにしてね</div>
 
-    <!-- iOS インストールバナー -->
-    <div class="ios-banner" id="ios-banner">
-        <span class="ios-banner-icon">⚖️</span>
-        <div class="ios-banner-text">
-            全画面でプレイ！<br>
-            <b>共有 → ホーム画面に追加</b>
-        </div>
-        <button type="button" class="ios-banner-close"
-            onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios-banner-closed','1')"
-            aria-label="Close banner">✕</button>
-    </div>
-
     <div class="cyber-bg"></div>
     <div class="grid-overlay"></div>
     <div class="particle-container" id="particles"></div>
@@ -91,6 +79,12 @@
                 <div class="start-subtitle">てこマスター</div>
                 <div class="learning-badge">📚 小6理科「てこ」</div>
 
+                <!-- サウンドトグルボタン -->
+                <button type="button" class="start-sound-btn" id="start-sound-btn" onclick="toggleStartSound()">
+                    <span class="sound-icon" id="start-sound-icon">🔇</span>
+                    <span class="sound-label" id="start-sound-label">BGM OFF</span>
+                </button>
+
                 <div class="mode-select">
                     <button type="button" class="mode-btn mode1" onclick="startGame('cpu1')">
                         <span class="mode-icon">🤖</span>
@@ -112,6 +106,13 @@
                         <span class="mode-label">4人</span>
                         <span class="mode-desc">全員対戦</span>
                     </button>
+                </div>
+
+                <!-- インストールガイド（iOS/Android対応） -->
+                <div class="install-guide" id="install-guide">
+                    <div class="install-icon">📲</div>
+                    <div class="install-text" id="install-text"></div>
+                    <button type="button" class="install-close" onclick="closeInstallGuide()" aria-label="Close">✕</button>
                 </div>
             </div>
 
