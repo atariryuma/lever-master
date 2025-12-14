@@ -2626,6 +2626,11 @@ function updateUI() {
 
         // 参加していないプレイヤーは非表示（配分が0のプレイヤー）
         const dist = DISTRIBUTIONS[game.playerCount];
+        // ゲーム開始前はdistが未定義の可能性があるのでチェック
+        if (!dist) {
+            panel.classList.add('hidden');
+            return;
+        }
         if (dist[player] === 0) {
             panel.classList.add('hidden');
             return;
@@ -3526,43 +3531,59 @@ function updateHeaderSoundBtn() {
 let splashDismissed = false;
 
 function dismissSplash(e) {
+    console.log('dismissSplash called', e?.type);
+
     // 重複呼び出し防止
-    if (splashDismissed) return;
+    if (splashDismissed) {
+        console.log('Already dismissed');
+        return;
+    }
     splashDismissed = true;
 
     const splash = document.getElementById('splash-screen');
-    if (!splash) return;
+    if (!splash) {
+        console.log('Splash element not found');
+        return;
+    }
 
-    // スプラッシュを非表示（フェードアウト）
-    splash.style.transition = 'opacity 0.3s ease-out';
-    splash.style.opacity = '0';
-    setTimeout(() => {
-        splash.classList.add('hidden');
-        splash.style.opacity = '';
-        splash.style.transition = '';
-    }, 300);
+    console.log('Hiding splash...');
+
+    // スプラッシュを即座に非表示
+    splash.classList.add('hidden');
 
     // オーディオを初期化してBGM開始
     initAudio().then(() => {
+        console.log('Audio initialized');
         isMuted = false;
         updateStartSoundBtn();
         updateHeaderSoundBtn();
+    }).catch(err => {
+        console.error('Audio init error:', err);
     });
 
     // インストールガイドを表示
     showInstallGuide();
 }
 
+// DOMContentLoadedでイベント登録（window.onloadより早い）
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded - setting up splash');
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        console.log('Splash found, adding listeners');
+        // 複数のイベントタイプで確実にキャプチャ
+        splash.addEventListener('touchstart', dismissSplash, { passive: true });
+        splash.addEventListener('touchend', dismissSplash, { passive: true });
+        splash.addEventListener('click', dismissSplash);
+        splash.addEventListener('pointerdown', dismissSplash);
+    } else {
+        console.log('Splash NOT found in DOMContentLoaded');
+    }
+});
+
 window.onload = () => {
+    console.log('window.onload');
     checkDevice();
     initThree();
     updateUI();
-
-    // スプラッシュ画面のタップイベント
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        // touchendを使用（touchstartだとスクロールと競合する可能性）
-        splash.addEventListener('touchend', dismissSplash, { passive: true });
-        splash.addEventListener('click', dismissSplash);
-    }
 };
