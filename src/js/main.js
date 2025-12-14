@@ -3207,7 +3207,17 @@ const CAMERA_PADDING = 1.15; // 余白係数（15%の余裕）
 
 function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     // 基準FOV（度）
-    const baseFov = 50;
+    let baseFov = 50;
+
+    // スマホ横画面（縦が狭い）の場合は横幅優先でFOVを調整
+    const isLandscapeMobile = effectiveHeight < 500 && aspect > 1.5;
+
+    if (isLandscapeMobile) {
+        // 横画面スマホ: 横幅を優先し、FOVを広げてテコ全体を表示
+        // aspect比が大きいほどFOVを広げる
+        baseFov = Math.min(70, 50 + (aspect - 1.5) * 10);
+    }
+
     const fovRad = (baseFov * Math.PI) / 180;
 
     // てこ全体が見える距離を計算
@@ -3219,24 +3229,42 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     const distForWidth = halfWidth / Math.tan(fovRad / 2) / aspect;
     const distForHeight = halfHeight / Math.tan(fovRad / 2);
 
-    // 大きい方を採用（両方が収まる距離）
-    let optimalZ = Math.max(distForWidth, distForHeight);
-
-    // 最小・最大制限
-    optimalZ = Math.max(10, Math.min(optimalZ, 25));
-
-    // 画面が小さい場合はFOVを広げて対応
-    let fov = baseFov;
-    if (effectiveHeight < 400) {
-        fov = 55; // 小さい画面は広角に
-        optimalZ *= 0.9;
-    } else if (effectiveHeight < 500) {
-        fov = 52;
-        optimalZ *= 0.95;
+    // スマホ横画面では横幅優先、それ以外は大きい方を採用
+    let optimalZ;
+    if (isLandscapeMobile) {
+        // 横画面スマホ: 横幅を収める距離を優先（縦は切れても良い）
+        optimalZ = distForWidth;
+        // ただし極端に近づきすぎないように
+        optimalZ = Math.max(optimalZ, distForHeight * 0.7);
+    } else {
+        optimalZ = Math.max(distForWidth, distForHeight);
     }
 
-    // カメラY位置（画面が小さいほど低めに）
-    const baseY = effectiveHeight < 400 ? 4 : 5;
+    // 最小・最大制限
+    optimalZ = Math.max(8, Math.min(optimalZ, 25));
+
+    // 画面が小さい場合の追加調整
+    let fov = baseFov;
+    if (!isLandscapeMobile) {
+        if (effectiveHeight < 400) {
+            fov = 55;
+            optimalZ *= 0.9;
+        } else if (effectiveHeight < 500) {
+            fov = 52;
+            optimalZ *= 0.95;
+        }
+    }
+
+    // カメラY位置（スマホ横画面は低め、画面が小さいほど低めに）
+    let baseY;
+    if (isLandscapeMobile) {
+        // スマホ横画面: カメラを少し下げてテコを中央に
+        baseY = 3;
+    } else if (effectiveHeight < 400) {
+        baseY = 4;
+    } else {
+        baseY = 5;
+    }
 
     return { z: optimalZ, fov, baseY };
 }
@@ -3521,7 +3549,7 @@ function updateHeaderSoundBtn() {
 // スプラッシュ画面をタップして開始
 let splashDismissed = false;
 
-function dismissSplash(e) {
+function dismissSplash() {
     // 重複呼び出し防止
     if (splashDismissed) return;
     splashDismissed = true;
@@ -3532,9 +3560,18 @@ function dismissSplash(e) {
     // スプラッシュを非表示
     splash.classList.add('hidden');
 
+    // BGMをONにする（initAudioの前に設定）
+    isMuted = false;
+
     // オーディオを初期化してBGM開始
-    initAudio().then(() => {
-        isMuted = false;
+    initAudio().then((success) => {
+        if (success) {
+            // BGM gainを確実に設定
+            if (bgmGain) {
+                bgmGain.gain.value = CONFIG.BGM_VOLUME;
+            }
+        }
+        // UIを更新
         updateStartSoundBtn();
         updateHeaderSoundBtn();
     });

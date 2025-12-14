@@ -1,7 +1,7 @@
 // LEVER MASTER Service Worker
-// Version 1.0.0
+// Version 1.0.1
 
-const CACHE_NAME = 'lever-master-v1';
+const CACHE_NAME = 'lever-master-v2';
 const BASE_PATH = '/lever-master';
 
 const ASSETS_TO_CACHE = [
@@ -19,35 +19,60 @@ const ASSETS_TO_CACHE = [
 
 // インストール時にアセットをキャッシュ
 self.addEventListener('install', (event) => {
+    console.log('[SW] Installing new version...');
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('[SW] Caching assets');
                 return cache.addAll(ASSETS_TO_CACHE);
             })
-            .then(() => self.skipWaiting())
+            .then(() => {
+                console.log('[SW] Skip waiting to activate immediately');
+                return self.skipWaiting();
+            })
             .catch((error) => {
                 console.error('[SW] Cache failed:', error);
             })
     );
 });
 
-// アクティベート時に古いキャッシュを削除
+// アクティベート時に古いキャッシュを削除してクライアントに通知
 self.addEventListener('activate', (event) => {
+    console.log('[SW] Activating new version...');
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
                 return Promise.all(
                     cacheNames
-                        .filter((name) => name !== CACHE_NAME)
+                        .filter((name) => name.startsWith('lever-master-') && name !== CACHE_NAME)
                         .map((name) => {
                             console.log('[SW] Deleting old cache:', name);
                             return caches.delete(name);
                         })
                 );
             })
-            .then(() => self.clients.claim())
+            .then(() => {
+                console.log('[SW] Claiming clients');
+                return self.clients.claim();
+            })
+            .then(() => {
+                // 全クライアントに更新完了を通知
+                return self.clients.matchAll({ type: 'window' });
+            })
+            .then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
+                });
+            })
     );
+});
+
+// メッセージ受信（手動更新リクエストなど）
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] Received skip waiting request');
+        self.skipWaiting();
+    }
 });
 
 // フェッチ時にキャッシュを優先（ネットワークフォールバック）
@@ -68,6 +93,18 @@ self.addEventListener('fetch', (event) => {
         caches.match(event.request)
             .then((cachedResponse) => {
                 if (cachedResponse) {
+                    // バックグラウンドでネットワークから更新をチェック（stale-while-revalidate）
+                    if (isSameOrigin) {
+                        fetch(event.request)
+                            .then((response) => {
+                                if (response && response.status === 200) {
+                                    caches.open(CACHE_NAME).then((cache) => {
+                                        cache.put(event.request, response);
+                                    });
+                                }
+                            })
+                            .catch(() => {});
+                    }
                     return cachedResponse;
                 }
 

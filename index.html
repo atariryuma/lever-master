@@ -354,13 +354,59 @@
     <!-- App Script -->
     <script src="src/js/main.js"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration with Auto-Update -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('SW registered:', reg.scope))
+                    .then(reg => {
+                        console.log('SW registered:', reg.scope);
+
+                        // 定期的に更新をチェック（30分ごと）
+                        setInterval(() => {
+                            reg.update().catch(err => console.warn('SW update check failed:', err));
+                        }, 30 * 60 * 1000);
+
+                        // 新しいService Workerがインストールされた時
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            console.log('SW update found, installing...');
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // 新バージョンがインストールされ、既存のコントローラーがある場合
+                                    console.log('New SW installed, will activate on next reload');
+                                    // skipWaitingを要求して即座にアクティベート
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            });
+                        });
+                    })
                     .catch(err => console.warn('SW registration failed:', err));
+
+                // Service Workerからのメッセージを受信
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'SW_UPDATED') {
+                        console.log('SW updated to:', event.data.version);
+                        // スタート画面表示中なら自動リロード、ゲーム中なら次回起動時に適用
+                        const startOverlay = document.getElementById('start-overlay');
+                        const splashScreen = document.getElementById('splash-screen');
+                        if ((startOverlay && !startOverlay.classList.contains('hidden')) ||
+                            (splashScreen && !splashScreen.classList.contains('hidden'))) {
+                            // スタート画面またはスプラッシュ画面なら即リロード
+                            console.log('Reloading to apply update...');
+                            window.location.reload();
+                        } else {
+                            // ゲーム中は次回起動時に適用されるのでログのみ
+                            console.log('Update will be applied on next app start');
+                        }
+                    }
+                });
+
+                // コントローラーが変わった時（新SWがアクティブになった時）
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('SW controller changed');
+                });
             });
         }
     </script>
