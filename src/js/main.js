@@ -680,10 +680,17 @@ function initThree() {
 
     const canvas = document.getElementById('game-canvas');
 
-    // キャンバスの実際の表示サイズを取得
+    // キャンバスの実際の表示サイズを取得（CSSで設定されたサイズ）
+    // iOS PWAではviewport-fit=coverにより、safe-areaを考慮したサイズになる
     const rect = canvas.getBoundingClientRect();
-    let w = rect.width || window.innerWidth;
-    let h = rect.height || window.innerHeight;
+    let w = rect.width;
+    let h = rect.height;
+
+    // サイズが0の場合はフォールバック（初期ロード時のタイミング問題対策）
+    if (w === 0 || h === 0) {
+        w = window.innerWidth;
+        h = window.innerHeight;
+    }
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a2040);
@@ -852,8 +859,21 @@ function initThree() {
     canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
     window.addEventListener('resize', onResize, { passive: true });
 
+    // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
+    // window.resizeだけでは検知できないケースに対応
+    if (typeof ResizeObserver !== 'undefined') {
+        const resizeObserver = new ResizeObserver(() => {
+            // デバウンス: 連続したリサイズイベントを間引く
+            clearTimeout(resizeObserver._timeout);
+            resizeObserver._timeout = setTimeout(onResize, 100);
+        });
+        resizeObserver.observe(canvas);
+    }
+
     // 初期カメラ位置を画面サイズに合わせて調整
-    onResize();
+    // 少し遅延させてCSSの適用を待つ（iOS PWA対応）
+    setTimeout(onResize, 50);
+    setTimeout(onResize, 200);
 
     animate();
 }
@@ -3200,6 +3220,7 @@ function exitGame() {
 
 // ==============================
 // 動的カメラ計算（てこが画面に収まるよう自動調整）
+// iOS PWA対応: アスペクト比に応じてテコが潰れないように調整
 // ==============================
 const LEVER_WIDTH = 17;      // てこの幅（3D単位）
 const LEVER_HEIGHT = 8;      // てこ+おもりの高さ想定
@@ -3209,13 +3230,19 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     // 基準FOV（度）
     let baseFov = 50;
 
-    // スマホ横画面（縦が狭い）の場合は横幅優先でFOVを調整
+    // スマホ横画面の判定（縦が狭い & 横長アスペクト）
+    // iOS PWA: safe-area適用後のサイズで判定
     const isLandscapeMobile = effectiveHeight < 500 && aspect > 1.5;
+    const isUltraWide = aspect > 2.0;  // iPhone等の超ワイド画面
 
     if (isLandscapeMobile) {
-        // 横画面スマホ: 横幅を優先し、FOVを広げてテコ全体を表示
-        // aspect比が大きいほどFOVを広げる
-        baseFov = Math.min(70, 50 + (aspect - 1.5) * 10);
+        // 横画面スマホ: FOVを広げてテコ全体を表示
+        if (isUltraWide) {
+            // iPhone等の超ワイド: FOVをさらに広げる
+            baseFov = Math.min(75, 55 + (aspect - 2.0) * 15);
+        } else {
+            baseFov = Math.min(65, 50 + (aspect - 1.5) * 10);
+        }
     }
 
     const fovRad = (baseFov * Math.PI) / 180;
@@ -3232,16 +3259,17 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     // スマホ横画面では横幅優先、それ以外は大きい方を採用
     let optimalZ;
     if (isLandscapeMobile) {
-        // 横画面スマホ: 横幅を収める距離を優先（縦は切れても良い）
-        optimalZ = distForWidth;
-        // ただし極端に近づきすぎないように
-        optimalZ = Math.max(optimalZ, distForHeight * 0.7);
+        // 横画面スマホ: 横幅を収める距離を基準に
+        // ただし、テコが縦方向に潰れないよう最低限の距離を確保
+        const minZForHeight = distForHeight * 0.6;  // 縦方向の最低限
+        optimalZ = Math.max(distForWidth, minZForHeight);
     } else {
         optimalZ = Math.max(distForWidth, distForHeight);
     }
 
-    // 最小・最大制限
-    optimalZ = Math.max(8, Math.min(optimalZ, 25));
+    // 最小・最大制限（スマホは近めでOK）
+    const minZ = isLandscapeMobile ? 7 : 8;
+    optimalZ = Math.max(minZ, Math.min(optimalZ, 25));
 
     // 画面が小さい場合の追加調整
     let fov = baseFov;
@@ -3256,10 +3284,12 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     }
 
     // カメラY位置（スマホ横画面は低め、画面が小さいほど低めに）
+    // テコの中心（Y=0.5付近）が画面中央に来るように調整
     let baseY;
     if (isLandscapeMobile) {
-        // スマホ横画面: カメラを少し下げてテコを中央に
-        baseY = 3;
+        // スマホ横画面: カメラを下げてテコを中央より少し上に
+        // アスペクト比が大きいほど下げる
+        baseY = isUltraWide ? 2 : 2.5;
     } else if (effectiveHeight < 400) {
         baseY = 4;
     } else {

@@ -10,16 +10,33 @@
     --neon-orange: #ff9500;
     --dark-bg: #0a0a1a;
     --side-panel-width: 50px;
+    /* Safe Area CSS変数（フォールバック値付き） */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+    /* iOS PWA対応：100vhの代わりに100dvhを使用 */
+    height: 100%;
+    height: 100dvh;
 }
 
 body {
     font-family: 'M PLUS Rounded 1c', sans-serif;
     background: var(--dark-bg);
-    min-height: 100vh;
+    /* 100vhの代わりに100dvh（Dynamic Viewport Height）を使用 */
+    min-height: 100%;
+    min-height: 100dvh;
+    height: 100%;
+    height: 100dvh;
     color: #fff;
     overflow: hidden;
     user-select: none;
     touch-action: none;
+    /* iOS PWA: ノッチ周りの余白を埋める */
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
 .cyber-bg {
@@ -200,8 +217,14 @@ body {
 
 #game-canvas {
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    /* safe-areaを考慮した配置 */
+    top: var(--safe-top);
+    left: var(--safe-left);
+    right: var(--safe-right);
+    bottom: var(--safe-bottom);
+    /* 幅と高さはauto（top/left/right/bottomで決定） */
+    width: auto;
+    height: auto;
     z-index: 10;
 }
 
@@ -1030,10 +1053,20 @@ body {
 /* セーフエリア対応（ノッチ付きデバイス） */
 @supports (padding: env(safe-area-inset-bottom)) {
     .bottom-panel {
-        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+        padding-bottom: calc(10px + var(--safe-bottom));
+        /* 横画面時は左右のセーフエリアも考慮 */
+        padding-left: max(16px, var(--safe-left));
+        padding-right: max(16px, var(--safe-right));
     }
     .header {
-        padding-top: calc(8px + env(safe-area-inset-top));
+        padding-top: calc(8px + var(--safe-top));
+        /* 横画面時は左右のセーフエリアも考慮 */
+        padding-left: max(10px, var(--safe-left));
+        padding-right: max(10px, var(--safe-right));
+    }
+    .players-row {
+        /* プレイヤーパネルもsafe-area内に */
+        top: calc(48px + var(--safe-top));
     }
 }
 /* スマホ縦画面ブロック */
@@ -1425,11 +1458,15 @@ body {
 
     /* ==============================
        ゲームエリア調整
+       - safe-areaを含めてサイドバーの内側に配置
        ============================== */
     #game-canvas {
-        left: var(--side-panel-width);
-        right: var(--side-panel-width);
-        width: calc(100% - var(--side-panel-width) * 2);
+        top: 0;
+        bottom: 0;
+        left: calc(var(--side-panel-width) + var(--safe-left));
+        right: calc(var(--side-panel-width) + var(--safe-right));
+        width: auto;
+        height: auto;
     }
 
     /* ==============================
@@ -1511,27 +1548,25 @@ body {
     }
 }
 
-/* スマホ横画面サイドバー: セーフエリア対応 */
+/* スマホ横画面サイドバー: セーフエリア対応（CSS変数使用） */
 @media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
     @supports (padding: env(safe-area-inset-left)) {
         .header {
-            padding-left: calc(4px + env(safe-area-inset-left));
-            width: calc(var(--side-panel-width) + env(safe-area-inset-left));
+            padding-left: calc(4px + var(--safe-left));
+            width: calc(var(--side-panel-width) + var(--safe-left));
         }
         .bottom-panel {
-            padding-right: calc(4px + env(safe-area-inset-right));
-            width: calc(var(--side-panel-width) + env(safe-area-inset-right));
+            padding-right: calc(4px + var(--safe-right));
+            width: calc(var(--side-panel-width) + var(--safe-right));
         }
-        #game-canvas {
-            left: calc(var(--side-panel-width) + env(safe-area-inset-left));
-            right: calc(var(--side-panel-width) + env(safe-area-inset-right));
-            width: calc(100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right));
-        }
+        /* キャンバスは既にメインのメディアクエリで設定済み */
         .players-row {
-            left: calc(var(--side-panel-width) + env(safe-area-inset-left) + (100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);
+            left: 50%;
+            margin-left: calc(var(--safe-left) / 2 - var(--safe-right) / 2);
         }
         .game-hint {
-            left: calc(var(--side-panel-width) + env(safe-area-inset-left) + (100% - var(--side-panel-width) * 2 - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);
+            left: 50%;
+            margin-left: calc(var(--safe-left) / 2 - var(--safe-right) / 2);
         }
     }
 }

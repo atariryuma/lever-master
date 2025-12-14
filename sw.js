@@ -1,7 +1,7 @@
 // LEVER MASTER Service Worker
-// Version 1.0.1
+// Version 1.0.2
 
-const CACHE_NAME = 'lever-master-v2';
+const CACHE_NAME = 'lever-master-v3';
 const BASE_PATH = '/lever-master';
 
 const ASSETS_TO_CACHE = [
