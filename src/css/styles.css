@@ -1060,6 +1060,8 @@ body {
     z-index: 10000;
     cursor: pointer;
     overflow: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .splash-screen::before {

@@ -3523,9 +3523,15 @@ function updateHeaderSoundBtn() {
 // ==============================
 
 // スプラッシュ画面をタップして開始
-function dismissSplash() {
+let splashDismissed = false;
+
+function dismissSplash(e) {
+    // 重複呼び出し防止
+    if (splashDismissed) return;
+    splashDismissed = true;
+
     const splash = document.getElementById('splash-screen');
-    if (!splash || splash.classList.contains('hidden')) return;
+    if (!splash) return;
 
     // スプラッシュを非表示（フェードアウト）
     splash.style.transition = 'opacity 0.3s ease-out';
@@ -3555,10 +3561,8 @@ window.onload = () => {
     // スプラッシュ画面のタップイベント
     const splash = document.getElementById('splash-screen');
     if (splash) {
+        // touchendを使用（touchstartだとスクロールと競合する可能性）
+        splash.addEventListener('touchend', dismissSplash, { passive: true });
         splash.addEventListener('click', dismissSplash);
-        splash.addEventListener('touchstart', dismissSplash, { passive: true });
     }
-
-    // インストールガイドはスタート画面表示時に呼び出す
-    // （スプラッシュが消えた後に表示される）
 };
