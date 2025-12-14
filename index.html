@@ -357,6 +357,9 @@
     <!-- Service Worker Registration with Auto-Update -->
     <script>
         if ('serviceWorker' in navigator) {
+            // リロードループ防止フラグ
+            let isReloading = false;
+
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
                     .then(reg => {
@@ -370,12 +373,13 @@
                         // 新しいService Workerがインストールされた時
                         reg.addEventListener('updatefound', () => {
                             const newWorker = reg.installing;
+                            if (!newWorker) return;
                             console.log('SW update found, installing...');
 
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                     // 新バージョンがインストールされ、既存のコントローラーがある場合
-                                    console.log('New SW installed, will activate on next reload');
+                                    console.log('New SW installed, requesting activation...');
                                     // skipWaitingを要求して即座にアクティベート
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
                                 }
@@ -384,28 +388,24 @@
                     })
                     .catch(err => console.warn('SW registration failed:', err));
 
-                // Service Workerからのメッセージを受信
-                navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (event.data && event.data.type === 'SW_UPDATED') {
-                        console.log('SW updated to:', event.data.version);
-                        // スタート画面表示中なら自動リロード、ゲーム中なら次回起動時に適用
-                        const startOverlay = document.getElementById('start-overlay');
-                        const splashScreen = document.getElementById('splash-screen');
-                        if ((startOverlay && !startOverlay.classList.contains('hidden')) ||
-                            (splashScreen && !splashScreen.classList.contains('hidden'))) {
-                            // スタート画面またはスプラッシュ画面なら即リロード
-                            console.log('Reloading to apply update...');
-                            window.location.reload();
-                        } else {
-                            // ゲーム中は次回起動時に適用されるのでログのみ
-                            console.log('Update will be applied on next app start');
-                        }
-                    }
-                });
-
-                // コントローラーが変わった時（新SWがアクティブになった時）
+                // コントローラーが変わった時（新SWがアクティブになった時）のみリロード
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                     console.log('SW controller changed');
+                    // リロードループ防止
+                    if (isReloading) return;
+                    isReloading = true;
+
+                    // スタート画面またはスプラッシュ画面なら即リロード
+                    const startOverlay = document.getElementById('start-overlay');
+                    const splashScreen = document.getElementById('splash-screen');
+                    if ((startOverlay && !startOverlay.classList.contains('hidden')) ||
+                        (splashScreen && !splashScreen.classList.contains('hidden'))) {
+                        console.log('Reloading to apply update...');
+                        window.location.reload();
+                    } else {
+                        console.log('Update will be applied on next app start');
+                        isReloading = false;
+                    }
                 });
             });
         }

@@ -1,7 +1,7 @@
 // LEVER MASTER Service Worker
-// Version 1.0.2
+// Version 1.0.3
 
-const CACHE_NAME = 'lever-master-v3';
+const CACHE_NAME = 'lever-master-v4';
 const BASE_PATH = '/lever-master';
 
 const ASSETS_TO_CACHE = [
@@ -36,7 +36,7 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// アクティベート時に古いキャッシュを削除してクライアントに通知
+// アクティベート時に古いキャッシュを削除
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating new version...');
     event.waitUntil(
@@ -53,16 +53,9 @@ self.addEventListener('activate', (event) => {
             })
             .then(() => {
                 console.log('[SW] Claiming clients');
+                // clients.claim()でcontrollerchangeイベントが発火し、
+                // クライアント側でリロード処理が行われる
                 return self.clients.claim();
-            })
-            .then(() => {
-                // 全クライアントに更新完了を通知
-                return self.clients.matchAll({ type: 'window' });
-            })
-            .then((clients) => {
-                clients.forEach((client) => {
-                    client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
-                });
             })
     );
 });
