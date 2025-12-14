@@ -679,7 +679,11 @@ function initThree() {
     threeInitialized = true;
 
     const canvas = document.getElementById('game-canvas');
-    const w = window.innerWidth, h = window.innerHeight;
+
+    // キャンバスの実際の表示サイズを取得
+    const rect = canvas.getBoundingClientRect();
+    let w = rect.width || window.innerWidth;
+    let h = rect.height || window.innerHeight;
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a2040);
@@ -691,7 +695,7 @@ function initThree() {
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(w, h);
+    renderer.setSize(w, h, false);  // CSSサイズを変更しない
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -3238,35 +3242,27 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
 }
 
 function onResize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // レンダラーが初期化されていない場合はスキップ
+    if (!renderer || !camera) return;
+
+    const canvas = document.getElementById('game-canvas');
+    if (!canvas) return;
+
+    // キャンバスの実際の表示サイズを取得（CSSで設定されたサイズ）
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    // サイズが0の場合はスキップ
+    if (w === 0 || h === 0) return;
+
     const aspect = w / h;
 
-    // サイドバーレイアウト判定（CSS: max-width:900px && max-height:500px && landscape）
-    const isLandscape = w > h;
-    const isSidebarLayout = w <= 900 && h <= 500 && isLandscape;
-
-    let effectiveWidth, effectiveHeight, effectiveAspect;
-    let viewportX = 0;
-
-    if (isSidebarLayout) {
-        // サイドバーレイアウト: 左右54pxずつ引く
-        const sidebarWidth = 54;
-        effectiveWidth = w - sidebarWidth * 2;
-        effectiveHeight = h;
-        effectiveAspect = effectiveWidth / effectiveHeight;
-        viewportX = sidebarWidth; // 左サイドバー分オフセット
-        camera.aspect = effectiveAspect;
-    } else {
-        effectiveWidth = w;
-        effectiveHeight = h;
-        effectiveAspect = aspect;
-        viewportX = 0;
-        camera.aspect = aspect;
-    }
+    // カメラのアスペクト比を更新
+    camera.aspect = aspect;
 
     // 動的にカメラ設定を計算
-    const { z, fov, baseY } = calculateOptimalCamera(effectiveWidth, effectiveHeight, effectiveAspect);
+    const { z, fov, baseY } = calculateOptimalCamera(w, h, aspect);
 
     camera.position.z = z;
     camera.fov = fov;
@@ -3275,18 +3271,13 @@ function onResize() {
     cameraBaseZ = camera.position.z;
     camera.updateProjectionMatrix();
 
-    // レンダラーサイズとビューポート設定
-    renderer.setSize(w, h);
-    if (isSidebarLayout) {
-        // サイドバーレイアウト時はビューポートを中央に設定
-        renderer.setViewport(viewportX, 0, effectiveWidth, effectiveHeight);
-        renderer.setScissor(viewportX, 0, effectiveWidth, effectiveHeight);
-        renderer.setScissorTest(true);
-    } else {
-        // 通常時はフルスクリーン
-        renderer.setViewport(0, 0, w, h);
-        renderer.setScissorTest(false);
-    }
+    // レンダラーサイズをキャンバスの表示サイズに合わせる
+    // setSize(w, h, false)でCSSサイズを変更しない
+    renderer.setSize(w, h, false);
+
+    // ビューポート/シザーはフルキャンバス（CSSで既に配置済み）
+    renderer.setViewport(0, 0, w, h);
+    renderer.setScissorTest(false);
 }
 
 // ==============================
@@ -3531,58 +3522,28 @@ function updateHeaderSoundBtn() {
 let splashDismissed = false;
 
 function dismissSplash(e) {
-    console.log('dismissSplash called', e?.type);
-
     // 重複呼び出し防止
-    if (splashDismissed) {
-        console.log('Already dismissed');
-        return;
-    }
+    if (splashDismissed) return;
     splashDismissed = true;
 
     const splash = document.getElementById('splash-screen');
-    if (!splash) {
-        console.log('Splash element not found');
-        return;
-    }
+    if (!splash) return;
 
-    console.log('Hiding splash...');
-
-    // スプラッシュを即座に非表示
+    // スプラッシュを非表示
     splash.classList.add('hidden');
 
     // オーディオを初期化してBGM開始
     initAudio().then(() => {
-        console.log('Audio initialized');
         isMuted = false;
         updateStartSoundBtn();
         updateHeaderSoundBtn();
-    }).catch(err => {
-        console.error('Audio init error:', err);
     });
 
     // インストールガイドを表示
     showInstallGuide();
 }
 
-// DOMContentLoadedでイベント登録（window.onloadより早い）
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded - setting up splash');
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        console.log('Splash found, adding listeners');
-        // 複数のイベントタイプで確実にキャプチャ
-        splash.addEventListener('touchstart', dismissSplash, { passive: true });
-        splash.addEventListener('touchend', dismissSplash, { passive: true });
-        splash.addEventListener('click', dismissSplash);
-        splash.addEventListener('pointerdown', dismissSplash);
-    } else {
-        console.log('Splash NOT found in DOMContentLoaded');
-    }
-});
-
 window.onload = () => {
-    console.log('window.onload');
     checkDevice();
     initThree();
     updateUI();
