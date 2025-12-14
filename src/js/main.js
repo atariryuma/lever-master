@@ -3242,17 +3242,21 @@ function onResize() {
     const isSidebarLayout = w <= 900 && h <= 500 && isLandscape;
 
     let effectiveWidth, effectiveHeight, effectiveAspect;
+    let viewportX = 0;
 
     if (isSidebarLayout) {
         // サイドバーレイアウト: 左右54pxずつ引く
-        effectiveWidth = w - 108;
+        const sidebarWidth = 54;
+        effectiveWidth = w - sidebarWidth * 2;
         effectiveHeight = h;
         effectiveAspect = effectiveWidth / effectiveHeight;
+        viewportX = sidebarWidth; // 左サイドバー分オフセット
         camera.aspect = effectiveAspect;
     } else {
         effectiveWidth = w;
         effectiveHeight = h;
         effectiveAspect = aspect;
+        viewportX = 0;
         camera.aspect = aspect;
     }
 
@@ -3265,7 +3269,19 @@ function onResize() {
 
     cameraBaseZ = camera.position.z;
     camera.updateProjectionMatrix();
+
+    // レンダラーサイズとビューポート設定
     renderer.setSize(w, h);
+    if (isSidebarLayout) {
+        // サイドバーレイアウト時はビューポートを中央に設定
+        renderer.setViewport(viewportX, 0, effectiveWidth, effectiveHeight);
+        renderer.setScissor(viewportX, 0, effectiveWidth, effectiveHeight);
+        renderer.setScissorTest(true);
+    } else {
+        // 通常時はフルスクリーン
+        renderer.setViewport(0, 0, w, h);
+        renderer.setScissorTest(false);
+    }
 }
 
 // ==============================
@@ -3474,22 +3490,14 @@ function closeInstallGuide() {
 // スタート画面サウンドトグル
 // ==============================
 function toggleStartSound() {
-    if (!audioCtx) {
-        // 初回: オーディオ初期化してBGM開始
-        initAudio().then(() => {
-            isMuted = false;
-            updateStartSoundBtn();
-            updateHeaderSoundBtn();
-        });
-    } else {
-        // トグル
-        isMuted = !isMuted;
-        if (bgmGain) {
-            bgmGain.gain.value = isMuted ? 0 : CONFIG.BGM_VOLUME;
-        }
-        updateStartSoundBtn();
-        updateHeaderSoundBtn();
+    // スプラッシュ画面でオーディオは既に初期化済み
+    // ここでは単純にトグルのみ
+    isMuted = !isMuted;
+    if (bgmGain) {
+        bgmGain.gain.value = isMuted ? 0 : CONFIG.BGM_VOLUME;
     }
+    updateStartSoundBtn();
+    updateHeaderSoundBtn();
 }
 
 function updateStartSoundBtn() {
@@ -3513,28 +3521,44 @@ function updateHeaderSoundBtn() {
 // ==============================
 // 初期化
 // ==============================
-let audioInitAbortController = null;
+
+// スプラッシュ画面をタップして開始
+function dismissSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash || splash.classList.contains('hidden')) return;
+
+    // スプラッシュを非表示（フェードアウト）
+    splash.style.transition = 'opacity 0.3s ease-out';
+    splash.style.opacity = '0';
+    setTimeout(() => {
+        splash.classList.add('hidden');
+        splash.style.opacity = '';
+        splash.style.transition = '';
+    }, 300);
+
+    // オーディオを初期化してBGM開始
+    initAudio().then(() => {
+        isMuted = false;
+        updateStartSoundBtn();
+        updateHeaderSoundBtn();
+    });
+
+    // インストールガイドを表示
+    showInstallGuide();
+}
 
 window.onload = () => {
     checkDevice();
-    showInstallGuide();
     initThree();
     updateUI();
 
-    // iOS PWA用: 最初のタッチ/クリックで音声を有効化
-    // AbortControllerで両方のリスナーを一度に削除できるようにする
-    audioInitAbortController = new AbortController();
-    const signal = audioInitAbortController.signal;
+    // スプラッシュ画面のタップイベント
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.addEventListener('click', dismissSplash);
+        splash.addEventListener('touchstart', dismissSplash, { passive: true });
+    }
 
-    const handleAudioInit = () => {
-        initAudio();
-        // 両方のリスナーを削除
-        if (audioInitAbortController) {
-            audioInitAbortController.abort();
-            audioInitAbortController = null;
-        }
-    };
-
-    document.addEventListener('touchstart', handleAudioInit, { signal, passive: true });
-    document.addEventListener('click', handleAudioInit, { signal, passive: true });
+    // インストールガイドはスタート画面表示時に呼び出す
+    // （スプラッシュが消えた後に表示される）
 };

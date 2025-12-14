@@ -1043,6 +1043,133 @@ body {
     display: none; align-items: center; justify-content: center;
     z-index: 9999; color: #fff; font-size: 2rem;
 }
+
+/* ==============================
+   タップして開始スプラッシュ画面
+   ============================== */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2a 50%, #0a1a2a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.splash-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(ellipse at 30% 20%, rgba(0, 245, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 0, 255, 0.15) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.splash-screen.hidden {
+    display: none;
+}
+
+.splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    z-index: 1;
+    animation: splash-appear 0.6s ease-out;
+}
+
+@keyframes splash-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.splash-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(2rem, 8vw, 4rem);
+    font-weight: 900;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta), var(--neon-yellow));
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 3s ease infinite;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+}
+
+@keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.splash-subtitle {
+    font-family: 'Orbitron', sans-serif;
+    color: #666;
+    font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+    letter-spacing: 6px;
+    margin-bottom: clamp(30px, 8vh, 60px);
+}
+
+.splash-tap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 10px rgba(0, 245, 255, 0.5));
+    }
+    50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 25px rgba(0, 245, 255, 0.8));
+    }
+}
+
+.splash-tap-icon {
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    margin-bottom: 12px;
+    animation: bounce-tap 1.5s ease-in-out infinite;
+}
+
+@keyframes bounce-tap {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.splash-tap-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1rem, 3vw, 1.5rem);
+    font-weight: 700;
+    color: var(--neon-cyan);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px var(--neon-cyan);
+}
+
+.splash-hint {
+    margin-top: clamp(20px, 5vh, 40px);
+    font-size: clamp(0.7rem, 2vw, 0.9rem);
+    color: #666;
+    letter-spacing: 2px;
+}
 /* ==============================
    スタート画面: サウンドトグルボタン
    ============================== */
