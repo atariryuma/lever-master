@@ -3189,26 +3189,48 @@ function exitGame() {
     backToStart();
 }
 
-// カメラプリセット（画面サイズに応じてカメラを調整）
-// サイドバーレイアウト用プリセット（スマホ横画面: 左右50pxパネル）
-const CAMERA_PRESETS_SIDEBAR = [
-    { check: (h) => h < 350, z: 22, fov: 58, baseY: 4.5 },  // 超小型（iPhone SE等）
-    { check: (h) => h < 420, z: 20, fov: 55, baseY: 4.5 },  // 小型（iPhone標準）
-    { check: (h) => h < 500, z: 18, fov: 52, baseY: 5 },    // 通常
-    { check: () => true, z: 16, fov: 50, baseY: 5 }         // 大型
-];
+// ==============================
+// 動的カメラ計算（てこが画面に収まるよう自動調整）
+// ==============================
+const LEVER_WIDTH = 17;      // てこの幅（3D単位）
+const LEVER_HEIGHT = 8;      // てこ+おもりの高さ想定
+const CAMERA_PADDING = 1.15; // 余白係数（15%の余裕）
 
-// 通常レイアウト用プリセット
-const CAMERA_PRESETS_NORMAL = [
-    { check: (h, a) => h < 400 && a > 1.8, z: 10, fov: 42, baseY: 4 },  // スマホ横画面（小型）
-    { check: (h, a) => h < 500 && a > 1.5, z: 11, fov: 45, baseY: 4 },  // スマホ横画面（通常）
-    { check: (h, a) => a < 1, z: 17, fov: 48, baseY: 5 },               // 縦向き
-    { check: (h, a) => a < 1.35, z: 18, fov: 55, baseY: 5 },            // フォルダブル・正方形
-    { check: (h, a) => a < 1.5, z: 16, fov: 52, baseY: 5 },             // タブレット横向き（幅狭め）
-    { check: (h, a) => h < 700, z: 14, fov: 46, baseY: 5 },             // タブレット横向き（小）
-    { check: (h, a) => h < 900, z: 15, fov: 48, baseY: 5 },             // タブレット横向き（大）
-    { check: () => true, z: 14, fov: 50, baseY: 5 }                     // PC・大画面（デフォルト）
-];
+function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
+    // 基準FOV（度）
+    const baseFov = 50;
+    const fovRad = (baseFov * Math.PI) / 180;
+
+    // てこ全体が見える距離を計算
+    // 横方向: distance = (width/2) / tan(fov/2) / aspect
+    // 縦方向: distance = (height/2) / tan(fov/2)
+    const halfWidth = (LEVER_WIDTH * CAMERA_PADDING) / 2;
+    const halfHeight = (LEVER_HEIGHT * CAMERA_PADDING) / 2;
+
+    const distForWidth = halfWidth / Math.tan(fovRad / 2) / aspect;
+    const distForHeight = halfHeight / Math.tan(fovRad / 2);
+
+    // 大きい方を採用（両方が収まる距離）
+    let optimalZ = Math.max(distForWidth, distForHeight);
+
+    // 最小・最大制限
+    optimalZ = Math.max(10, Math.min(optimalZ, 25));
+
+    // 画面が小さい場合はFOVを広げて対応
+    let fov = baseFov;
+    if (effectiveHeight < 400) {
+        fov = 55; // 小さい画面は広角に
+        optimalZ *= 0.9;
+    } else if (effectiveHeight < 500) {
+        fov = 52;
+        optimalZ *= 0.95;
+    }
+
+    // カメラY位置（画面が小さいほど低めに）
+    const baseY = effectiveHeight < 400 ? 4 : 5;
+
+    return { z: optimalZ, fov, baseY };
+}
 
 function onResize() {
     const w = window.innerWidth;
@@ -3219,21 +3241,27 @@ function onResize() {
     const isLandscape = w > h;
     const isSidebarLayout = w <= 900 && h <= 500 && isLandscape;
 
-    let preset;
+    let effectiveWidth, effectiveHeight, effectiveAspect;
+
     if (isSidebarLayout) {
-        // サイドバーレイアウト: 実効幅は108px狭い（左右54pxずつ）
-        const effectiveWidth = w - 108;
-        const effectiveAspect = effectiveWidth / h;
+        // サイドバーレイアウト: 左右54pxずつ引く
+        effectiveWidth = w - 108;
+        effectiveHeight = h;
+        effectiveAspect = effectiveWidth / effectiveHeight;
         camera.aspect = effectiveAspect;
-        preset = CAMERA_PRESETS_SIDEBAR.find(p => p.check(h));
     } else {
+        effectiveWidth = w;
+        effectiveHeight = h;
+        effectiveAspect = aspect;
         camera.aspect = aspect;
-        preset = CAMERA_PRESETS_NORMAL.find(p => p.check(h, aspect));
     }
 
-    camera.position.z = preset.z;
-    camera.fov = preset.fov;
-    cameraBaseY = preset.baseY;
+    // 動的にカメラ設定を計算
+    const { z, fov, baseY } = calculateOptimalCamera(effectiveWidth, effectiveHeight, effectiveAspect);
+
+    camera.position.z = z;
+    camera.fov = fov;
+    cameraBaseY = baseY;
 
     cameraBaseZ = camera.position.z;
     camera.updateProjectionMatrix();
