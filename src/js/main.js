@@ -3190,7 +3190,16 @@ function exitGame() {
 }
 
 // カメラプリセット（画面サイズに応じてカメラを調整）
-const CAMERA_PRESETS = [
+// サイドバーレイアウト用プリセット（スマホ横画面: 左右50pxパネル）
+const CAMERA_PRESETS_SIDEBAR = [
+    { check: (h) => h < 350, z: 22, fov: 58, baseY: 4.5 },  // 超小型（iPhone SE等）
+    { check: (h) => h < 420, z: 20, fov: 55, baseY: 4.5 },  // 小型（iPhone標準）
+    { check: (h) => h < 500, z: 18, fov: 52, baseY: 5 },    // 通常
+    { check: () => true, z: 16, fov: 50, baseY: 5 }         // 大型
+];
+
+// 通常レイアウト用プリセット
+const CAMERA_PRESETS_NORMAL = [
     { check: (h, a) => h < 400 && a > 1.8, z: 10, fov: 42, baseY: 4 },  // スマホ横画面（小型）
     { check: (h, a) => h < 500 && a > 1.5, z: 11, fov: 45, baseY: 4 },  // スマホ横画面（通常）
     { check: (h, a) => a < 1, z: 17, fov: 48, baseY: 5 },               // 縦向き
@@ -3206,9 +3215,22 @@ function onResize() {
     const h = window.innerHeight;
     const aspect = w / h;
 
-    camera.aspect = aspect;
+    // サイドバーレイアウト判定（CSS: max-width:900px && max-height:500px && landscape）
+    const isLandscape = w > h;
+    const isSidebarLayout = w <= 900 && h <= 500 && isLandscape;
 
-    const preset = CAMERA_PRESETS.find(p => p.check(h, aspect));
+    let preset;
+    if (isSidebarLayout) {
+        // サイドバーレイアウト: 実効幅は108px狭い（左右54pxずつ）
+        const effectiveWidth = w - 108;
+        const effectiveAspect = effectiveWidth / h;
+        camera.aspect = effectiveAspect;
+        preset = CAMERA_PRESETS_SIDEBAR.find(p => p.check(h));
+    } else {
+        camera.aspect = aspect;
+        preset = CAMERA_PRESETS_NORMAL.find(p => p.check(h, aspect));
+    }
+
     camera.position.z = preset.z;
     camera.fov = preset.fov;
     cameraBaseY = preset.baseY;

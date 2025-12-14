@@ -1142,11 +1142,23 @@ body {
 
 /* ==============================
    スマホ横画面サイドバーレイアウト
-   - 縦幅を最大限活用
-   - ヘッダー→左、フッター→右
+   ベストプラクティス適用:
+   - タッチターゲット44px以上（W3C推奨）
+   - 情報の優先順位付け
+   - 視覚的階層の明確化
+   - 親指操作に最適化
    ============================== */
 @media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
-    /* ヘッダー → 左サイドバー */
+    /* CSS変数: サイドパネル幅を調整 */
+    :root {
+        --side-panel-width: 54px;
+    }
+
+    /* ==============================
+       左サイドバー（ヘッダー）
+       - タイトル非表示でアイコンのみ
+       - 大きなタッチターゲット
+       ============================== */
     .header {
         top: 0;
         left: 0;
@@ -1155,35 +1167,46 @@ body {
         width: var(--side-panel-width);
         height: 100%;
         flex-direction: column;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
-        padding: 8px 4px;
+        padding: 8px 6px;
         border-bottom: none;
-        border-right: 2px solid rgba(0, 245, 255, 0.4);
-        background: linear-gradient(90deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%);
+        border-right: 1px solid rgba(0, 245, 255, 0.3);
+        background: linear-gradient(90deg, rgba(10,10,26,0.95) 0%, rgba(10,10,26,0.7) 100%);
     }
 
+    /* タイトル非表示（スペース節約） */
     .game-title {
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-        font-size: 0.55rem;
-        letter-spacing: 1px;
-        margin-bottom: 8px;
+        display: none;
     }
 
     .header-icons {
         flex-direction: column;
-        gap: 6px;
-        margin-top: auto;
+        gap: 10px;
     }
 
+    /* タッチターゲット44px以上確保 */
     .header-icon {
-        width: 28px;
-        height: 28px;
-        font-size: 0.85rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    /* フッター → 右サイドバー */
+    .header-icon:active {
+        transform: scale(0.92);
+        background: rgba(255,255,255,0.15);
+    }
+
+    /* ==============================
+       右サイドバー（ゲーム情報）
+       - 重要情報を上部に配置
+       - 視覚的階層を明確化
+       ============================== */
     .bottom-panel {
         top: 0;
         right: 0;
@@ -1192,104 +1215,171 @@ body {
         width: var(--side-panel-width);
         height: 100%;
         border-top: none;
-        border-left: 2px solid rgba(255, 0, 255, 0.4);
-        background: linear-gradient(270deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 100%);
-        padding: 6px 4px;
+        border-left: 1px solid rgba(255, 0, 255, 0.3);
+        background: linear-gradient(270deg, rgba(10,10,26,0.95) 0%, rgba(10,10,26,0.7) 100%);
+        padding: 10px 6px;
     }
 
     .game-bar {
         flex-direction: column;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
-        gap: 4px;
+        gap: 0;
         height: 100%;
         padding: 0;
     }
 
+    /* バランスアイコンを最上部に（最重要情報） */
+    .balance-icon {
+        font-size: 1.6rem;
+        order: -2;
+        padding: 4px;
+        border-radius: 8px;
+        background: rgba(0,0,0,0.3);
+    }
+
+    /* モーメント表示をコンパクトに */
     .moment-group {
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
-        gap: 1px;
+        gap: 2px;
+        background: rgba(0,0,0,0.4);
+        padding: 4px 6px;
+        border-radius: 6px;
+        order: -1;
     }
 
     .moment-label {
-        font-size: 0.5rem;
+        font-size: 0.55rem;
+        font-weight: 700;
     }
 
     .moment {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         min-width: unset;
-    }
-
-    .balance-icon {
-        font-size: 1rem;
+        font-weight: 900;
     }
 
     .divider {
         display: none;
     }
 
+    /* フェーズバッジ: 横書きでコンパクト */
     .phase-badge {
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
+        writing-mode: horizontal-tb;
         font-size: 0.5rem;
-        padding: 6px 3px;
+        padding: 6px 4px;
         letter-spacing: 0;
+        border-radius: 6px;
+        text-align: center;
+        line-height: 1.2;
+        max-width: 100%;
     }
 
+    /* アクションボタン: 大きなタッチターゲット */
     .action-btn {
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-        font-size: 0.45rem;
-        padding: 6px 3px;
+        writing-mode: horizontal-tb;
+        font-size: 0.6rem;
+        padding: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.08);
     }
 
-    /* Canvas位置調整 */
+    .action-btn:active {
+        transform: scale(0.92);
+    }
+
+    /* ==============================
+       ゲームエリア調整
+       ============================== */
     #game-canvas {
         left: var(--side-panel-width);
         right: var(--side-panel-width);
         width: calc(100% - var(--side-panel-width) * 2);
     }
 
-    /* プレイヤーパネル位置調整 */
+    /* ==============================
+       プレイヤーパネル
+       - 画面上部中央に横並び
+       - 最小限の情報表示
+       ============================== */
     .players-row {
-        top: 6px;
+        top: 4px;
         left: calc(var(--side-panel-width) + (100% - var(--side-panel-width) * 2) / 2);
-        gap: 3px;
+        gap: 4px;
+        background: rgba(0,0,0,0.5);
+        padding: 3px 8px;
+        border-radius: 16px;
     }
 
     .player-panel {
-        padding: 2px 5px;
-        gap: 3px;
-        font-size: 0.55rem;
-        border-radius: 8px;
+        padding: 3px 6px;
+        gap: 4px;
+        font-size: 0.6rem;
+        border-radius: 10px;
+        border-width: 1.5px;
     }
 
-    .p-icon { font-size: 0.7rem; }
-    .p-name { font-size: 0.5rem; }
-    .p-stock { font-size: 0.5rem; }
-    .p-pts { font-size: 0.5rem; }
-    .dot { width: 5px; height: 5px; }
+    /* アクティブプレイヤーを強調 */
+    .player-panel.active {
+        transform: scale(1.08);
+        box-shadow: 0 0 12px currentColor;
+    }
 
-    /* ゲームヒント位置調整 */
+    .p-icon { font-size: 0.8rem; }
+    .p-name { font-size: 0.55rem; font-weight: 700; }
+    .p-stock { font-size: 0.55rem; }
+    .p-pts { font-size: 0.55rem; font-weight: 700; }
+    .dot { width: 6px; height: 6px; }
+
+    /* ==============================
+       ゲームヒント
+       - 画面下部中央に配置
+       - 視認性向上
+       ============================== */
     .game-hint {
-        bottom: auto;
-        top: 50%;
+        bottom: 8px;
+        top: auto;
         left: calc(var(--side-panel-width) + (100% - var(--side-panel-width) * 2) / 2);
-        transform: translate(-50%, -50%);
-        max-width: 60vw;
+        transform: translateX(-50%);
+        max-width: 55vw;
+        padding: 8px 14px;
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
     }
 
-    .hint-text { font-size: 0.7rem; }
-    .hint-sub { font-size: 0.55rem; }
+    .hint-text { font-size: 0.75rem; }
+    .hint-sub { font-size: 0.6rem; }
+    .hint-close {
+        width: 24px;
+        height: 24px;
+        top: -10px;
+        right: -10px;
+    }
 
-    /* ルーレットオーバーレイ調整 */
-    .roulette-title { font-size: 1.2rem; margin-bottom: 15px; }
-    .roulette-wheel { gap: 15px; margin-bottom: 20px; }
-    .roulette-player { width: 50px; height: 65px; font-size: 1.3rem; }
-    .roulette-player-name { font-size: 0.6rem; margin-top: 4px; }
-    .roulette-result { font-size: 1rem; }
-    .roulette-order { font-size: 0.75rem; margin-top: 10px; }
+    /* ==============================
+       モーダル・オーバーレイ調整
+       ============================== */
+    .roulette-title { font-size: 1.1rem; margin-bottom: 12px; }
+    .roulette-wheel { gap: 12px; margin-bottom: 16px; }
+    .roulette-player { width: 48px; height: 60px; font-size: 1.2rem; border-radius: 12px; }
+    .roulette-player-name { font-size: 0.55rem; margin-top: 3px; }
+    .roulette-result { font-size: 0.9rem; }
+    .roulette-order { font-size: 0.7rem; margin-top: 8px; }
+
+    /* ヘルプ・学習モーダルのパディング調整 */
+    .help-modal, .learn-modal {
+        padding: 12px;
+    }
+    .help-content, .learn-content {
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+    }
 }
 
 /* スマホ横画面サイドバー: セーフエリア対応 */
