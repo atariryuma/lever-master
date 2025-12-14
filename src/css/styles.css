@@ -222,9 +222,10 @@ body {
     left: var(--safe-left);
     right: var(--safe-right);
     bottom: var(--safe-bottom);
-    /* 幅と高さはauto（top/left/right/bottomで決定） */
-    width: auto;
-    height: auto;
+    /* 幅と高さを明示的に指定（canvas要素には必須） */
+    width: calc(100vw - var(--safe-left) - var(--safe-right));
+    height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+    /* canvas属性のサイズはJSで設定するため、CSSで見た目のみ制御 */
     z-index: 10;
 }
 

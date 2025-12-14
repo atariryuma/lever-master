@@ -679,31 +679,44 @@ function initThree() {
     threeInitialized = true;
 
     const canvas = document.getElementById('game-canvas');
+    if (!canvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
 
-    // キャンバスの実際の表示サイズを取得（CSSで設定されたサイズ）
-    // iOS PWAではviewport-fit=coverにより、safe-areaを考慮したサイズになる
+    // キャンバスの実際の表示サイズを取得
+    // CSSが適用される前はデフォルト値(300x150)になるので、window sizeを使用
     const rect = canvas.getBoundingClientRect();
     let w = rect.width;
     let h = rect.height;
 
-    // サイズが0の場合はフォールバック（初期ロード時のタイミング問題対策）
-    if (w === 0 || h === 0) {
+    // CSSデフォルト値(300x150)または異常に小さい場合はwindow sizeを使用
+    if (w <= 300 || h <= 150) {
         w = window.innerWidth;
         h = window.innerHeight;
     }
+
+    const pixelRatio = Math.min(window.devicePixelRatio, 2);
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a2040);
 
     addBackgroundParticles();
 
-    camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
-    camera.position.set(0, 5, 16);
-    camera.lookAt(0, 0, 0);
+    // 画面サイズに応じた最適なカメラ設定を計算
+    const aspect = w / h;
+    const { z: optZ, fov: optFov, baseY: optY } = calculateOptimalCamera(w, h, aspect);
 
+    camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
+    camera.position.set(0, optY, optZ);
+    camera.lookAt(0, 0, 0);
+    cameraBaseY = optY;
+    cameraBaseZ = optZ;
+
+    // Three.jsにcanvasサイズの管理を任せる（updateStyle=trueで）
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(w, h, false);  // CSSサイズを変更しない
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(w, h, true);  // updateStyle=true でCSSも更新
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -858,6 +871,18 @@ function initThree() {
     canvas.addEventListener('pointerup', onPointerUp, { passive: false });
     canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
     window.addEventListener('resize', onResize, { passive: true });
+
+    // 全画面切り替え時にリサイズ処理とボタン更新
+    document.addEventListener('fullscreenchange', () => {
+        setTimeout(onResize, 100);
+        setTimeout(onResize, 300);
+        updateFullscreenBtn();
+    }, { passive: true });
+    document.addEventListener('webkitfullscreenchange', () => {
+        setTimeout(onResize, 100);
+        setTimeout(onResize, 300);
+        updateFullscreenBtn();
+    }, { passive: true });
 
     // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
     // window.resizeだけでは検知できないケースに対応
@@ -2968,15 +2993,46 @@ function generateLeverStateHtml() {
 }
 
 // ==============================
+// フルスクリーン切り替え（ユーザー操作で呼び出し）
+// ==============================
+function toggleFullscreen() {
+    const el = document.documentElement;
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (isFullscreen) {
+        // フルスクリーン解除
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    } else {
+        // フルスクリーン開始
+        if (el.requestFullscreen) {
+            el.requestFullscreen().catch(() => {});
+        } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+        }
+    }
+    playSound('click');
+}
+
+// フルスクリーンボタンのアイコン更新
+function updateFullscreenBtn() {
+    const btn = document.getElementById('fullscreen-btn');
+    if (!btn) return;
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    btn.textContent = isFullscreen ? '⛶' : '⛶';  // 同じアイコン（状態はCSSで管理も可）
+    btn.title = isFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+}
+
+// ==============================
 // ゲーム開始
 // ==============================
 async function startGame(mode) {
     await initAudio();  // 音声アンロック完了を待つ
     playSound('click');
-    // 全画面化（対応ブラウザのみ）
-    const el = document.documentElement;
-    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    // 自動フルスクリーンは削除（ベストプラクティスに従いユーザー操作で切り替え）
     startGameInternal(mode);
 }
 
@@ -3224,7 +3280,7 @@ function exitGame() {
 // ==============================
 const LEVER_WIDTH = 17;      // てこの幅（3D単位）
 const LEVER_HEIGHT = 8;      // てこ+おもりの高さ想定
-const CAMERA_PADDING = 1.15; // 余白係数（15%の余裕）
+const CAMERA_PADDING = 1.05; // 余白係数（5%の余裕に縮小してテコを大きく表示）
 
 function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     // 基準FOV（度）
@@ -3306,13 +3362,17 @@ function onResize() {
     const canvas = document.getElementById('game-canvas');
     if (!canvas) return;
 
-    // キャンバスの実際の表示サイズを取得（CSSで設定されたサイズ）
-    const rect = canvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
+    // 全画面時はscreen sizeを使用、それ以外はwindow sizeを使用
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    let w, h;
 
-    // サイズが0の場合はスキップ
-    if (w === 0 || h === 0) return;
+    if (isFullscreen) {
+        w = screen.width;
+        h = screen.height;
+    } else {
+        w = window.innerWidth;
+        h = window.innerHeight;
+    }
 
     const aspect = w / h;
 
@@ -3329,13 +3389,10 @@ function onResize() {
     cameraBaseZ = camera.position.z;
     camera.updateProjectionMatrix();
 
-    // レンダラーサイズをキャンバスの表示サイズに合わせる
-    // setSize(w, h, false)でCSSサイズを変更しない
-    renderer.setSize(w, h, false);
-
-    // ビューポート/シザーはフルキャンバス（CSSで既に配置済み）
-    renderer.setViewport(0, 0, w, h);
-    renderer.setScissorTest(false);
+    // Three.jsにサイズ管理を任せる
+    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(w, h, true);
 }
 
 // ==============================

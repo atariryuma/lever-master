@@ -1,8 +1,10 @@
 // LEVER MASTER Service Worker
-// Version 1.0.3
+// Version 1.0.4
 
-const CACHE_NAME = 'lever-master-v4';
-const BASE_PATH = '/lever-master';
+const CACHE_NAME = 'lever-master-v14';
+
+// Detect base path dynamically (works for both local and GitHub Pages)
+const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 
 const ASSETS_TO_CACHE = [
     `${BASE_PATH}/`,
@@ -96,7 +98,7 @@ self.addEventListener('fetch', (event) => {
                                     });
                                 }
                             })
-                            .catch(() => {});
+                            .catch(() => { });
                     }
                     return cachedResponse;
                 }
