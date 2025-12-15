@@ -405,12 +405,16 @@ function startBGM() {
 }
 
 // BGMループを停止（ページ離脱時などに使用）
+// eslint-disable-next-line no-unused-vars -- Used in page unload cleanup
 function stopBGM() {
     if (bgmLoopTimeoutId) {
         clearTimeout(bgmLoopTimeoutId);
         bgmLoopTimeoutId = null;
     }
 }
+
+// ページ離脱時にBGMを停止（メモリリーク防止）
+window.addEventListener('beforeunload', stopBGM);
 
 // タイムアウト管理用ヘルパー（Set使用でO(1)操作）
 function createTimeoutSetter(idSet) {
@@ -589,6 +593,7 @@ function playSound(type) {
     }
 }
 
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function toggleSound() {
     isMuted = !isMuted;
     if (bgmGain) {
@@ -2946,7 +2951,7 @@ function updateUI() {
     const playerNames = { blue: 'P1', yellow: 'P2', red: 'P3', green: 'P4' };
     const points = calcPlayerPoints();
 
-    PLAYER_ORDER.forEach((player, idx) => {
+    PLAYER_ORDER.forEach((player, _idx) => {
         const panel = document.getElementById(`panel-${player}`);
         const stockEl = document.getElementById(`stock-${player}`);
         const pointsEl = document.getElementById(`points-${player}`);
@@ -2985,8 +2990,79 @@ function updateUI() {
 }
 
 // ==============================
+// ゲーム終了処理 - ヘルパー関数群（SRP適用）
+// ==============================
+
+/**
+ * ポイントランキングHTML生成
+ * @param {Object.<string, number>} points - プレイヤーごとのポイント
+ * @param {string[]} activePlayers - アクティブなプレイヤーリスト
+ * @returns {string} ランキングHTML
+ */
+function generatePointsRankingHtml(points, activePlayers) {
+    const sortedPlayers = [...activePlayers].sort((a, b) => points[b] - points[a]);
+
+    let html = '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin:12px 0;">';
+    html += '<div style="font-size:0.85rem;color:#aaa;margin-bottom:8px;">🏅 ポイントランキング</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+
+    sortedPlayers.forEach((player, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+        const meta = PLAYER_META[player];
+        const pt = points[player];
+        html += `<div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:24px;">${medal}</span>
+            <span style="color:${meta.cssColor};font-weight:700;width:40px;">${meta.displayName}</span>
+            <span style="font-family:'Orbitron',sans-serif;color:var(--neon-green);">${pt} PT</span>
+        </div>`;
+    });
+
+    html += '</div></div>';
+    return html;
+}
+
+/**
+ * 勝利/敗北エフェクトを再生
+ * @param {boolean} isWin - 勝利かどうか
+ * @param {number} impactIntensity - インパクトの強度
+ */
+function playEndGameEffects(isWin, impactIntensity = 150) {
+    if (isWin) {
+        showScreenFlash('win');
+        playSound('win');
+        createConfetti(CONFIG.CONFETTI_COUNT);
+        triggerImpactPause(impactIntensity);
+    } else {
+        showScreenFlash('lose');
+        playSound('gameover');
+        triggerImpactPause(impactIntensity);
+    }
+}
+
+/**
+ * バランス情報HTMLを生成
+ * @param {number} leftMoment - 左側モーメント
+ * @param {number} rightMoment - 右側モーメント
+ * @returns {string} バランス情報HTML
+ */
+function generateBalanceInfoHtml(leftMoment, rightMoment) {
+    return `<div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
+        <div style="font-size:0.8rem;color:#ffff00;">⚖️ 最終バランス</div>
+        <div style="display:flex;justify-content:center;gap:16px;font-family:'Orbitron',sans-serif;font-size:0.85rem;">
+            <span style="color:#00f5ff;">L: ${leftMoment}</span>
+            <span style="color:#ffff00;">=</span>
+            <span style="color:#ff5577;">R: ${rightMoment}</span>
+        </div>
+    </div>`;
+}
+
+// ==============================
 // ゲーム制御
 // ==============================
+/**
+ * ゲーム終了処理のメイン関数
+ * @param {string} winner - 勝者（'blue', 'yellow', 'red', 'green', 'draw'）
+ */
 function endGame(winner) {
     game.isOver = true;
     hideHint();
@@ -3007,34 +3083,9 @@ function endGame(winner) {
 
     // てこの状態を生成（学習用）
     const leverStateHtml = generateLeverStateHtml();
-
     const humanPlayers = PLAYER_ORDER.slice(0, game.humanCount);
-
-    // ポイントランキングHTML生成
-    function generatePointsRankingHtml() {
-        const activePlayers = game.activePlayers;
-        const sortedPlayers = [...activePlayers].sort((a, b) => points[b] - points[a]);
-
-        let html = '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin:12px 0;">';
-        html += '<div style="font-size:0.85rem;color:#aaa;margin-bottom:8px;">🏅 ポイントランキング</div>';
-        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-
-        sortedPlayers.forEach((player, idx) => {
-            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-            const meta = PLAYER_META[player];
-            const pt = points[player];
-            html += `<div style="display:flex;align-items:center;gap:8px;">
-                <span style="width:24px;">${medal}</span>
-                <span style="color:${meta.cssColor};font-weight:700;width:40px;">${meta.displayName}</span>
-                <span style="font-family:'Orbitron',sans-serif;color:var(--neon-green);">${pt} PT</span>
-            </div>`;
-        });
-
-        html += '</div></div>';
-        return html;
-    }
-
-    const pointsHtml = generatePointsRankingHtml();
+    const pointsHtml = generatePointsRankingHtml(points, game.activePlayers);
+    const balanceHtml = generateBalanceInfoHtml(leftMoment, rightMoment);
 
     // てこを元に戻す（傾かせない）
     targetLeverAngle = 0;
@@ -3057,9 +3108,7 @@ function endGame(winner) {
                 ${pointsHtml}
                 ${leverStateHtml}
             `;
-            showScreenFlash('lose');
-            playSound('gameover');
-            triggerImpactPause(100);
+            playEndGameEffects(false, 100);
         } else {
             // 人間プレイヤーが残っている → 通常のポイント勝負
             const sortedPlayers = [...game.activePlayers].sort((a, b) => points[b] - points[a]);
@@ -3085,20 +3134,10 @@ function endGame(winner) {
                             <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
                         </div>
                         ${pointsHtml}
-                        <div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
-                            <div style="font-size:0.8rem;color:#ffff00;">⚖️ 最終バランス</div>
-                            <div style="display:flex;justify-content:center;gap:16px;font-family:'Orbitron',sans-serif;font-size:0.85rem;">
-                                <span style="color:#00f5ff;">L: ${leftMoment}</span>
-                                <span style="color:#ffff00;">=</span>
-                                <span style="color:#ff5577;">R: ${rightMoment}</span>
-                            </div>
-                        </div>
+                        ${balanceHtml}
                         ${leverStateHtml}
                     `;
-                    showScreenFlash('win');
-                    playSound('win');
-                    createConfetti(50);
-                    triggerImpactPause(150);
+                    playEndGameEffects(true, 150);
                 } else {
                     // CPUがポイント1位で勝利 = プレイヤー負け（でも最後までバランスは保った）
                     icon.textContent = '💀';
@@ -3112,19 +3151,10 @@ function endGame(winner) {
                             <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
                     </div>
                     ${pointsHtml}
-                    <div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
-                        <div style="font-size:0.8rem;color:#ffff00;">⚖️ 最終バランス</div>
-                        <div style="display:flex;justify-content:center;gap:16px;font-family:'Orbitron',sans-serif;font-size:0.85rem;">
-                            <span style="color:#00f5ff;">L: ${leftMoment}</span>
-                            <span style="color:#ffff00;">=</span>
-                            <span style="color:#ff5577;">R: ${rightMoment}</span>
-                        </div>
-                    </div>
+                    ${balanceHtml}
                     ${leverStateHtml}
                 `;
-                showScreenFlash('lose');
-                playSound('gameover');
-                triggerImpactPause(100);
+                playEndGameEffects(false, 100);
             }
         } else {
             // ポイントも同点 → 完全引き分け
@@ -3136,14 +3166,7 @@ function endGame(winner) {
             detail.innerHTML = `
                 <div style="margin-bottom:12px;">最後までバランスキープ！ポイントも同点！</div>
                 ${pointsHtml}
-                <div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
-                    <div style="font-size:0.8rem;color:#ffff00;">⚖️ 最終バランス</div>
-                    <div style="display:flex;justify-content:center;gap:16px;font-family:'Orbitron',sans-serif;font-size:0.85rem;">
-                        <span style="color:#00f5ff;">L: ${leftMoment}</span>
-                        <span style="color:#ffff00;">=</span>
-                        <span style="color:#ff5577;">R: ${rightMoment}</span>
-                    </div>
-                </div>
+                ${balanceHtml}
                 ${leverStateHtml}
             `;
             showScreenFlash('win');
@@ -3164,9 +3187,7 @@ function endGame(winner) {
             ${pointsHtml}
             ${leverStateHtml}
         `;
-        showScreenFlash('lose');
-        playSound('gameover');
-        triggerImpactPause(100);
+        playEndGameEffects(false, 100);
     } else {
         // 勝者あり（他プレイヤー脱落）
         const winnerMeta = PLAYER_META[winner];
@@ -3186,10 +3207,7 @@ function endGame(winner) {
                 ${pointsHtml}
                 ${leverStateHtml}
             `;
-            showScreenFlash('win');
-            playSound('win');
-            createConfetti(50);
-            triggerImpactPause(150);  // 勝利時のインパクトポーズ
+            playEndGameEffects(true, 150);
         } else {
             icon.textContent = '💀';
             title.textContent = 'GAME OVER';
@@ -3202,9 +3220,7 @@ function endGame(winner) {
                 ${pointsHtml}
                 ${leverStateHtml}
             `;
-            showScreenFlash('lose');
-            playSound('gameover');
-            triggerImpactPause(100);  // ゲームオーバー時のインパクトポーズ
+            playEndGameEffects(false, 100);
         }
     }
 
@@ -3272,6 +3288,7 @@ function generateLeverStateHtml() {
 // ==============================
 // ゲーム開始
 // ==============================
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attributes
 function startGame(mode) {
     playSound('click');
     startGameInternal(mode);
@@ -3496,9 +3513,13 @@ function toggleModal(modalId, show) {
     if (modal) modal.classList.toggle('hidden', !show);
 }
 
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function openHelp() { toggleModal('help-modal', true); }
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function closeHelp() { toggleModal('help-modal', false); }
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function openLearn() { toggleModal('learn-modal', true); }
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function closeLearn() { toggleModal('learn-modal', false); }
 function closeExitModal() { toggleModal('exit-modal', false); }
 
@@ -3509,6 +3530,7 @@ function confirmExit() {
     toggleModal('exit-modal', true);
 }
 
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function exitGame() {
     closeExitModal();
     game.isOver = true;
@@ -3924,6 +3946,7 @@ function showInstallGuide() {
     }
 }
 
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function closeInstallGuide() {
     const guide = document.getElementById('install-guide');
     if (guide) guide.style.display = 'none';
@@ -3933,6 +3956,7 @@ function closeInstallGuide() {
 // ==============================
 // スタート画面サウンドトグル
 // ==============================
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function toggleStartSound() {
     // スプラッシュ画面でオーディオは既に初期化済み
     // ここでは単純にトグルのみ
@@ -3969,6 +3993,7 @@ function updateHeaderSoundBtn() {
 // スプラッシュ画面をタップして開始
 let splashDismissed = false;
 
+// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
 function dismissSplash(event) {
     // イベント伝播を防止（touchstart/clickの重複発火を防ぐ）
     if (event) {

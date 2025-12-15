@@ -15,4 +15,5 @@ appsscript.json
 
 # Node
 node_modules/
+coverage/
 
