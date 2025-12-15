@@ -710,12 +710,10 @@ function initThree() {
     const { z: optZ, fov: optFov, baseY: optY } = calculateOptimalCamera(w, h, aspect);
 
     camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
-    // ベストプラクティス: カメラを少し斜めに配置して奥行きを強調
-    // X方向に2ユニットずらすことで立体感が向上
-    camera.position.set(2, optY, optZ);
-    // ベストプラクティス: ゲームエリアの中心を見る
-    // ストックおもり(Y=2.5)とおもり下部(Y=-6)の中心: Y≈-1.5
-    camera.lookAt(0, -1.5, 0);
+    // 操作性と学習効果重視: 真正面から見下ろす角度（立体感はライティングで確保）
+    camera.position.set(0, optY, optZ);
+    // てこの原理を理解しやすい視点: 支点付近を見る
+    camera.lookAt(0, -0.5, 0);
     cameraBaseY = optY;
     cameraBaseZ = optZ;
 
@@ -3375,12 +3373,12 @@ function onResize() {
     // 動的にカメラ設定を計算
     const { z, fov, baseY } = calculateOptimalCamera(w, h, aspect);
 
-    camera.position.x = 2;  // ベストプラクティス: 立体感のため斜めに配置
+    camera.position.x = 0;  // 操作性重視: 真正面から
     camera.position.z = z;
     camera.position.y = baseY;  // カメラのY位置も更新
     camera.fov = fov;
-    // ベストプラクティス: ゲームエリアの中心を見る
-    camera.lookAt(0, -1.5, 0);
+    // てこの原理を理解しやすい視点: 支点付近を見る
+    camera.lookAt(0, -0.5, 0);
     cameraBaseY = baseY;
 
     cameraBaseZ = camera.position.z;
@@ -3414,19 +3412,37 @@ function animate() {
     // インパクトポーズ中は物理演算をスキップ（描画は継続）
     const isPaused = Date.now() < impactPauseUntil;
 
-    // 動的カメラ調整：最大スタック数に応じてズームアウト
+    // 動的カメラ調整: ゲーム状況に応じて最適な画角を計算
+    // おもりの配置範囲とてこの傾きを考慮
     let maxStack = 0;
+    let minY = 0;  // おもりの最下点
+    let maxAbsX = 0;  // てこの最大X範囲
+
     for (let i = 0; i < allPositions.length; i++) {
         const stack = game.leverData[allPositions[i]];
-        if (stack && stack.length > maxStack) maxStack = stack.length;
+        if (stack && stack.length > 0) {
+            maxStack = Math.max(maxStack, stack.length);
+            // おもりの最下点を計算（スタック数 × おもりサイズ）
+            const stackDepth = stack.length * 0.9;
+            minY = Math.min(minY, -stackDepth - 0.5);
+            // てこの傾きを考慮した横幅
+            const pos = parseInt(allPositions[i], 10);
+            maxAbsX = Math.max(maxAbsX, Math.abs(pos));
+        }
     }
-    const extra = Math.max(0, maxStack - 3);
-    const targetY = cameraBaseY - extra * 0.4;
-    const targetZ = cameraBaseZ + extra * 1.5;
 
-    // スムーズなカメラ移動
-    camera.position.z += (targetZ - camera.position.z) * 0.05;
-    const smoothY = camera.position.y + (targetY - camera.position.y) * 0.05;
+    // カメラ距離: おもりが多いほど引く
+    const extraZ = Math.max(0, maxStack - 3) * 1.2;
+    const targetZ = cameraBaseZ + extraZ;
+
+    // カメラ高さ: おもりの範囲を見やすく
+    // 視点の中心をゲームアクション（Y=-1～-3付近）に合わせる
+    const extraY = Math.max(0, maxStack - 3) * 0.3;
+    const targetY = cameraBaseY - extraY;
+
+    // スムーズなカメラ移動（滑らかに追従）
+    camera.position.z += (targetZ - camera.position.z) * 0.08;
+    const smoothY = camera.position.y + (targetY - camera.position.y) * 0.08;
 
     // カメラシェイク
     if (cameraShake.intensity > 0.01) {
@@ -3438,13 +3454,15 @@ function animate() {
         cameraShake.y = 0;
     }
 
-    // 最終位置 = ベース位置 + スムーズ移動 + シェイク
-    // ベストプラクティス: X=2で立体感を出す
-    camera.position.x = 2 + cameraShake.x;
+    // 最終位置 = スムーズ移動 + シェイク
+    // 操作性重視: 真正面から見下ろす（立体感はライティングで確保）
+    camera.position.x = cameraShake.x;
     camera.position.y = smoothY + cameraShake.y;
 
-    // ベストプラクティス: カメラ位置更新後にlookAtを更新
-    camera.lookAt(0, -1.5, 0);
+    // 動的lookAtターゲット: ゲーム状況に応じて視点を調整
+    // おもりが多い場合は少し下を見る（操作しやすく）
+    const lookAtY = maxStack > 3 ? -1.5 : -0.5;
+    camera.lookAt(0, lookAtY, 0);
 
     // ストックおもりパルス（キャッシュ配列を使用）
     const t = Date.now() * 0.003;
