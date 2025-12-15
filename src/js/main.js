@@ -711,7 +711,8 @@ function initThree() {
 
     camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
     camera.position.set(0, optY, optZ);
-    camera.lookAt(0, 0, 0);
+    // ベストプラクティス: おもりとてこの中間点を見下ろす角度
+    camera.lookAt(0, -2, 0);
     cameraBaseY = optY;
     cameraBaseZ = optZ;
 
@@ -3297,19 +3298,19 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     }
 
     // カメラY位置の最適化
-    // ゲームの特性: おもりは支点より下（Y < 0）に吊るされる
+    // ベストプラクティス: 斜め上から見下ろす角度で立体感を出す
     // 視覚範囲: てこの上端（Y≈0.6）からおもりの下部（Y≈-6）まで
-    // 理想的な中心: おもりが見える位置（Y = -1 ～ 0）
+    // lookAtターゲット: おもりとてこの中間点（Y≈-2）
     let baseY;
     if (isLandscapeMobile) {
-        // スマホ横画面: おもりをしっかり見せるため低めに
-        baseY = isUltraWide ? -0.5 : 0;
+        // スマホ横画面: コンパクトな見下ろし角度
+        baseY = isUltraWide ? 2.5 : 3;
     } else if (effectiveHeight < 500) {
-        // 小さい画面: おもりが見えるように低めに
-        baseY = 0;
+        // 小さい画面: 適度な見下ろし角度
+        baseY = 3;
     } else {
-        // デスクトップ: おもり全体が見える高さ
-        baseY = 1;
+        // デスクトップ: ゆったりとした見下ろし角度
+        baseY = 4;
     }
 
     return { z: optimalZ, fov, baseY };
@@ -3344,6 +3345,8 @@ function onResize() {
     camera.position.z = z;
     camera.position.y = baseY;  // カメラのY位置も更新
     camera.fov = fov;
+    // ベストプラクティス: おもりとてこの中間点を見下ろす角度
+    camera.lookAt(0, -2, 0);
     cameraBaseY = baseY;
 
     cameraBaseZ = camera.position.z;
@@ -3381,12 +3384,14 @@ function animate() {
         if (stack && stack.length > maxStack) maxStack = stack.length;
     }
     const extra = Math.max(0, maxStack - 3);
-    const targetZ = cameraBaseZ + extra * 1.5;
     const targetY = cameraBaseY - extra * 0.4;
-    camera.position.z += (targetZ - camera.position.z) * 0.05;
-    camera.position.y += (targetY - camera.position.y) * 0.05;
+    const targetZ = cameraBaseZ + extra * 1.5;
 
-    // カメラシェイク（cameraBaseYはonResizeで設定済み）
+    // スムーズなカメラ移動
+    camera.position.z += (targetZ - camera.position.z) * 0.05;
+    const smoothY = camera.position.y + (targetY - camera.position.y) * 0.05;
+
+    // カメラシェイク
     if (cameraShake.intensity > 0.01) {
         cameraShake.x = (Math.random() - 0.5) * cameraShake.intensity;
         cameraShake.y = (Math.random() - 0.5) * cameraShake.intensity;
@@ -3395,8 +3400,13 @@ function animate() {
         cameraShake.x = 0;
         cameraShake.y = 0;
     }
+
+    // 最終位置 = スムーズ移動 + シェイク
     camera.position.x = cameraShake.x;
-    camera.position.y = cameraBaseY + cameraShake.y;
+    camera.position.y = smoothY + cameraShake.y;
+
+    // ベストプラクティス: カメラ位置更新後にlookAtを更新
+    camera.lookAt(0, -2, 0);
 
     // ストックおもりパルス（キャッシュ配列を使用）
     const t = Date.now() * 0.003;
