@@ -202,9 +202,40 @@ class PerformanceMonitor {
 // シングルトンインスタンスを作成
 const monitor = new PerformanceMonitor();
 
-// デバッグ用にウィンドウオブジェクトに公開
+// URLパラメータで有効/無効を切り替え
+// 例: ?perfmon=1 で有効化
 if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const enableParam = urlParams.get('perfmon');
+
+    // デフォルトは無効、?perfmon=1 または localStorage設定で有効化
+    const enabledByUrl = enableParam === '1' || enableParam === 'true';
+    const enabledByStorage = localStorage.getItem('perfmon-enabled') === '1';
+
+    monitor.setEnabled(enabledByUrl || enabledByStorage);
+
+    // デバッグ用にウィンドウオブジェクトに公開
     window.perfMonitor = monitor;
+
+    // 便利なコンソールコマンド
+    window.enablePerfMon = () => {
+        localStorage.setItem('perfmon-enabled', '1');
+        monitor.setEnabled(true);
+        console.log('✅ Performance monitoring enabled (saved to localStorage)');
+    };
+
+    window.disablePerfMon = () => {
+        localStorage.removeItem('perfmon-enabled');
+        monitor.setEnabled(false);
+        console.log('❌ Performance monitoring disabled');
+    };
+
+    if (monitor.enabled) {
+        console.log('📊 Performance monitoring is ACTIVE');
+        console.log('   Use window.perfMonitor.logStats() to view stats');
+        console.log('   Use window.disablePerfMon() to disable');
+    }
 }
 
+// ES Module対応
 export default monitor;

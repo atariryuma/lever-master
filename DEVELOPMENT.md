@@ -54,25 +54,86 @@ npm run test:coverage
 
 ### Performance Monitor の使用方法
 
-ゲームに `performance-monitor.js` を統合することで、重要な処理のパフォーマンスを追跡できます。
+**パフォーマンスモニター**は、ゲームの処理速度やメモリ使用量を追跡するツールです。
 
-#### 基本的な使い方
+#### 📊 有効化の方法
+
+パフォーマンスモニターはデフォルトで**無効**です。以下の方法で有効化できます：
+
+**方法1: URLパラメータ（一時的）**
+```
+http://localhost:8080?perfmon=1
+```
+
+**方法2: ブラウザコンソール（永続的）**
+```javascript
+// 有効化（localStorageに保存）
+window.enablePerfMon()
+
+// 無効化
+window.disablePerfMon()
+```
+
+有効化すると、コンソールに以下のメッセージが表示されます：
+```
+📊 Performance monitoring is ACTIVE
+   Use window.perfMonitor.logStats() to view stats
+   Use window.disablePerfMon() to disable
+```
+
+#### 📈 統計情報の表示
+
+ゲームをプレイ後、ブラウザコンソールで以下を実行：
 
 ```javascript
-// main.js でインポート（まだ実装していない場合）
-import perfMonitor from './performance-monitor.js';
+// 統計情報を表示
+window.perfMonitor.logStats();
 
+// 統計をリセット
+window.perfMonitor.reset();
+```
+
+**出力例:**
+```
+===== Performance Statistics =====
+
+[Frame Performance]
+  Frames:         1234
+  Avg Frame Time: 16.67ms
+  Avg FPS:        60.0
+  Worst Frame:    45.23ms
+
+[Memory Usage]
+  Used:  45.32 MB
+  Total: 78.91 MB
+  Limit: 2048.00 MB
+
+==================================
+```
+
+#### 🔧 main.js への統合（開発者向け）
+
+main.jsに以下のようなコードを追加することで、特定の処理を測定できます：
+
+```javascript
 // 処理の開始をマーク
-perfMonitor.mark('physics-start');
+if (window.perfMonitor) {
+    window.perfMonitor.mark('ai-think-start');
+}
 
-// ... 物理演算処理 ...
+// ... AI処理 ...
 
 // 処理時間を測定
-perfMonitor.measure('physics-calculation', 'physics-start');
+if (window.perfMonitor) {
+    const duration = window.perfMonitor.measure('ai-thinking', 'ai-think-start');
+    console.log(`AI thought for ${duration}ms`);
+}
 
 // アニメーションループ内でフレーム時間を記録
 function animate() {
-    perfMonitor.recordFrame();
+    if (window.perfMonitor) {
+        window.perfMonitor.recordFrame();
+    }
 
     // ... レンダリング処理 ...
 
@@ -81,7 +142,9 @@ function animate() {
 
 // 定期的にメモリ使用量を記録
 setInterval(() => {
-    perfMonitor.recordMemory();
+    if (window.perfMonitor) {
+        window.perfMonitor.recordMemory();
+    }
 }, 5000); // 5秒ごと
 ```
 
