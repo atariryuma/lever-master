@@ -650,6 +650,9 @@ let dragPlane = null;
 let hoveredGhost = null;
 const weightPhysics = {};
 
+// パフォーマンス最適化: 再利用可能なVector3（initThree()で初期化）
+let reusableIntersectPoint = null;
+
 // 物理定数
 const PHYSICS = {
     G: 9.8,              // 重力加速度 [m/s²]
@@ -887,6 +890,10 @@ function initThree() {
     ghostsArray = Object.values(ghosts);
 
     dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+    // パフォーマンス最適化用の再利用可能なVector3を初期化
+    reusableIntersectPoint = new THREE.Vector3();
+
     createPositionLabels();
     createStockWeights();
 
@@ -1193,17 +1200,19 @@ function onPointerMove(e) {
     updateMouse(e.clientX, e.clientY);
     updateDragIndicator(e.clientX, e.clientY);
 
-    if (draggedStock) {
-        raycaster.setFromCamera(mouse, camera);
-        const intersectPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(dragPlane, intersectPoint);
-        if (intersectPoint) {
-            draggedStock.position.x = intersectPoint.x;
-            draggedStock.position.y = Math.max(intersectPoint.y, -6);
+    // raycasterを一度だけセット（パフォーマンス最適化）
+    raycaster.setFromCamera(mouse, camera);
+
+    if (draggedStock && reusableIntersectPoint) {
+        // 再利用可能なVector3を使用（毎フレーム生成しない）
+        const hasIntersection = raycaster.ray.intersectPlane(dragPlane, reusableIntersectPoint);
+        if (hasIntersection) {
+            draggedStock.position.x = reusableIntersectPoint.x;
+            draggedStock.position.y = Math.max(reusableIntersectPoint.y, -6);
         }
     }
 
-    raycaster.setFromCamera(mouse, camera);
+    // ゴーストのハイライト処理（raycasterは既にセット済み）
     const visibleGhosts = Object.values(ghosts).filter(g => g.visible);
     const hitboxes = visibleGhosts.map(g => g.hitbox);
     const hits = raycaster.intersectObjects(hitboxes);

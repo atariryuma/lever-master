@@ -1,4 +1,14 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* すべての要素でテキスト選択を禁止 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
 
 :root {
     --neon-cyan: #00f5ff;
@@ -33,8 +43,9 @@ body {
     height: 100dvh;
     color: #fff;
     overflow: hidden;
-    user-select: none;
+    /* タッチ操作制御 */
     touch-action: none;
+    -webkit-tap-highlight-color: transparent;
     /* iOS PWA: ノッチ周りの余白を埋める */
     padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
@@ -94,7 +105,7 @@ body {
     border-radius: 8px;
     font-size: 1.3rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     pointer-events: auto;
     display: flex;
     align-items: center;
@@ -104,6 +115,10 @@ body {
 .header-icon:hover {
     background: rgba(255,255,255,0.1);
     transform: scale(1.1);
+}
+
+.header-icon:active {
+    transform: scale(0.95);
 }
 
 .header-icon.sound { filter: drop-shadow(0 0 4px var(--neon-green)); }
@@ -354,15 +369,21 @@ body {
     font-weight: 700;
     background: rgba(255,255,255,0.1);
     border: 2px solid #666;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #aaa;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     pointer-events: auto;
+    letter-spacing: 1px;
 }
 .action-btn:hover {
     border-color: var(--neon-yellow);
     color: var(--neon-yellow);
+    background: rgba(255,255,0,0.1);
+    transform: scale(1.05);
+}
+.action-btn:active {
+    transform: scale(0.95);
 }
 .action-btn.hidden { display: none; }
 
@@ -381,7 +402,7 @@ body {
     z-index: 1000;
     padding: clamp(8px, 2vh, 20px) clamp(12px, 3vw, 40px);
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 .overlay.hidden { display: none; }
 
@@ -461,8 +482,13 @@ body {
     min-width: 0;
 }
 
-.mode-btn:hover { transform: scale(1.03); }
-.mode-btn:active { transform: scale(0.98); }
+.mode-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px currentColor;
+}
+.mode-btn:active {
+    transform: scale(0.97);
+}
 
 .mode-btn.mode1 { border-color: var(--neon-cyan); color: var(--neon-cyan); }
 .mode-btn.mode2 { border-color: var(--neon-yellow); color: var(--neon-yellow); }
@@ -486,6 +512,7 @@ body {
     max-height: calc(100vh - 40px);
     max-height: calc(100dvh - 40px);
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .rules-box h4 {
@@ -599,16 +626,17 @@ body {
     font-weight: 700;
     background: transparent;
     border: 2px solid var(--neon-cyan);
-    border-radius: 4px;
+    border-radius: 8px;
     color: var(--neon-cyan);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     letter-spacing: 2px;
     margin-top: auto;
 }
 .result-btn:hover {
     background: var(--neon-cyan);
     color: var(--dark-bg);
+    transform: scale(1.02);
 }
 .result-btn:active {
     transform: scale(0.97);
@@ -631,7 +659,15 @@ body {
     overflow-y: auto;
 }
 .help-modal.hidden { display: none; }
-.help-content { max-width: 480px; width: 100%; }
+.help-content {
+    max-width: 480px;
+    width: 100%;
+    /* テキスト選択を許可（学習用） */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
 .help-title {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.4rem;
@@ -672,15 +708,24 @@ body {
     padding: 16px;
     background: transparent;
     border: 2px solid #666;
-    border-radius: 4px;
+    border-radius: 8px;
     color: #888;
     font-family: 'Orbitron', sans-serif;
     font-size: 1rem;
+    font-weight: 700;
     cursor: pointer;
     margin-top: 16px;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
 }
-.help-close:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+.help-close:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    transform: scale(1.02);
+}
+.help-close:active {
+    transform: scale(0.97);
+}
 
 /* 学習モーダル */
 .learn-modal {
@@ -695,7 +740,15 @@ body {
     overflow-y: auto;
 }
 .learn-modal.hidden { display: none; }
-.learn-content { max-width: 500px; width: 100%; }
+.learn-content {
+    max-width: 500px;
+    width: 100%;
+    /* テキスト選択を許可（学習用） */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
 .learn-title {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.3rem;
@@ -804,22 +857,27 @@ body {
     position: absolute;
     top: -8px;
     right: -8px;
-    width: 22px;
-    height: 22px;
-    background: #333;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.9);
     border: 2px solid var(--neon-yellow);
     border-radius: 50%;
     color: var(--neon-yellow);
     font-size: 0.9rem;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
 }
 .hint-close:hover {
     background: var(--neon-yellow);
     color: #000;
+    transform: scale(1.1);
+}
+.hint-close:active {
+    transform: scale(0.9);
 }
 
 /* スタートプレイヤー選択演出 */
@@ -1221,18 +1279,21 @@ body {
     color: var(--neon-green);
     font-family: 'Orbitron', sans-serif;
     font-size: clamp(0.7rem, 1.8vw, 1rem);
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     margin-bottom: clamp(10px, 2vh, 20px);
+    letter-spacing: 1px;
 }
 
 .start-sound-btn:hover {
     background: rgba(0, 255, 136, 0.2);
     transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
 }
 
 .start-sound-btn:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
 }
 
 .start-sound-btn.muted {
@@ -1293,14 +1354,20 @@ body {
     border: none;
     color: #666;
     font-size: clamp(1rem, 2vw, 1.3rem);
+    font-weight: 700;
     cursor: pointer;
     padding: 4px;
-    transition: color 0.2s;
+    transition: all 0.3s ease;
     flex-shrink: 0;
 }
 
 .install-close:hover {
     color: var(--neon-cyan);
+    transform: scale(1.1);
+}
+
+.install-close:active {
+    transform: scale(0.9);
 }
 
 /* ==============================
