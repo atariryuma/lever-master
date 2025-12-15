@@ -640,6 +640,10 @@ let leverAngle = 0, targetLeverAngle = 0;
 let cameraShake = { x: 0, y: 0, intensity: 0 };
 let cameraBaseY = 5; // onResizeで更新
 let cameraBaseZ = 14; // onResizeで更新
+let cameraBaseFov = 65; // 基準FOV（動的調整用）
+let targetFov = 65; // 目標FOV（アクション時に変化）
+let currentFov = 65; // 現在のFOV（補間用）
+let userFovOffset = 0; // ユーザー設定のFOVオフセット（-10〜+10度）
 let stockWeights = { blue: null, yellow: null, red: null, green: null };
 let draggedStock = null;
 let dragPlane = null;
@@ -716,6 +720,9 @@ function initThree() {
     camera.lookAt(0, -0.5, 0);
     cameraBaseY = optY;
     cameraBaseZ = optZ;
+    cameraBaseFov = optFov;
+    targetFov = optFov;
+    currentFov = optFov;
 
     // ベストプラクティス: モバイルではantialiasを無効化してパフォーマンス向上
     renderer = new THREE.WebGLRenderer({
@@ -1646,6 +1653,8 @@ function goToJudge() {
         if (!balanced) {
             // 現在のプレイヤーが脱落
             triggerCameraShake(0.4);
+            // 失敗時のカメラ演出: ドラマティックなズームアウト
+            targetFov = cameraBaseFov + 12;
             playSound('lose');
             showScreenFlash('lose');
             triggerImpactPause(100);  // 脱落時のインパクトポーズ
@@ -1694,6 +1703,11 @@ function goToJudge() {
             } else {
                 playSound('balance');
                 showComboText('BALANCED!', '#00ff88');
+                // 成功時のカメラ演出: 軽くズームイン（達成感）
+                targetFov = cameraBaseFov - 5;
+                setTimeout(() => {
+                    targetFov = cameraBaseFov; // 元に戻す
+                }, 600);
                 game.isJudging = false;
                 switchTurn();
             }
@@ -3344,6 +3358,9 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         baseY = 4.5;
     }
 
+    // ユーザー設定のFOVオフセットを適用（範囲：-10〜+10度）
+    fov = Math.max(50, Math.min(80, fov + userFovOffset));
+
     return { z: optimalZ, fov, baseY };
 }
 
@@ -3380,8 +3397,11 @@ function onResize() {
     // てこの原理を理解しやすい視点: 支点付近を見る
     camera.lookAt(0, -0.5, 0);
     cameraBaseY = baseY;
-
     cameraBaseZ = camera.position.z;
+    cameraBaseFov = fov;
+    targetFov = fov;
+    currentFov = fov;
+
     camera.updateProjectionMatrix();
 
     // ベストプラクティス: デバイスに応じた最適なpixelRatioを設定
@@ -3459,10 +3479,31 @@ function animate() {
     camera.position.x = cameraShake.x;
     camera.position.y = smoothY + cameraShake.y;
 
-    // 動的lookAtターゲット: ゲーム状況に応じて視点を調整
-    // おもりが多い場合は少し下を見る（操作しやすく）
-    const lookAtY = maxStack > 3 ? -1.5 : -0.5;
-    camera.lookAt(0, lookAtY, 0);
+    // 動的FOV調整: ドラッグ時にズームイン（没入感向上）
+    if (draggedStock) {
+        // ドラッグ中: わずかにズームイン（FOV -8度）
+        targetFov = cameraBaseFov - 8;
+    } else {
+        // 通常時: 基準FOVに戻る
+        targetFov = cameraBaseFov;
+    }
+
+    // スムーズなFOV遷移（補間）
+    currentFov += (targetFov - currentFov) * 0.12;
+    camera.fov = currentFov;
+    camera.updateProjectionMatrix();
+
+    // 動的lookAtターゲット: インテリジェントフォーカス
+    let lookAtX = 0;
+    let lookAtY = maxStack > 3 ? -1.5 : -0.5;
+
+    // ドラッグ中: ドラッグ対象物にフォーカス（没入感向上）
+    if (draggedStock && draggedStock.visible) {
+        lookAtX = draggedStock.position.x * 0.3; // 30%追従（過剰でない程度に）
+        lookAtY = draggedStock.position.y * 0.5; // 50%追従
+    }
+
+    camera.lookAt(lookAtX, lookAtY, 0);
 
     // ストックおもりパルス（キャッシュ配列を使用）
     const t = Date.now() * 0.003;
@@ -3700,7 +3741,59 @@ function dismissSplash(event) {
     showInstallGuide();
 }
 
+// ==============================
+// カメラ設定の永続化（LocalStorage）
+// ==============================
+function loadCameraSettings() {
+    try {
+        const savedFovOffset = localStorage.getItem('levermaster_fov_offset');
+        if (savedFovOffset !== null) {
+            userFovOffset = parseFloat(savedFovOffset);
+            // 範囲制限（-10〜+10度）
+            userFovOffset = Math.max(-10, Math.min(10, userFovOffset));
+        }
+    } catch (e) {
+        console.warn('Failed to load camera settings:', e);
+    }
+}
+
+function saveCameraSettings() {
+    try {
+        localStorage.setItem('levermaster_fov_offset', userFovOffset.toString());
+    } catch (e) {
+        console.warn('Failed to save camera settings:', e);
+    }
+}
+
+// ==============================
+// FOVカスタマイズ: キーボード操作（+/-キー）
+// ==============================
+window.addEventListener('keydown', (e) => {
+    // +キーまたは=キー: FOVを広げる（ズームアウト）
+    if (e.key === '+' || e.key === '=' || e.key === ';') {
+        userFovOffset = Math.min(10, userFovOffset + 1);
+        saveCameraSettings();
+        onResize(); // カメラを再計算
+        showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
+    }
+    // -キー: FOVを狭める（ズームイン）
+    else if (e.key === '-') {
+        userFovOffset = Math.max(-10, userFovOffset - 1);
+        saveCameraSettings();
+        onResize(); // カメラを再計算
+        showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
+    }
+    // 0キー: FOVをリセット
+    else if (e.key === '0') {
+        userFovOffset = 0;
+        saveCameraSettings();
+        onResize(); // カメラを再計算
+        showComboText('FOV: リセット', '#00ccff', 800);
+    }
+});
+
 window.onload = () => {
+    loadCameraSettings(); // 設定を読み込み
     checkDevice();
     initThree();
     updateUI();
