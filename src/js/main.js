@@ -711,8 +711,9 @@ function initThree() {
 
     camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
     camera.position.set(0, optY, optZ);
-    // ベストプラクティス: おもりとてこの中間点を見下ろす角度
-    camera.lookAt(0, -2, 0);
+    // ベストプラクティス: ゲームエリアの中心を見る
+    // ストックおもり(Y=2.5)とおもり下部(Y=-6)の中心: Y≈-1.5
+    camera.lookAt(0, -1.5, 0);
     cameraBaseY = optY;
     cameraBaseZ = optZ;
 
@@ -3236,27 +3237,37 @@ function exitGame() {
 // 動的カメラ計算（てこが画面に収まるよう自動調整）
 // iOS PWA対応: アスペクト比に応じてテコが潰れないように調整
 // ==============================
-const LEVER_WIDTH = 17;      // てこの幅（3D単位）
-const LEVER_HEIGHT = 8;      // てこ+おもりの高さ想定
-const CAMERA_PADDING = 1.05; // 余白係数（5%の余裕に縮小してテコを大きく表示）
+// 実際の3D空間の範囲:
+// - てこ: X = ±11.2 (位置±8 × UNIT 1.4)
+// - ストックおもり: X = ±6, Y = 2.5
+// - 吊るされたおもり: Y = -0.3 to -6 (スタック時)
+// - 合計Y範囲: 2.5 - (-6) = 8.5
+const LEVER_WIDTH = 18;      // てこ+ストックの横幅（余裕含む）
+const LEVER_HEIGHT = 11;     // ストックから吊るされたおもりまでの縦範囲
+const CAMERA_PADDING = 1.3;  // 余白係数（30%の余裕でドラッグ時もはみ出さない）
 
 function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
-    // 基準FOV（度）
-    let baseFov = 50;
+    // 基準FOV（度）- デバイス別に最適化
+    let baseFov = 55;  // デフォルトを少し広げる（50→55）
 
     // スマホ横画面の判定（縦が狭い & 横長アスペクト）
     // iOS PWA: safe-area適用後のサイズで判定
     const isLandscapeMobile = effectiveHeight < 500 && aspect > 1.5;
     const isUltraWide = aspect > 2.0;  // iPhone等の超ワイド画面
+    const isTablet = effectiveWidth >= 768 && effectiveHeight >= 600; // タブレット判定
 
     if (isLandscapeMobile) {
-        // 横画面スマホ: FOVを広げてテコ全体を表示
+        // 横画面スマホ: FOVを広げてゲーム全体を表示
         if (isUltraWide) {
-            // iPhone等の超ワイド: FOVをさらに広げる
-            baseFov = Math.min(75, 55 + (aspect - 2.0) * 15);
+            // iPhone等の超ワイド（Foldableスマホ含む）: FOVをさらに広げる
+            baseFov = Math.min(70, 58 + (aspect - 2.0) * 12);
         } else {
-            baseFov = Math.min(65, 50 + (aspect - 1.5) * 10);
+            // 通常の横画面スマホ
+            baseFov = Math.min(65, 55 + (aspect - 1.5) * 8);
         }
+    } else if (isTablet) {
+        // タブレット: 適度なFOV
+        baseFov = 52;
     }
 
     const fovRad = (baseFov * Math.PI) / 180;
@@ -3275,42 +3286,52 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
     if (isLandscapeMobile) {
         // 横画面スマホ: 横幅を収める距離を基準に
         // ただし、テコが縦方向に潰れないよう最低限の距離を確保
-        const minZForHeight = distForHeight * 0.6;  // 縦方向の最低限
+        const minZForHeight = distForHeight * 0.65;  // 縦方向の最低限（0.6→0.65）
         optimalZ = Math.max(distForWidth, minZForHeight);
     } else {
         optimalZ = Math.max(distForWidth, distForHeight);
     }
 
-    // 最小・最大制限（スマホは近めでOK）
-    const minZ = isLandscapeMobile ? 7 : 8;
-    optimalZ = Math.max(minZ, Math.min(optimalZ, 25));
+    // 最小・最大制限（デバイス別に最適化）
+    let minZ;
+    if (isLandscapeMobile) {
+        minZ = isUltraWide ? 9 : 10;  // 横画面スマホ: 少し遠めに
+    } else if (isTablet) {
+        minZ = 11;  // タブレット: ゆったり表示
+    } else {
+        minZ = 10;  // PC・縦スマホ: 標準距離
+    }
+    optimalZ = Math.max(minZ, Math.min(optimalZ, 28));
 
-    // 画面が小さい場合の追加調整
+    // 画面が小さい場合の追加調整（縦スマホ）
     let fov = baseFov;
-    if (!isLandscapeMobile) {
-        if (effectiveHeight < 400) {
-            fov = 55;
-            optimalZ *= 0.9;
-        } else if (effectiveHeight < 500) {
-            fov = 52;
+    if (!isLandscapeMobile && !isTablet) {
+        // 縦スマホ: 画面高さに応じてFOVを調整
+        if (effectiveHeight < 600) {
+            fov = Math.max(baseFov, 58);  // FOVを広げて全体を表示
             optimalZ *= 0.95;
+        } else if (effectiveHeight < 700) {
+            fov = Math.max(baseFov, 56);
         }
     }
 
     // カメラY位置の最適化
     // ベストプラクティス: 斜め上から見下ろす角度で立体感を出す
-    // 視覚範囲: てこの上端（Y≈0.6）からおもりの下部（Y≈-6）まで
-    // lookAtターゲット: おもりとてこの中間点（Y≈-2）
+    // 視覚範囲: ストックおもり（Y=2.5）からおもり下部（Y=-6）まで
+    // lookAtターゲット: ゲームの中心（Y=-2）
     let baseY;
     if (isLandscapeMobile) {
         // スマホ横画面: コンパクトな見下ろし角度
-        baseY = isUltraWide ? 2.5 : 3;
-    } else if (effectiveHeight < 500) {
-        // 小さい画面: 適度な見下ろし角度
-        baseY = 3;
-    } else {
-        // デスクトップ: ゆったりとした見下ろし角度
+        baseY = isUltraWide ? 2.8 : 3.2;  // 少し高めに調整
+    } else if (isTablet) {
+        // タブレット: ゆったりとした見下ろし角度
         baseY = 4;
+    } else if (effectiveHeight < 600) {
+        // 小さい縦スマホ: 適度な見下ろし角度
+        baseY = 3.2;
+    } else {
+        // PC・大きい画面: ゆったりとした見下ろし角度
+        baseY = 4.5;
     }
 
     return { z: optimalZ, fov, baseY };
@@ -3345,8 +3366,8 @@ function onResize() {
     camera.position.z = z;
     camera.position.y = baseY;  // カメラのY位置も更新
     camera.fov = fov;
-    // ベストプラクティス: おもりとてこの中間点を見下ろす角度
-    camera.lookAt(0, -2, 0);
+    // ベストプラクティス: ゲームエリアの中心を見る
+    camera.lookAt(0, -1.5, 0);
     cameraBaseY = baseY;
 
     cameraBaseZ = camera.position.z;
@@ -3409,7 +3430,7 @@ function animate() {
     camera.position.y = smoothY + cameraShake.y;
 
     // ベストプラクティス: カメラ位置更新後にlookAtを更新
-    camera.lookAt(0, -2, 0);
+    camera.lookAt(0, -1.5, 0);
 
     // ストックおもりパルス（キャッシュ配列を使用）
     const t = Date.now() * 0.003;
