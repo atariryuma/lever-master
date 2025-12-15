@@ -93,8 +93,10 @@ self.addEventListener('fetch', (event) => {
                         fetch(event.request)
                             .then((response) => {
                                 if (response && response.status === 200) {
+                                    // response.clone()でキャッシュ用のコピーを作成
+                                    const responseToCache = response.clone();
                                     caches.open(CACHE_NAME).then((cache) => {
-                                        cache.put(event.request, response);
+                                        cache.put(event.request, responseToCache);
                                     });
                                 }
                             })

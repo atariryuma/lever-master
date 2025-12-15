@@ -192,4 +192,39 @@ export default [
             'max-lines-per-function': 'off',
         },
     },
+
+    // Service Worker 専用の設定
+    {
+        files: ['sw.js'],
+        languageOptions: {
+            globals: {
+                // Service Worker グローバル
+                self: 'readonly',
+                caches: 'readonly',
+                fetch: 'readonly',
+                Response: 'readonly',
+                Request: 'readonly',
+                location: 'readonly',
+                clients: 'readonly',
+            },
+        },
+        rules: {
+            // Service Workerではconsole.logを許可
+            'no-console': 'off',
+        },
+    },
+
+    // パフォーマンスモニター専用の設定
+    {
+        files: ['**/performance-monitor.js'],
+        languageOptions: {
+            globals: {
+                URLSearchParams: 'readonly',
+            },
+        },
+        rules: {
+            // パフォーマンスモニターではconsole.logを許可（デバッグ用ツール）
+            'no-console': 'off',
+        },
+    },
 ];

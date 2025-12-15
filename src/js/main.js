@@ -451,8 +451,9 @@ let comboTimeoutId2 = null;
  * コンボテキストをアニメーション表示
  * @param {string} text - 表示するテキスト
  * @param {string} color - テキストの色（CSS形式）
+ * @param {number} [duration=500] - フェードアウトまでの表示時間(ms)
  */
-function showComboText(text, color) {
+function showComboText(text, color, duration = 500) {
     if (!text) return;
     const combo = document.getElementById(DOM_IDS.COMBO_TEXT);
     if (!combo) return;
@@ -468,18 +469,20 @@ function showComboText(text, color) {
     combo.style.opacity = 1;
     combo.style.transform = 'translate(-50%, -50%) scale(1.5)';
 
+    // 表示時間後にフェードアウト開始
+    const fadeStartDelay = Math.max(100, duration - 400);
     comboTimeoutId1 = setTimeout(() => {
         if (!combo) return;
         combo.style.transition = 'all 0.5s ease-out';
         combo.style.opacity = 0;
         combo.style.transform = 'translate(-50%, -50%) scale(2) translateY(-50px)';
-    }, 100);
+    }, fadeStartDelay);
 
     comboTimeoutId2 = setTimeout(() => {
         if (combo) combo.style.transition = 'none';
         comboTimeoutId1 = null;
         comboTimeoutId2 = null;
-    }, 600);
+    }, duration);
 }
 
 // 紙吹雪エフェクト（勝利演出用）
@@ -3052,7 +3055,7 @@ function endGame(winner) {
     if (!icon || !title || !detail) return;
 
     // てこの状態を生成（学習用）
-    const leverStateHtml = generateLeverStateHtml();
+    const leverStateHtml = generateLeverStateHtml(game.leverData);
     const humanPlayers = PLAYER_ORDER.slice(0, game.humanCount);
     const pointsHtml = generatePointsRankingHtml(points, game.activePlayers);
     const balanceHtml = generateBalanceInfoHtml(leftMoment, rightMoment);
