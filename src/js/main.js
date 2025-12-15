@@ -1,38 +1,85 @@
 // ==============================
-// 設定
+// グローバル設定定数（CONSTANT_CASEに統一）
 // ==============================
-const CONFIG = {
-    WEIGHT_VALUE: 10,       // 各おもりの重さ
-    MAX_STACK: 6,           // 1箇所に吊るせるおもりの最大数
-    CPU_DELAY: 800,         // CPU思考の基本遅延(ms)
-    JUDGE_DELAY: 1000,      // 判定遅延(ms)
-    MAX_MOMENT_DIFF_MISTAKE: 100,  // ミス戦略で許容する最大モーメント差
+
+/**
+ * ゲーム設定定数
+ * @const {Object}
+ */
+const GAME_CONFIG = {
+    // ゲームルール
+    WEIGHT_VALUE: 10,              // 各おもりの重さ
+    MAX_STACK: 6,                  // 1箇所に吊るせるおもりの最大数
     MAX_TURNS_PER_PLAYER: 10,      // プレイヤーあたりの最大ターン数
-    ROULETTE_ROUNDS: 2,            // ルーレットのラウンド数
-    // ビジュアルエフェクト
-    PARTICLE_COUNT: 20,            // パーティクル爆発エフェクトの数
-    CONFETTI_COUNT: 50,            // 紙吹雪の数
-    BACKGROUND_PARTICLE_COUNT: 80, // 背景パーティクルの数
-    BACKGROUND_PARTICLE_X_RANGE: 60,  // 背景パーティクルのX範囲
-    BACKGROUND_PARTICLE_Y_RANGE: 40,  // 背景パーティクルのY範囲
-    BACKGROUND_PARTICLE_Z_RANGE: 30,  // 背景パーティクルのZ範囲
-    BACKGROUND_PARTICLE_Z_OFFSET: -10, // 背景パーティクルのZオフセット
-    SCREEN_FLASH_DURATION: 300,    // 画面フラッシュの持続時間(ms)
+    MAX_MOMENT_DIFF_MISTAKE: 100,  // ミス戦略で許容する最大モーメント差
+
+    // タイミング設定
+    CPU_DELAY: 800,                // CPU思考の基本遅延(ms)
+    JUDGE_DELAY: 1000,             // 判定遅延(ms)
     ELIMINATION_DELAY: 1000,       // 脱落後の遅延(ms)
     BALANCE_RESULT_DELAY: 500,     // バランス結果表示後の遅延(ms)
-    // CPU性格パラメータ
+    SCREEN_FLASH_DURATION: 300,    // 画面フラッシュの持続時間(ms)
+};
+
+/**
+ * ビジュアルエフェクト設定
+ * @const {Object}
+ */
+const VISUAL_CONFIG = {
+    PARTICLE_COUNT: 20,                // パーティクル爆発エフェクトの数
+    CONFETTI_COUNT: 50,                // 紙吹雪の数
+    BACKGROUND_PARTICLE_COUNT: 80,     // 背景パーティクルの数
+    BACKGROUND_PARTICLE_X_RANGE: 60,   // 背景パーティクルのX範囲
+    BACKGROUND_PARTICLE_Y_RANGE: 40,   // 背景パーティクルのY範囲
+    BACKGROUND_PARTICLE_Z_RANGE: 30,   // 背景パーティクルのZ範囲
+    BACKGROUND_PARTICLE_Z_OFFSET: -10, // 背景パーティクルのZオフセット
+};
+
+/**
+ * CPU AI設定
+ * @const {Object}
+ */
+const CPU_CONFIG = {
     SABOTAGE_GAP_DIVISOR: 40,      // 妨害積極度計算の分母
     RISKY_RISK_TOLERANCE: 0.6,     // リスクテイカー判定しきい値
     RISKY_RANDOM_CHANCE: 0.4,      // リスクテイカーがランダム選択する確率
     ATTACK_SABOTAGE_CHANCE: 0.5,   // 攻撃派が妨害優先する確率
-    // ルーレット
-    ROULETTE_INITIAL_SPEED: 80,    // ルーレット初期速度(ms)
-    ROULETTE_SLOWDOWN_1: 30,       // 減速1の増分
-    ROULETTE_SLOWDOWN_2: 60,       // 減速2の増分
-    ROULETTE_RESULT_DELAY: 500,    // 結果表示遅延(ms)
-    ROULETTE_START_DELAY: 2500,    // ゲーム開始までの遅延(ms)
-    // サウンド
-    BGM_VOLUME: 0.04               // BGM音量
+};
+
+/**
+ * ルーレット設定
+ * @const {Object}
+ */
+const ROULETTE_CONFIG = {
+    ROUNDS: 2,                     // ルーレットのラウンド数
+    INITIAL_SPEED: 80,             // ルーレット初期速度(ms)
+    SLOWDOWN_1: 30,                // 減速1の増分
+    SLOWDOWN_2: 60,                // 減速2の増分
+    RESULT_DELAY: 500,             // 結果表示遅延(ms)
+    START_DELAY: 2500,             // ゲーム開始までの遅延(ms)
+};
+
+/**
+ * オーディオ設定
+ * @const {Object}
+ */
+const AUDIO_CONFIG = {
+    BGM_VOLUME: 0.04,              // BGM音量
+};
+
+// 後方互換性のため CONFIG も維持（非推奨）
+const CONFIG = {
+    ...GAME_CONFIG,
+    ...VISUAL_CONFIG,
+    ...CPU_CONFIG,
+    ...ROULETTE_CONFIG,
+    ...AUDIO_CONFIG,
+    ROULETTE_ROUNDS: ROULETTE_CONFIG.ROUNDS,
+    ROULETTE_INITIAL_SPEED: ROULETTE_CONFIG.INITIAL_SPEED,
+    ROULETTE_SLOWDOWN_1: ROULETTE_CONFIG.SLOWDOWN_1,
+    ROULETTE_SLOWDOWN_2: ROULETTE_CONFIG.SLOWDOWN_2,
+    ROULETTE_RESULT_DELAY: ROULETTE_CONFIG.RESULT_DELAY,
+    ROULETTE_START_DELAY: ROULETTE_CONFIG.START_DELAY,
 };
 
 // ストックおもりの位置（共通定義）
@@ -76,13 +123,24 @@ const COLORS = {
     MOVE_VALID: 0x00ff88
 };
 
-// THREE.jsカラー（0xXXXXXX）をCSS形式（#XXXXXX）に変換
+/**
+ * THREE.jsカラー（0xXXXXXX）をCSS形式（#XXXXXX）に変換
+ * @param {number} hexColor - 16進数カラー値
+ * @returns {string} CSS形式のカラー文字列
+ */
 function hexToCSS(hexColor) {
+    if (hexColor == null) return '#000000';
     return '#' + hexColor.toString(16).padStart(6, '0');
 }
 
-// THREE.jsカラー/CSSカラーをrgba形式に変換
+/**
+ * THREE.jsカラー/CSSカラーをrgba形式に変換
+ * @param {number|string} hexColor - 16進数カラー値または#を含む文字列
+ * @param {number} [alpha=1] - アルファ値（0-1）
+ * @returns {string} rgba形式のカラー文字列
+ */
 function hexToRGBA(hexColor, alpha = 1) {
+    if (hexColor == null) return `rgba(0,0,0,${alpha})`;
     const hex = typeof hexColor === 'number' ? hexColor : parseInt(hexColor.replace('#', ''), 16);
     const r = (hex >> 16) & 255;
     const g = (hex >> 8) & 255;
@@ -464,7 +522,7 @@ function playSound(type) {
 
         case 'gameover':
             // ゲームオーバー時：悲しい下降和音（ドーン...）
-            [196.00, 233.08, 293.66].forEach((freq, i) => {  // G3, Bb3, D4 (Gm)
+            [196.00, 233.08, 293.66].forEach((freq) => {  // G3, Bb3, D4 (Gm)
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
                 o.type = 'sawtooth';
@@ -543,6 +601,10 @@ function toggleSound() {
 // ==============================
 // 画面エフェクト
 // ==============================
+/**
+ * 画面フラッシュエフェクトを表示
+ * @param {string} type - フラッシュのタイプ ('win', 'lose', 'balance')
+ */
 function showScreenFlash(type) {
     const flash = document.getElementById(DOM_IDS.SCREEN_FLASH);
     if (!flash) return;
@@ -556,7 +618,13 @@ function showScreenFlash(type) {
 let comboTimeoutId1 = null;
 let comboTimeoutId2 = null;
 
+/**
+ * コンボテキストをアニメーション表示
+ * @param {string} text - 表示するテキスト
+ * @param {string} color - テキストの色（CSS形式）
+ */
 function showComboText(text, color) {
+    if (!text) return;
     const combo = document.getElementById(DOM_IDS.COMBO_TEXT);
     if (!combo) return;
 
@@ -586,6 +654,10 @@ function showComboText(text, color) {
 }
 
 // 紙吹雪エフェクト（勝利演出用）
+/**
+ * 紙吹雪エフェクトを生成
+ * @param {number} [count=CONFIG.CONFETTI_COUNT] - 紙吹雪の数
+ */
 function createConfetti(count = CONFIG.CONFETTI_COUNT) {
     const colors = [
         hexToCSS(COLORS.BLUE.primary),
@@ -1466,7 +1538,12 @@ function updateMouse(x, y) {
 // ==============================
 // ドラッグインジケーター
 // ==============================
-function showDragIndicator(x, y, isHangPhase = false) {
+/**
+ * ドラッグインジケーターを表示
+ * @param {number} x - X座標
+ * @param {number} y - Y座標
+ */
+function showDragIndicator(x, y) {
     const indicator = document.getElementById(DOM_IDS.DRAG_INDICATOR);
     const dragText = document.getElementById(DOM_IDS.DRAG_TEXT);
     if (!indicator) return;
@@ -1531,12 +1608,19 @@ function resetStockPosition(stock) {
 // ==============================
 // パーティクル
 // ==============================
+/**
+ * パーティクル爆発エフェクトを生成
+ * @param {THREE.Vector3} point - 3D空間の座標
+ * @param {string} color - パーティクルの色
+ */
 function createParticleExplosion(point, color) {
+    if (!point || !color) return;
     const container = document.getElementById(DOM_IDS.PARTICLES);
     if (!container) return;
 
     const count = CONFIG.PARTICLE_COUNT;
     const screenPos = toScreenPosition(point);
+    if (!screenPos) return;
 
     // DocumentFragmentで一括DOM追加（パフォーマンス最適化）
     const fragment = document.createDocumentFragment();
@@ -1609,7 +1693,15 @@ function addSwingImpulse(pos, intensity) {
 // ==============================
 // 吊るす
 // ==============================
+/**
+ * おもりを吊るす処理
+ * @param {number} pos - 吊るす位置（-6～6、0以外）
+ * @param {string} owner - おもりの所有者（'blue', 'yellow', 'red', 'green'）
+ * @param {boolean} [isRehang=false] - やり直しフラグ
+ * @returns {boolean} 成功したかどうか
+ */
 function doHang(pos, owner, isRehang = false) {
+    if (pos == null || !owner) return false;
     if (!game.leverData[pos]) game.leverData[pos] = [];
 
     // スタック制限チェック（満杯の位置には吊るせない）
@@ -1726,7 +1818,15 @@ function hasAnyValidMove() {
     return false;
 }
 
+/**
+ * おもりを移動する処理
+ * @param {number} fromPos - 移動元の位置
+ * @param {number} fromIndex - 移動するおもりのスタックインデックス
+ * @param {number} toPos - 移動先の位置
+ * @returns {boolean} 成功したかどうか
+ */
 function doMove(fromPos, fromIndex, toPos) {
+    if (fromPos == null || fromIndex == null || toPos == null) return false;
     // 選択したおもりと、その下のおもり全てを移動
     const stack = game.leverData[fromPos] || [];
     const moving = stack.slice(0, fromIndex + 1);
@@ -1861,6 +1961,10 @@ function goToJudge() {
 // ==============================
 // バランス計算
 // ==============================
+/**
+ * てこのモーメントを計算
+ * @returns {{left: number, right: number, diff: number}} モーメント情報
+ */
 function calcMoment() {
     let left = 0, right = 0;
     allPositions.forEach(p => {
@@ -1874,6 +1978,10 @@ function calcMoment() {
 
 // ポイント計算（各プレイヤーの |位置| × 10 の合計）
 // 教育的意味：てこをかたむける働き = 支点からのきょり × おもりの重さ
+/**
+ * 全プレイヤーのポイントを計算
+ * @returns {Object.<string, number>} プレイヤー名をキーとするポイントマップ
+ */
 function calcPlayerPoints() {
     const points = { blue: 0, yellow: 0, red: 0, green: 0 };
     allPositions.forEach(pos => {
@@ -2093,7 +2201,13 @@ function getPointGap(player) {
 }
 
 // 妨害移動の効果を評価（相手のポイントをどれだけ下げられるか）
-function evaluateSabotageValue(fromPos, toPos, targetOwner) {
+/**
+ * 妨害行動の価値を評価（相手のポイント減少量）
+ * @param {number} fromPos - 移動元の位置
+ * @param {number} toPos - 移動先の位置
+ * @returns {number} 妨害価値（正の値が大きいほど効果的）
+ */
+function evaluateSabotageValue(fromPos, toPos) {
     const fromValue = Math.abs(fromPos) * 10;
     const toValue = Math.abs(toPos) * 10;
     const pointReduction = fromValue - toValue;
@@ -2295,7 +2409,7 @@ function findBestStrategyWithPersonality(player, personality) {
     }
 
     if (game[player].stock <= 0) {
-        const move = findBestMoveWithSabotage(player, personality, sabotageAggression, leader);
+        const move = findBestMoveWithSabotage(sabotageAggression);
         return { hangPos: null, move: move, resultDiff: move ? simulateMoveInternal(move.fromPos, move.index, move.toPos) : Infinity };
     }
 
@@ -2440,7 +2554,12 @@ function findBestStrategyWithPersonality(player, personality) {
 }
 
 // 妨害を考慮した最善移動を探す（ストック0の場合）
-function findBestMoveWithSabotage(player, personality, sabotageAggression, leader) {
+/**
+ * 妨害を考慮した最適な移動を見つける
+ * @param {number} sabotageAggression - 妨害積極度（0-1）
+ * @returns {Object|null} 最適な移動、またはnull
+ */
+function findBestMoveWithSabotage(sabotageAggression) {
     const currentMoment = calcMoment();
     if (currentMoment.diff === 0) {
         // すでにバランスしている場合、純粋に妨害を狙う
