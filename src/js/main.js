@@ -710,7 +710,9 @@ function initThree() {
     const { z: optZ, fov: optFov, baseY: optY } = calculateOptimalCamera(w, h, aspect);
 
     camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
-    camera.position.set(0, optY, optZ);
+    // ベストプラクティス: カメラを少し斜めに配置して奥行きを強調
+    // X方向に2ユニットずらすことで立体感が向上
+    camera.position.set(2, optY, optZ);
     // ベストプラクティス: ゲームエリアの中心を見る
     // ストックおもり(Y=2.5)とおもり下部(Y=-6)の中心: Y≈-1.5
     camera.lookAt(0, -1.5, 0);
@@ -731,30 +733,40 @@ function initThree() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    // ライティング
-    scene.add(new THREE.AmbientLight(0x8899bb, 1.2));
+    // ライティング - ベストプラクティス: 45度の角度で立体感を出す
+    // 環境光: 全体を柔らかく照らす（少し暗めに調整）
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.8));
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    mainLight.position.set(0, 20, 10);
+    // メインライト: カメラから45度の角度（右上前方）で配置
+    // ベストプラクティス: 45度の角度が影を作り、立体感を最大化
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    mainLight.position.set(12, 18, 16);  // 45度の角度で配置
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.left = -20;
+    mainLight.shadow.camera.right = 20;
+    mainLight.shadow.camera.top = 20;
+    mainLight.shadow.camera.bottom = -20;
     scene.add(mainLight);
 
-    const frontLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    frontLight.position.set(0, 5, 20);
-    scene.add(frontLight);
+    // リムライト: 左後方から輪郭を強調（立体感向上）
+    const rimLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+    rimLight.position.set(-15, 10, -8);
+    scene.add(rimLight);
 
-    const cyanLight = new THREE.PointLight(0x00ddff, 1.5, 30);
-    cyanLight.position.set(-10, 5, 8);
+    // アクセントライト: 色付きライトで雰囲気と深度を追加
+    const cyanLight = new THREE.PointLight(0x00ddff, 1.8, 35);
+    cyanLight.position.set(-12, 6, 10);
     scene.add(cyanLight);
 
-    const pinkLight = new THREE.PointLight(0xff8899, 1.5, 30);
-    pinkLight.position.set(10, 5, 8);
+    const pinkLight = new THREE.PointLight(0xff8899, 1.8, 35);
+    pinkLight.position.set(12, 6, 10);
     scene.add(pinkLight);
 
-    const fillLight = new THREE.PointLight(0xaabbcc, 0.8, 25);
-    fillLight.position.set(0, -2, 10);
+    // フィルライト: 下からの補助光で影を柔らかく
+    const fillLight = new THREE.PointLight(0xaabbcc, 1.0, 30);
+    fillLight.position.set(0, -3, 12);
     scene.add(fillLight);
 
     // 床
@@ -3363,6 +3375,7 @@ function onResize() {
     // 動的にカメラ設定を計算
     const { z, fov, baseY } = calculateOptimalCamera(w, h, aspect);
 
+    camera.position.x = 2;  // ベストプラクティス: 立体感のため斜めに配置
     camera.position.z = z;
     camera.position.y = baseY;  // カメラのY位置も更新
     camera.fov = fov;
@@ -3425,8 +3438,9 @@ function animate() {
         cameraShake.y = 0;
     }
 
-    // 最終位置 = スムーズ移動 + シェイク
-    camera.position.x = cameraShake.x;
+    // 最終位置 = ベース位置 + スムーズ移動 + シェイク
+    // ベストプラクティス: X=2で立体感を出す
+    camera.position.x = 2 + cameraShake.x;
     camera.position.y = smoothY + cameraShake.y;
 
     // ベストプラクティス: カメラ位置更新後にlookAtを更新
