@@ -9,8 +9,14 @@ const CONFIG = {
     MAX_MOMENT_DIFF_MISTAKE: 100,  // ミス戦略で許容する最大モーメント差
     MAX_TURNS_PER_PLAYER: 10,      // プレイヤーあたりの最大ターン数
     ROULETTE_ROUNDS: 2,            // ルーレットのラウンド数
-    PARTICLE_COUNT: 20,            // パーティクルの数
+    // ビジュアルエフェクト
+    PARTICLE_COUNT: 20,            // パーティクル爆発エフェクトの数
     CONFETTI_COUNT: 50,            // 紙吹雪の数
+    BACKGROUND_PARTICLE_COUNT: 80, // 背景パーティクルの数
+    BACKGROUND_PARTICLE_X_RANGE: 60,  // 背景パーティクルのX範囲
+    BACKGROUND_PARTICLE_Y_RANGE: 40,  // 背景パーティクルのY範囲
+    BACKGROUND_PARTICLE_Z_RANGE: 30,  // 背景パーティクルのZ範囲
+    BACKGROUND_PARTICLE_Z_OFFSET: -10, // 背景パーティクルのZオフセット
     SCREEN_FLASH_DURATION: 300,    // 画面フラッシュの持続時間(ms)
     ELIMINATION_DELAY: 1000,       // 脱落後の遅延(ms)
     BALANCE_RESULT_DELAY: 500,     // バランス結果表示後の遅延(ms)
@@ -68,6 +74,19 @@ const COLORS = {
         bright: 0xcccccc
     },
     MOVE_VALID: 0x00ff88
+};
+
+// THREE.jsカラー（0xXXXXXX）をCSS形式（#XXXXXX）に変換
+function hexToCSS(hexColor) {
+    return '#' + hexColor.toString(16).padStart(6, '0');
+}
+
+// プレイヤーメタデータ（表示用）
+const PLAYER_META = {
+    blue:   { displayName: 'P1', icon: '⚡', cssColor: hexToCSS(COLORS.BLUE.primary) },
+    yellow: { displayName: 'P2', icon: '⭐', cssColor: hexToCSS(COLORS.YELLOW.primary) },
+    red:    { displayName: 'P3', icon: '🔥', cssColor: hexToCSS(COLORS.RED.primary) },
+    green:  { displayName: 'P4', icon: '🍀', cssColor: hexToCSS(COLORS.GREEN.primary) }
 };
 
 // ==============================
@@ -484,8 +503,15 @@ function showComboText(text, color) {
 }
 
 // 紙吹雪エフェクト（勝利演出用）
-function createConfetti(count = 50) {
-    const colors = ['#00f5ff', '#ffee00', '#ff5577', '#44ff88', '#ff00ff', '#ffffff'];
+function createConfetti(count = CONFIG.CONFETTI_COUNT) {
+    const colors = [
+        hexToCSS(COLORS.BLUE.primary),
+        hexToCSS(COLORS.YELLOW.primary),
+        hexToCSS(COLORS.RED.primary),
+        hexToCSS(COLORS.GREEN.primary),
+        '#ff00ff',
+        '#ffffff'
+    ];
     const container = document.body;
     if (!container) return;
 
@@ -1141,14 +1167,14 @@ function createPositionLabels() {
 }
 
 function addBackgroundParticles() {
-    const particleCount = 80;
+    const particleCount = CONFIG.BACKGROUND_PARTICLE_COUNT;
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 60;
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 10;
+        positions[i * 3] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_X_RANGE;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_Y_RANGE;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_Z_RANGE + CONFIG.BACKGROUND_PARTICLE_Z_OFFSET;
 
         const color = Math.random() > 0.5 ? new THREE.Color(COLORS.BLUE.primary) : new THREE.Color(COLORS.RED.primary);
         colors[i * 3] = color.r;
@@ -1426,7 +1452,7 @@ function createParticleExplosion(point, color) {
     const container = document.getElementById('particles');
     if (!container) return;
 
-    const count = 20;
+    const count = CONFIG.PARTICLE_COUNT;
     const screenPos = toScreenPosition(point);
 
     // DocumentFragmentで一括DOM追加（パフォーマンス最適化）
@@ -2781,9 +2807,6 @@ function endGame(winner) {
     // てこの状態を生成（学習用）
     const leverStateHtml = generateLeverStateHtml();
 
-    const playerDisplayNames = { blue: 'P1', yellow: 'P2', red: 'P3', green: 'P4' };
-    const playerIcons = { blue: '⚡', yellow: '⭐', red: '🔥', green: '🍀' };
-    const playerColors = { blue: '#00f5ff', yellow: '#ffee00', red: '#ff5577', green: '#44ff88' };
     const humanPlayers = PLAYER_ORDER.slice(0, game.humanCount);
 
     // ポイントランキングHTML生成
@@ -2797,12 +2820,11 @@ function endGame(winner) {
 
         sortedPlayers.forEach((player, idx) => {
             const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
-            const color = playerColors[player];
-            const name = playerDisplayNames[player];
+            const meta = PLAYER_META[player];
             const pt = points[player];
             html += `<div style="display:flex;align-items:center;gap:8px;">
                 <span style="width:24px;">${medal}</span>
-                <span style="color:${color};font-weight:700;width:40px;">${name}</span>
+                <span style="color:${meta.cssColor};font-weight:700;width:40px;">${meta.displayName}</span>
                 <span style="font-family:'Orbitron',sans-serif;color:var(--neon-green);">${pt} PT</span>
             </div>`;
         });
@@ -2846,20 +2868,20 @@ function endGame(winner) {
             if (topPlayers.length === 1) {
                 // ポイント1位が決定
                 const pointWinner = topPlayers[0];
-                const winnerName = playerDisplayNames[pointWinner];
+                const winnerMeta = PLAYER_META[pointWinner];
                 const isHuman = humanPlayers.includes(pointWinner);
 
                 if (isHuman) {
                     // プレイヤーがポイント1位で勝利
                     icon.textContent = '🏆';
-                    title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerName} WINS!`;
+                    title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
                     title.className = 'result-title win';
 
                     detail.innerHTML = `
                         <div style="margin-bottom:12px;">最後までバランスキープ！ポイント勝負で勝ち！</div>
                         <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
                             <div style="font-size:0.9rem;color:#00ff88;margin-bottom:4px;">🎯 1位</div>
-                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${playerColors[pointWinner]};">${winnerName} - ${topPoint} PT</div>
+                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
                         </div>
                         ${pointsHtml}
                         <div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
@@ -2886,7 +2908,7 @@ function endGame(winner) {
                         <div style="margin-bottom:12px;">最後までバランスキープ...でもポイント負け！</div>
                         <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
                             <div style="font-size:0.9rem;color:#ff5577;margin-bottom:4px;">💀 1位はCPU...</div>
-                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${playerColors[pointWinner]};">${winnerName} - ${topPoint} PT</div>
+                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
                     </div>
                     ${pointsHtml}
                     <div style="background:rgba(255,255,0,0.1);border:1px solid #ffff00;border-radius:8px;padding:10px;margin-bottom:8px;">
@@ -2946,17 +2968,16 @@ function endGame(winner) {
         triggerImpactPause(100);
     } else {
         // 勝者あり（他プレイヤー脱落）
-        const winnerName = playerDisplayNames[winner];
-        const winnerIcon = playerIcons[winner];
+        const winnerMeta = PLAYER_META[winner];
         const winnerPoint = points[winner];
         const isWinnerHuman = humanPlayers.includes(winner);
 
         if (isWinnerHuman) {
             icon.textContent = '🏆';
-            title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerName} WINS!`;
+            title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
             title.className = 'result-title win';
             detail.innerHTML = `
-                <div style="margin-bottom:12px;">${winnerIcon} <strong>${game.humanCount === 1 ? 'あなた' : winnerName}</strong>が最後まで生き残った！</div>
+                <div style="margin-bottom:12px;">${winnerMeta.icon} <strong>${game.humanCount === 1 ? 'あなた' : winnerMeta.displayName}</strong>が最後まで生き残った！</div>
                 <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
                     <div style="font-size:0.85rem;color:#00ff88;margin-bottom:4px;">🏅 獲得ポイント</div>
                     <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;">${winnerPoint} PT</div>
