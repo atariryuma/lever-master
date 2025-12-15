@@ -879,20 +879,17 @@ function initThree() {
     window.addEventListener('resize', onResize, { passive: true });
 
     // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
-    // window.resizeだけでは検知できないケースに対応
     if (typeof ResizeObserver !== 'undefined') {
+        let resizeTimeout;
         const resizeObserver = new ResizeObserver(() => {
-            // デバウンス: 連続したリサイズイベントを間引く
-            clearTimeout(resizeObserver._timeout);
-            resizeObserver._timeout = setTimeout(onResize, 100);
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(onResize, 100);
         });
         resizeObserver.observe(canvas);
     }
 
-    // 初期カメラ位置を画面サイズに合わせて調整
-    // 少し遅延させてCSSの適用を待つ（iOS PWA対応）
-    setTimeout(onResize, 50);
-    setTimeout(onResize, 200);
+    // 初期カメラ位置を調整（CSSとcanvas初期化の完了を待つ）
+    setTimeout(onResize, 100);
 
     animate();
 }
@@ -1119,7 +1116,6 @@ function onPointerDown(e) {
     if (game.isOver) return;
     if (isCurrentPlayerCPU()) return;
 
-    initAudio();
     e.preventDefault();
     updateMouse(e.clientX, e.clientY);
     raycaster.setFromCamera(mouse, camera);
@@ -1297,8 +1293,11 @@ function onPointerUp(e) {
 }
 
 function updateMouse(x, y) {
-    mouse.x = (x / window.innerWidth) * 2 - 1;
-    mouse.y = -(y / window.innerHeight) * 2 + 1;
+    // キャンバスの実際の位置とサイズを使用（スマホ横画面サイドバー対応）
+    const canvas = document.getElementById('game-canvas');
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
 }
 
 // ==============================
@@ -2989,10 +2988,8 @@ function generateLeverStateHtml() {
 // ==============================
 // ゲーム開始
 // ==============================
-async function startGame(mode) {
-    await initAudio();  // 音声アンロック完了を待つ
+function startGame(mode) {
     playSound('click');
-    // 自動フルスクリーンは削除（ベストプラクティスに従いユーザー操作で切り替え）
     startGameInternal(mode);
 }
 
