@@ -40,10 +40,15 @@ export const VISUAL_CONFIG = {
  * @const {Object}
  */
 export const CPU_CONFIG = {
-    SABOTAGE_GAP_DIVISOR: 40,      // 妨害積極度計算の分母
-    RISKY_RISK_TOLERANCE: 0.6,     // リスクテイカー判定しきい値
-    RISKY_RANDOM_CHANCE: 0.4,      // リスクテイカーがランダム選択する確率
-    ATTACK_SABOTAGE_CHANCE: 0.5,   // 攻撃派が妨害優先する確率
+    SABOTAGE_GAP_DIVISOR: 40,             // 妨害積極度計算の分母
+    RISKY_RISK_TOLERANCE: 0.6,            // リスクテイカー判定しきい値
+    RISKY_RANDOM_CHANCE: 0.4,             // リスクテイカーがランダム選択する確率
+    ATTACK_SABOTAGE_CHANCE: 0.5,          // 攻撃派が妨害優先する確率
+    THINKING_DELAY_SLOW: 800,             // CPU思考遅延・慎重派(ms)
+    THINKING_DELAY_FAST: 600,             // CPU思考遅延・攻撃派(ms)
+    OUTER_AVOIDANCE_HIGH: 0.8,            // 外側回避率（高い）
+    RISK_TOLERANCE_HIGH: 0.8,             // リスク許容度（高い）
+    MOVE_SKIP_RATE_LOW: 0.15,             // 移動スキップ率（低い）
 };
 
 /**
@@ -64,7 +69,44 @@ export const ROULETTE_CONFIG = {
  * @const {Object}
  */
 export const AUDIO_CONFIG = {
-    BGM_VOLUME: 0.04,              // BGM音量
+    BGM_VOLUME: 0.04,                    // BGM音量
+    BGM_PAD_VOLUME: 0.15,                // BGMパッド音量
+    BGM_FILTER_FREQUENCY: 800,           // BGMローパスフィルター周波数
+    SFX_DROP_DURATION: 0.15,             // ドロップSFX持続時間
+    SFX_ERROR_DURATION: 0.15,            // エラーSFX持続時間
+    SFX_PHASE_DURATION: 0.15,            // フェーズSFX持続時間
+    SFX_SELECT_FREQUENCY: 600,           // 選択SFX周波数
+};
+
+/**
+ * 物理演算・エフェクト設定
+ * @const {Object}
+ */
+export const PHYSICS_CONFIG = {
+    IMPACT_PAUSE_DURATION: 30,           // おもり配置時のインパクトポーズ時間(ms)
+    CAMERA_SHAKE_INTENSITY: 0.15,        // カメラシェイク基本強度
+    SWING_IMPULSE_HANG: 0.8,             // おもり吊るし時のスイング強度
+    SWING_IMPULSE_MOVE: 1.2,             // おもり移動時のスイング強度
+    MOVE_JUDGE_DELAY: 600,               // 移動後の判定遅延(ms)
+};
+
+/**
+ * カメラ設定
+ * @const {Object}
+ */
+export const CAMERA_CONFIG = {
+    Z_DISTANCE_PER_STACK: 1.2,           // スタック1つあたりのZ軸距離増加量
+    POSITION_LERP: 0.15,                 // カメラ位置の補間係数
+    FOV_LERP: 0.15,                      // FOVの補間係数
+    DRAG_FOLLOW_X: 0.3,                  // ドラッグ時のX軸追従率(30%)
+};
+
+/**
+ * レンダリング設定
+ * @const {Object}
+ */
+export const RENDER_CONFIG = {
+    AMBIENT_LIGHT_INTENSITY: 0.8,        // アンビエントライト強度
 };
 
 /**

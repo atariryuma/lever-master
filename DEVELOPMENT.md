@@ -355,19 +355,39 @@ git commit -m "Update development guide with testing instructions"
 ### パフォーマンス低下
 → `window.perfMonitor.logStats()` で遅い処理を特定
 
-## 今後の改善案
+## 📋 最適化状況（2025-12-15更新）
 
-### 優先度: 高
-- [ ] main.js をモジュールに分割（export/import 対応）
-- [ ] コアロジックの実際のユニットテスト作成
-- [ ] パフォーマンスモニターを main.js に統合
+### ✅ 完了した改善
+
+- [x] ESLint設定ファイルのインデント修正
+- [x] グローバル関数エクスポートの削減（event-handlers.jsモジュール化）
+- [x] HTMLからonclick属性を完全削除
+- [x] マジックナンバーの定数化（AUDIO_CONFIG, PHYSICS_CONFIG等）
+- [x] タイムアウト管理の一元化（timeout-manager.js）
+- [x] エラーハンドリングの改善（error-handler.js）
+- [x] performanceグローバル変数の追加
+
+**詳細**: [OPTIMIZATION_REPORT.md](OPTIMIZATION_REPORT.md) 参照
+
+### 優先度: 高（次の目標）
+
+- [ ] **main.js をモジュールに分割（最優先）** - 4000行を以下に分割:
+  - `game/game-state.js` - ゲーム状態管理
+  - `game/turn-manager.js` - ターン制御
+  - `rendering/scene.js` - THREE.jsシーン
+  - `rendering/weights.js` - おもりレンダリング
+  - `ai/cpu-player.js` - CPU戦略
+- [ ] 複雑な関数の分割（findBestStrategyWithPersonality, endGame, animate）
+- [ ] CPU AIロジックのユニットテスト作成
 
 ### 優先度: 中
+
 - [ ] TypeScript への移行検討
-- [ ] コンポーネント単位でのファイル分割
-- [ ] ビルドツール（Vite/Rollup）の導入
+- [ ] console.logのロガー化（開発/本番で切り替え）
+- [ ] THREE.jsのローカルバンドル化（CDN依存削除）
 
 ### 優先度: 低
+
 - [ ] E2Eテスト（Playwright）の追加
 - [ ] CI/CDパイプラインの構築
 - [ ] 国際化（i18n）対応

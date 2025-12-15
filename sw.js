@@ -16,7 +16,7 @@ const ASSETS_TO_CACHE = [
     `${BASE_PATH}/public/icons/icon-192.png`,
     `${BASE_PATH}/public/icons/icon-512.png`,
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-    'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap'
+    'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap',
 ];
 
 // インストール時にアセットをキャッシュ
@@ -34,7 +34,7 @@ self.addEventListener('install', (event) => {
             })
             .catch((error) => {
                 console.error('[SW] Cache failed:', error);
-            })
+            }),
     );
 });
 
@@ -50,7 +50,7 @@ self.addEventListener('activate', (event) => {
                         .map((name) => {
                             console.log('[SW] Deleting old cache:', name);
                             return caches.delete(name);
-                        })
+                        }),
                 );
             })
             .then(() => {
@@ -58,7 +58,7 @@ self.addEventListener('activate', (event) => {
                 // clients.claim()でcontrollerchangeイベントが発火し、
                 // クライアント側でリロード処理が行われる
                 return self.clients.claim();
-            })
+            }),
     );
 });
 
@@ -126,6 +126,6 @@ self.addEventListener('fetch', (event) => {
                         }
                         return new Response('Offline', { status: 503 });
                     });
-            })
+            }),
     );
 });

@@ -1,193 +1,195 @@
 import js from '@eslint/js';
 
 export default [
-  // グローバル設定
-  {
-    ignores: [
-      'node_modules/**',
-      'coverage/**',
-      '.git/**',
-      '.claude/**',
-      'dist/**',
-    ],
-  },
-
-  // 推奨ルールを適用
-  js.configs.recommended,
-
-  // カスタムルール設定
-  {
-    files: ['**/*.js'],
-    languageOptions: {
-      ecmaVersion: 2024,
-      sourceType: 'module',
-      globals: {
-        // ブラウザグローバル
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearTimeout: 'readonly',
-        clearInterval: 'readonly',
-        requestAnimationFrame: 'readonly',
-        cancelAnimationFrame: 'readonly',
-        Audio: 'readonly',
-        Image: 'readonly',
-        URL: 'readonly',
-        ResizeObserver: 'readonly',
-        IntersectionObserver: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        screen: 'readonly',
-        AbortController: 'readonly',
-
-        // THREE.js グローバル
-        THREE: 'readonly',
-
-        // Node.js グローバル（テストファイル用）
-        process: 'readonly',
-        Buffer: 'readonly',
-      },
+    // グローバル設定
+    {
+        ignores: [
+            'node_modules/**',
+            'coverage/**',
+            '.git/**',
+            '.claude/**',
+            'dist/**',
+        ],
     },
 
-    rules: {
-      // ===== エラーレベル（厳格） =====
+    // 推奨ルールを適用
+    js.configs.recommended,
 
-      // 未使用変数の禁止
-      'no-unused-vars': ['error', {
-        vars: 'all',
-        args: 'after-used',
-        ignoreRestSiblings: true,
-        argsIgnorePattern: '^_',  // _で始まるパラメータは許可
-      }],
+    // カスタムルール設定
+    {
+        files: ['**/*.js'],
+        languageOptions: {
+            ecmaVersion: 2024,
+            sourceType: 'module',
+            globals: {
+                // ブラウザグローバル
+                window: 'readonly',
+                document: 'readonly',
+                navigator: 'readonly',
+                console: 'readonly',
+                setTimeout: 'readonly',
+                setInterval: 'readonly',
+                clearTimeout: 'readonly',
+                clearInterval: 'readonly',
+                requestAnimationFrame: 'readonly',
+                cancelAnimationFrame: 'readonly',
+                Audio: 'readonly',
+                Image: 'readonly',
+                URL: 'readonly',
+                ResizeObserver: 'readonly',
+                IntersectionObserver: 'readonly',
+                localStorage: 'readonly',
+                sessionStorage: 'readonly',
+                screen: 'readonly',
+                AbortController: 'readonly',
+                performance: 'readonly',
+                Date: 'readonly',
 
-      // 未定義変数の禁止
-      'no-undef': 'error',
+                // THREE.js グローバル
+                THREE: 'readonly',
 
-      // デバッガーの禁止
-      'no-debugger': 'error',
+                // Node.js グローバル（テストファイル用）
+                process: 'readonly',
+                Buffer: 'readonly',
+            },
+        },
 
-      // console.logの警告（本番前に削除すべき）
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+        rules: {
+            // ===== エラーレベル（厳格） =====
 
-      // 再代入できない変数への代入禁止
-      'no-const-assign': 'error',
+            // 未使用変数の禁止
+            'no-unused-vars': ['error', {
+                vars: 'all',
+                args: 'after-used',
+                ignoreRestSiblings: true,
+                argsIgnorePattern: '^_',  // _で始まるパラメータは許可
+            }],
 
-      // 重複したケースラベル禁止
-      'no-duplicate-case': 'error',
+            // 未定義変数の禁止
+            'no-undef': 'error',
 
-      // 空のブロック文の禁止
-      'no-empty': ['error', { allowEmptyCatch: true }],
+            // デバッガーの禁止
+            'no-debugger': 'error',
 
-      // 不要なセミコロンの禁止
-      'no-extra-semi': 'error',
+            // console.logの警告（本番前に削除すべき）
+            'no-console': ['warn', { allow: ['warn', 'error'] }],
 
-      // 関数宣言の上書き禁止
-      'no-func-assign': 'error',
+            // 再代入できない変数への代入禁止
+            'no-const-assign': 'error',
 
-      // 到達不可能なコードの禁止
-      'no-unreachable': 'error',
+            // 重複したケースラベル禁止
+            'no-duplicate-case': 'error',
 
-      // ===== 警告レベル（ベストプラクティス） =====
+            // 空のブロック文の禁止
+            'no-empty': ['error', { allowEmptyCatch: true }],
 
-      // var の使用を警告（let/const を推奨）
-      'no-var': 'warn',
+            // 不要なセミコロンの禁止
+            'no-extra-semi': 'error',
 
-      // const を推奨
-      'prefer-const': 'warn',
+            // 関数宣言の上書き禁止
+            'no-func-assign': 'error',
 
-      // テンプレート文字列を推奨
-      'prefer-template': 'warn',
+            // 到達不可能なコードの禁止
+            'no-unreachable': 'error',
 
-      // アロー関数の推奨
-      'prefer-arrow-callback': 'warn',
+            // ===== 警告レベル（ベストプラクティス） =====
 
-      // === と !== の使用を推奨
-      'eqeqeq': ['warn', 'always', { null: 'ignore' }],
+            // var の使用を警告（let/const を推奨）
+            'no-var': 'warn',
 
-      // 複数の空行を禁止
-      'no-multiple-empty-lines': ['warn', { max: 2, maxEOF: 1 }],
+            // const を推奨
+            'prefer-const': 'warn',
 
-      // 末尾のスペース禁止
-      'no-trailing-spaces': 'warn',
+            // テンプレート文字列を推奨
+            'prefer-template': 'warn',
 
-      // インデント（2スペース）
-      'indent': ['warn', 4, { SwitchCase: 1 }],
+            // アロー関数の推奨
+            'prefer-arrow-callback': 'warn',
 
-      // セミコロン必須
-      'semi': ['warn', 'always'],
+            // === と !== の使用を推奨
+            'eqeqeq': ['warn', 'always', { null: 'ignore' }],
 
-      // クォートスタイル（シングルクォート推奨）
-      'quotes': ['warn', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
+            // 複数の空行を禁止
+            'no-multiple-empty-lines': ['warn', { max: 2, maxEOF: 1 }],
 
-      // オブジェクト・配列の末尾カンマ
-      'comma-dangle': ['warn', 'always-multiline'],
+            // 末尾のスペース禁止
+            'no-trailing-spaces': 'warn',
 
-      // 中括弧のスタイル
-      'brace-style': ['warn', '1tbs', { allowSingleLine: true }],
+            // インデント（2スペース）
+            'indent': ['warn', 4, { SwitchCase: 1 }],
 
-      // スペースの一貫性
-      'space-before-function-paren': ['warn', {
-        anonymous: 'never',
-        named: 'never',
-        asyncArrow: 'always',
-      }],
+            // セミコロン必須
+            'semi': ['warn', 'always'],
 
-      // アロー関数のスペース
-      'arrow-spacing': 'warn',
+            // クォートスタイル（シングルクォート推奨）
+            'quotes': ['warn', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
 
-      // キーワードの前後のスペース
-      'keyword-spacing': 'warn',
+            // オブジェクト・配列の末尾カンマ
+            'comma-dangle': ['warn', 'always-multiline'],
 
-      // コンマの後のスペース
-      'comma-spacing': 'warn',
+            // 中括弧のスタイル
+            'brace-style': ['warn', '1tbs', { allowSingleLine: true }],
 
-      // 中括弧内のスペース
-      'object-curly-spacing': ['warn', 'always'],
+            // スペースの一貫性
+            'space-before-function-paren': ['warn', {
+                anonymous: 'never',
+                named: 'never',
+                asyncArrow: 'always',
+            }],
 
-      // 配列の括弧内のスペース（なし）
-      'array-bracket-spacing': ['warn', 'never'],
+            // アロー関数のスペース
+            'arrow-spacing': 'warn',
 
-      // 最大行長（警告のみ）
-      'max-len': ['warn', {
-        code: 120,
-        ignoreComments: true,
-        ignoreStrings: true,
-        ignoreTemplateLiterals: true,
-      }],
+            // キーワードの前後のスペース
+            'keyword-spacing': 'warn',
 
-      // 複雑度の警告
-      'complexity': ['warn', 20],
+            // コンマの後のスペース
+            'comma-spacing': 'warn',
 
-      // 関数の最大行数
-      'max-lines-per-function': ['warn', {
-        max: 100,
-        skipBlankLines: true,
-        skipComments: true,
-      }],
+            // 中括弧内のスペース
+            'object-curly-spacing': ['warn', 'always'],
+
+            // 配列の括弧内のスペース（なし）
+            'array-bracket-spacing': ['warn', 'never'],
+
+            // 最大行長（警告のみ）
+            'max-len': ['warn', {
+                code: 120,
+                ignoreComments: true,
+                ignoreStrings: true,
+                ignoreTemplateLiterals: true,
+            }],
+
+            // 複雑度の警告
+            'complexity': ['warn', 20],
+
+            // 関数の最大行数
+            'max-lines-per-function': ['warn', {
+                max: 100,
+                skipBlankLines: true,
+                skipComments: true,
+            }],
+        },
     },
-  },
 
-  // テストファイル専用の設定
-  {
-    files: ['__tests__/**/*.js', '**/*.test.js'],
-    languageOptions: {
-      globals: {
-        describe: 'readonly',
-        it: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        vi: 'readonly',
-      },
+    // テストファイル専用の設定
+    {
+        files: ['__tests__/**/*.js', '**/*.test.js'],
+        languageOptions: {
+            globals: {
+                describe: 'readonly',
+                it: 'readonly',
+                expect: 'readonly',
+                beforeEach: 'readonly',
+                afterEach: 'readonly',
+                vi: 'readonly',
+            },
+        },
+        rules: {
+            // テストファイルではconsole.logを許可
+            'no-console': 'off',
+            // テストファイルでは長い関数を許可
+            'max-lines-per-function': 'off',
+        },
     },
-    rules: {
-      // テストファイルではconsole.logを許可
-      'no-console': 'off',
-      // テストファイルでは長い関数を許可
-      'max-lines-per-function': 'off',
-    },
-  },
 ];

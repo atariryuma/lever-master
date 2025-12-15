@@ -33,7 +33,7 @@
 
 <body>
     <!-- タップして開始スプラッシュ画面 -->
-    <div class="splash-screen" id="splash-screen" onclick="dismissSplash(event)">
+    <div class="splash-screen" id="splash-screen">
         <div class="splash-content">
             <div class="splash-title">LEVER MASTER</div>
             <div class="splash-subtitle">てこマスター</div>
@@ -93,28 +93,28 @@
                 <div class="learning-badge">📚 小6理科「てこ」</div>
 
                 <!-- サウンドトグルボタン -->
-                <button type="button" class="start-sound-btn" id="start-sound-btn" onclick="toggleStartSound()">
+                <button type="button" class="start-sound-btn" id="start-sound-btn">
                     <span class="sound-icon" id="start-sound-icon">🔇</span>
                     <span class="sound-label" id="start-sound-label">BGM OFF</span>
                 </button>
 
                 <div class="mode-select">
-                    <button type="button" class="mode-btn mode1" onclick="startGame('cpu1')">
+                    <button type="button" class="mode-btn mode1">
                         <span class="mode-icon">🤖</span>
                         <span class="mode-label">1人</span>
                         <span class="mode-desc">vs CPU×3</span>
                     </button>
-                    <button type="button" class="mode-btn mode2" onclick="startGame('pvp2')">
+                    <button type="button" class="mode-btn mode2">
                         <span class="mode-icon">⚔️</span>
                         <span class="mode-label">2人</span>
                         <span class="mode-desc">vs CPU×2</span>
                     </button>
-                    <button type="button" class="mode-btn mode3" onclick="startGame('pvp3')">
+                    <button type="button" class="mode-btn mode3">
                         <span class="mode-icon">👥</span>
                         <span class="mode-label">3人</span>
                         <span class="mode-desc">vs CPU×1</span>
                     </button>
-                    <button type="button" class="mode-btn mode4" onclick="startGame('pvp4')">
+                    <button type="button" class="mode-btn mode4">
                         <span class="mode-icon">🎮</span>
                         <span class="mode-label">4人</span>
                         <span class="mode-desc">全員対戦</span>
@@ -125,7 +125,7 @@
                 <div class="install-guide" id="install-guide">
                     <div class="install-icon">📲</div>
                     <div class="install-text" id="install-text"></div>
-                    <button type="button" class="install-close" onclick="closeInstallGuide()" aria-label="Close">✕</button>
+                    <button type="button" class="install-close" aria-label="Close">✕</button>
                 </div>
             </div>
 
@@ -166,7 +166,7 @@
             <div class="result-icon" id="result-icon">🏆</div>
             <div class="result-title win" id="result-title">VICTORY!</div>
             <div class="result-detail" id="result-detail"></div>
-            <button type="button" class="result-btn" onclick="backToStart()">RETRY</button>
+            <button type="button" class="result-btn">RETRY</button>
         </div>
     </div>
 
@@ -196,7 +196,7 @@
                     ・今吊るした位置からは動かせない<br>
                     ・1箇所に最大6個まで（×マークで表示）</p>
             </div>
-            <button type="button" class="help-close" onclick="closeHelp()">閉じる</button>
+            <button type="button" class="help-close">閉じる</button>
         </div>
     </div>
 
@@ -208,10 +208,8 @@
                 <p style="margin-bottom:20px;">タイトルに戻る？</p>
                 <div style="display:flex;gap:12px;justify-content:center;">
                     <button type="button" class="result-btn"
-                        style="padding:12px 24px;background:var(--neon-red);border-color:var(--neon-red);color:#fff;"
-                        onclick="exitGame()">EXIT</button>
-                    <button type="button" class="help-close" style="margin:0;padding:12px 24px;"
-                        onclick="closeExitModal()">BACK</button>
+                        style="padding:12px 24px;background:var(--neon-red);border-color:var(--neon-red);color:#fff;">EXIT</button>
+                    <button type="button" class="help-close" style="margin:0;padding:12px 24px;">BACK</button>
                 </div>
             </div>
         </div>
@@ -276,7 +274,7 @@
                     ・身の回りのてこの例を見つけられる</p>
             </div>
 
-            <button type="button" class="help-close" onclick="closeLearn()">閉じる</button>
+            <button type="button" class="help-close">閉じる</button>
         </div>
     </div>
 
@@ -284,13 +282,13 @@
     <div class="header">
         <div class="game-title">LEVER MASTER</div>
         <div class="header-icons">
-            <button type="button" class="header-icon sound" id="sound-btn" onclick="toggleSound()" title="Sound"
+            <button type="button" class="header-icon sound" id="sound-btn" title="Sound"
                 aria-label="Toggle sound">🔊</button>
-            <button type="button" class="header-icon learn" onclick="openLearn()" title="Learn"
+            <button type="button" class="header-icon learn" title="Learn"
                 aria-label="Learning guide">📚</button>
-            <button type="button" class="header-icon help" onclick="openHelp()" title="Rules"
+            <button type="button" class="header-icon help" title="Rules"
                 aria-label="Game rules">❓</button>
-            <button type="button" class="header-icon exit" id="exit-btn" onclick="confirmExit()" title="Exit"
+            <button type="button" class="header-icon exit" id="exit-btn" title="Exit"
                 aria-label="Exit game">🚪</button>
         </div>
     </div>
@@ -326,7 +324,7 @@
     <canvas id="game-canvas"></canvas>
 
     <div class="game-hint" id="game-hint" role="status" aria-live="polite">
-        <button type="button" class="hint-close" onclick="hideHint()" aria-label="Close hint">✕</button>
+        <button type="button" class="hint-close" aria-label="Close hint">✕</button>
         <div class="hint-text" id="hint-text">ドラッグして置こう！</div>
         <div class="hint-sub" id="hint-sub">光っている場所へ</div>
     </div>
@@ -344,9 +342,9 @@
             </span>
             <span class="divider">│</span>
             <span class="phase-badge hang" id="phase-badge" role="status" aria-live="assertive">🎯 HANG</span>
-            <button type="button" class="action-btn hidden" id="btn-redo" onclick="redoHang()"
+            <button type="button" class="action-btn hidden" id="btn-redo"
                 aria-label="Redo placement">🔄</button>
-            <button type="button" class="action-btn hidden" id="btn-pass" onclick="passMove()"
+            <button type="button" class="action-btn hidden" id="btn-pass"
                 aria-label="Skip turn">SKIP</button>
         </div>
     </div>

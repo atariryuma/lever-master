@@ -7,6 +7,9 @@ import {
     CPU_CONFIG,
     ROULETTE_CONFIG,
     AUDIO_CONFIG,
+    PHYSICS_CONFIG,
+    CAMERA_CONFIG,
+    RENDER_CONFIG,
     COLORS,
     STOCK_POSITIONS,
     PLAYER_ORDER,
@@ -26,6 +29,8 @@ import {
     generateBalanceInfoHtml,
     generateLeverStateHtml,
 } from './ui-generator.js';
+
+import { initializeEventListeners } from './event-handlers.js';
 
 // ==============================
 // 後方互換性のため CONFIG を維持（非推奨）
@@ -52,8 +57,8 @@ let isMuted = true;  // 初期状態はミュート（スプラッシュでタ�
 let bgmGain = null;
 let bgmStarted = false;
 let bgmLoopTimeoutId = null;  // BGMループのタイムアウトID
-let cpuTimeoutIds = new Set();       // CPU思考のタイムアウトID（複数管理）
-let rouletteTimeoutIds = new Set();  // ルーレットのタイムアウトID（複数管理）
+const cpuTimeoutIds = new Set();       // CPU思考のタイムアウトID（複数管理）
+const rouletteTimeoutIds = new Set();  // ルーレットのタイムアウトID（複数管理）
 
 let audioUnlocked = false;
 
@@ -142,7 +147,7 @@ function startBGM() {
         osc2.frequency.value = freq * 1.002; // わずかなデチューンで厚み
 
         filter.type = 'lowpass';
-        filter.frequency.value = 800;
+        filter.frequency.value = AUDIO_CONFIG.BGM_FILTER_FREQUENCY;
         filter.Q.value = 1;
 
         osc.connect(filter);
@@ -152,8 +157,8 @@ function startBGM() {
 
         // フェードイン・アウト
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.15, time + dur * 0.3);
-        gain.gain.linearRampToValueAtTime(0.15, time + dur * 0.7);
+        gain.gain.linearRampToValueAtTime(AUDIO_CONFIG.BGM_PAD_VOLUME, time + dur * 0.3);
+        gain.gain.linearRampToValueAtTime(AUDIO_CONFIG.BGM_PAD_VOLUME, time + dur * 0.7);
         gain.gain.linearRampToValueAtTime(0, time + dur);
 
         osc.start(time);
@@ -367,14 +372,14 @@ function playGameOverSound(variation) {
  * 音声設定マップ（Data-Driven Approach）
  */
 const SOUND_CONFIGS = {
-    drop: { type: 'sine', freqStart: 400, freqEnd: 200, freqDuration: 0.1, volume: 0.2, duration: 0.15 },
+    drop: { type: 'sine', freqStart: 400, freqEnd: 200, freqDuration: 0.1, volume: 0.2, duration: AUDIO_CONFIG.SFX_DROP_DURATION },
     move: { type: 'triangle', freqStart: 300, freqEnd: 500, freqDuration: 0.1, volume: 0.2, duration: 0.12 },
     lose: { type: 'sawtooth', freqStart: 150, freqEnd: 40, freqDuration: 0.3, volume: 0.25, duration: 0.3 },
     turn: { type: 'sine', frequency: 880, volume: 0.08, duration: 0.1 },
     click: { type: 'square', frequency: 1000, volume: 0.05, duration: 0.05 },
-    select: { type: 'sine', frequency: 600, volume: 0.1, duration: 0.08 },
-    error: { type: 'sawtooth', freqStart: 200, freqEnd: 150, freqDuration: 0.15, volume: 0.12, duration: 0.15 },
-    phase: { type: 'triangle', freqStart: 440, freqEnd: 880, freqDuration: 0.12, volume: 0.1, duration: 0.15 },
+    select: { type: 'sine', frequency: AUDIO_CONFIG.SFX_SELECT_FREQUENCY, volume: 0.1, duration: 0.08 },
+    error: { type: 'sawtooth', freqStart: 200, freqEnd: 150, freqDuration: AUDIO_CONFIG.SFX_ERROR_DURATION, volume: 0.12, duration: AUDIO_CONFIG.SFX_ERROR_DURATION },
+    phase: { type: 'triangle', freqStart: 440, freqEnd: 880, freqDuration: 0.12, volume: 0.1, duration: AUDIO_CONFIG.SFX_PHASE_DURATION },
 };
 
 /**
@@ -412,7 +417,7 @@ function playSound(type) {
     }
 }
 
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function toggleSound() {
     isMuted = !isMuted;
     if (bgmGain) {
@@ -432,7 +437,7 @@ function toggleSound() {
 function showScreenFlash(type) {
     const flash = document.getElementById(DOM_IDS.SCREEN_FLASH);
     if (!flash) return;
-    flash.className = 'screen-flash ' + type + ' active';
+    flash.className = `screen-flash ${  type  } active`;
     setTimeout(() => {
         if (flash) flash.classList.remove('active');
     }, CONFIG.SCREEN_FLASH_DURATION);
@@ -489,7 +494,7 @@ function createConfetti(count = CONFIG.CONFETTI_COUNT) {
         hexToCSS(COLORS.RED.primary),
         hexToCSS(COLORS.GREEN.primary),
         UI_COLORS.MAGENTA,
-        UI_COLORS.WHITE
+        UI_COLORS.WHITE,
     ];
     const container = document.body;
     if (!container) return;
@@ -518,7 +523,7 @@ function createConfetti(count = CONFIG.CONFETTI_COUNT) {
             el: confetti,
             duration: 2500 + Math.random() * 1500,
             horizontalDrift: (Math.random() - 0.5) * 200,
-            rotation: Math.random() * 720 - 360
+            rotation: Math.random() * 720 - 360,
         });
     }
 
@@ -530,15 +535,15 @@ function createConfetti(count = CONFIG.CONFETTI_COUNT) {
         el.animate([
             {
                 transform: `translateY(0) translateX(0) rotate(0deg)`,
-                opacity: 1
+                opacity: 1,
             },
             {
                 transform: `translateY(100vh) translateX(${horizontalDrift}px) rotate(${rotation}deg)`,
-                opacity: 0.3
-            }
+                opacity: 0.3,
+            },
         ], {
             duration: duration,
-            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }).onfinish = () => el.remove();
     });
 }
@@ -565,13 +570,13 @@ const game = {
     isDragging: false,
     turnCount: 0,
     currentTurnHungPos: null,
-    currentTurnHungOwner: null
+    currentTurnHungOwner: null,
 };
 
 // 駒配分設定（常に4人プレイ、各4個ずつ=16個）
 // humanCount でCPU/人間の区別のみ変わる
 const DISTRIBUTIONS = {
-    4: { blue: 4, yellow: 4, red: 4, green: 4 }
+    4: { blue: 4, yellow: 4, red: 4, green: 4 },
 };
 
 // ==============================
@@ -586,11 +591,11 @@ const CPU_PERSONALITIES = {
         preferInner: true,      // 内側を好む
         riskTolerance: 0.2,     // リスク許容度（低い）
         mistakeRate: 0.01,      // 失敗率1%（より堅実に）
-        outerAvoidance: 0.8,    // 外側回避率（高い）
+        outerAvoidance: CPU_CONFIG.OUTER_AVOIDANCE_HIGH,    // 外側回避率（高い）
         moveSkipRate: 0.3,      // 移動スキップ率（安全に済ませる）
         sabotageThreshold: 40,  // 妨害を検討するポイント差
         defensivePriority: 0.9, // 守備優先度（高い＝自分のバランス重視）
-        thinkingDelay: 1000     // 長考タイプ
+        thinkingDelay: 1000,     // 長考タイプ
     },
     // 普通タイプ：バランス型
     // 戦略：状況に応じて攻守を切り替え、適度に妨害
@@ -601,10 +606,10 @@ const CPU_PERSONALITIES = {
         riskTolerance: 0.5,
         mistakeRate: 0.06,      // 失敗率6%
         outerAvoidance: 0.4,
-        moveSkipRate: 0.15,
+        moveSkipRate: CPU_CONFIG.MOVE_SKIP_RATE_LOW,
         sabotageThreshold: 25,  // 25pt差から妨害開始
         defensivePriority: 0.6, // 攻守バランス
-        thinkingDelay: 800      // 標準
+        thinkingDelay: CPU_CONFIG.THINKING_DELAY_SLOW,      // 標準
     },
     // リスクテイカー：外側（位置4-6）を狙う、失敗率高め
     // 戦略：積極的に1位を狙い撃ち、高リスク高リターン
@@ -612,21 +617,21 @@ const CPU_PERSONALITIES = {
         name: '攻撃派',
         emoji: '🔥',
         preferInner: false,
-        riskTolerance: 0.8,     // リスク許容度（高い）
+        riskTolerance: CPU_CONFIG.RISK_TOLERANCE_HIGH,     // リスク許容度（高い）
         mistakeRate: 0.12,      // 失敗率12%
         outerAvoidance: 0.1,    // 外側回避しない
         moveSkipRate: 0.02,     // より積極的に移動する
         sabotageThreshold: 5,   // わずかな差でも妨害（攻撃的）
         defensivePriority: 0.3, // 攻撃優先
-        thinkingDelay: 600      // 即断即決
-    }
+        thinkingDelay: CPU_CONFIG.THINKING_DELAY_FAST,      // 即断即決
+    },
 };
 
 // 各CPUプレイヤーに性格を割り当て
 const cpuPersonalities = {
     yellow: 'safe',    // P2: 慎重派
     red: 'risky',      // P3: 攻撃派
-    green: 'normal'    // P4: バランス派
+    green: 'normal',    // P4: バランス派
 };
 
 // 初期配置：中立おもり（owner: 'neutral'）を±3に配置
@@ -642,14 +647,14 @@ let weightGroupsKeys = [];  // weightGroupsのキーキャッシュ（animate用
 let stockWeightsArray = [];  // ストックおもりの配列キャッシュ
 let raycaster, mouse;
 let leverAngle = 0, targetLeverAngle = 0;
-let cameraShake = { x: 0, y: 0, intensity: 0 };
+const cameraShake = { x: 0, y: 0, intensity: 0 };
 let cameraBaseY = 5; // onResizeで更新
 let cameraBaseZ = 14; // onResizeで更新
 let cameraBaseFov = 65; // 基準FOV（動的調整用）
 let targetFov = 65; // 目標FOV（アクション時に変化）
 let currentFov = 65; // 現在のFOV（補間用）
 let userFovOffset = 0; // ユーザー設定のFOVオフセット（-10〜+10度）
-let stockWeights = { blue: null, yellow: null, red: null, green: null };
+const stockWeights = { blue: null, yellow: null, red: null, green: null };
 let draggedStock = null;
 let dragPlane = null;
 let hoveredGhost = null;
@@ -679,7 +684,7 @@ const PHYSICS = {
     LEVER_SPEED: 0.04,   // 補間速度（目標角度への追従速度）
     // 振り子の物理パラメータ
     PEND_DAMP: 0.992,    // 振り子の減衰（自然な空気抵抗）
-    PEND_INERTIA_COEF: 0.05  // 振り子の慣性力係数
+    PEND_INERTIA_COEF: 0.05,  // 振り子の慣性力係数
 };
 
 // ドラッグ制限定数
@@ -687,7 +692,7 @@ const DRAG_LIMITS = {
     X_MIN: -10,    // X軸最小値（てこの範囲-8.5より少し広め）
     X_MAX: 10,     // X軸最大値（てこの範囲8.5より少し広め）
     Y_MIN: -6,     // Y軸最小値（てこの下）
-    Y_MAX: 3.5     // Y軸最大値（ストック位置より少し上）
+    Y_MAX: 3.5,     // Y軸最大値（ストック位置より少し上）
 };
 
 // カメラ動的調整定数
@@ -701,8 +706,8 @@ const CAMERA_DYNAMICS = {
     FOV_UPDATE_THRESHOLD: 0.01,  // updateProjectionMatrixを呼ぶ最小変化量
     LOOKAT_Y_NORMAL: -0.5,   // 通常時のlookAtターゲットY座標
     LOOKAT_Y_STACKED: -1.5,  // スタック多い時のlookAtターゲットY座標
-    DRAG_FOLLOW_X: 0.3,      // ドラッグ時のX軸追従率（30%）
-    DRAG_FOLLOW_Y: 0.5       // ドラッグ時のY軸追従率（50%）
+    DRAG_FOLLOW_X: CAMERA_CONFIG.DRAG_FOLLOW_X,      // ドラッグ時のX軸追従率（30%）
+    DRAG_FOLLOW_Y: 0.5,       // ドラッグ時のY軸追従率（50%）
 };
 
 // てこの角速度（状態変数）
@@ -880,7 +885,7 @@ function setupRenderer(canvas) {
  */
 function setupLighting() {
     // 環境光
-    scene.add(new THREE.AmbientLight(0x8899bb, 0.8));
+    scene.add(new THREE.AmbientLight(0x8899bb, RENDER_CONFIG.AMBIENT_LIGHT_INTENSITY));
 
     // メインライト（45度の角度で立体感を最大化）
     const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
@@ -1180,21 +1185,21 @@ function createStockWeight(owner, color) {
     const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(0.5, 24, 24),
         new THREE.MeshStandardMaterial({
-            color: color, emissive: color, emissiveIntensity: 0.4, metalness: 0.6, roughness: 0.3
-        })
+            color: color, emissive: color, emissiveIntensity: 0.4, metalness: 0.6, roughness: 0.3,
+        }),
     );
     group.add(sphere);
 
     const hitbox = new THREE.Mesh(
         new THREE.SphereGeometry(1.2, 12, 12),
-        new THREE.MeshBasicMaterial({ visible: false })
+        new THREE.MeshBasicMaterial({ visible: false }),
     );
     group.add(hitbox);
     group.hitbox = hitbox;
 
     const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.6, 0.05, 12, 32),
-        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 })
+        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 }),
     );
     ring.rotation.x = Math.PI / 2;
     group.add(ring);
@@ -1204,7 +1209,7 @@ function createStockWeight(owner, color) {
     canvas2d.height = 64;
     const ctx = canvas2d.getContext('2d');
     const ownerColorSet = COLORS[owner.toUpperCase()] || COLORS.BLUE;
-    ctx.fillStyle = '#' + ownerColorSet.bright.toString(16).padStart(6, '0');
+    ctx.fillStyle = `#${  ownerColorSet.bright.toString(16).padStart(6, '0')}`;
     ctx.font = 'bold 36px "M PLUS Rounded 1c", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1242,14 +1247,14 @@ function createGhost(pos) {
     const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(0.42, 24, 24),
         new THREE.MeshStandardMaterial({
-            color: baseColor, transparent: true, opacity: 0.3, emissive: baseColor, emissiveIntensity: 0.2
-        })
+            color: baseColor, transparent: true, opacity: 0.3, emissive: baseColor, emissiveIntensity: 0.2,
+        }),
     );
     group.add(sphere);
 
     const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.55, 0.04, 12, 32),
-        new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.5 })
+        new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.5 }),
     );
     ring.rotation.x = Math.PI / 2;
     group.add(ring);
@@ -1267,7 +1272,7 @@ function createGhost(pos) {
 
     const labelTexture = new THREE.CanvasTexture(canvas2d);
     const label = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: labelTexture, transparent: true, opacity: 0.9 })
+        new THREE.SpriteMaterial({ map: labelTexture, transparent: true, opacity: 0.9 }),
     );
     label.scale.set(0.5, 0.5, 1);
     label.position.y = 0.65;
@@ -1275,7 +1280,7 @@ function createGhost(pos) {
 
     const hitbox = new THREE.Mesh(
         new THREE.SphereGeometry(0.8, 12, 12),
-        new THREE.MeshBasicMaterial({ visible: false })
+        new THREE.MeshBasicMaterial({ visible: false }),
     );
     group.add(hitbox);
 
@@ -1296,7 +1301,7 @@ function createGhost(pos) {
 
     const fullTexture = new THREE.CanvasTexture(fullCanvas);
     const fullMark = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: fullTexture, transparent: true, opacity: 0.9 })
+        new THREE.SpriteMaterial({ map: fullTexture, transparent: true, opacity: 0.9 }),
     );
     fullMark.scale.set(0.7, 0.7, 1);
     fullMark.position.y = 0;
@@ -1328,7 +1333,7 @@ function createPositionLabels() {
 
         const labelTexture = new THREE.CanvasTexture(canvas2d);
         const label = new THREE.Sprite(
-            new THREE.SpriteMaterial({ map: labelTexture, transparent: true })
+            new THREE.SpriteMaterial({ map: labelTexture, transparent: true }),
         );
         label.scale.set(0.5, 0.5, 1);
         label.position.set(pos * 1.4, 0.35, 0);
@@ -1357,7 +1362,7 @@ function addBackgroundParticles() {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const particles = new THREE.Points(geometry, new THREE.PointsMaterial({
-        size: 0.15, vertexColors: true, transparent: true, opacity: 0.6
+        size: 0.15, vertexColors: true, transparent: true, opacity: 0.6,
     }));
     scene.add(particles);
 }
@@ -1490,7 +1495,7 @@ function onPointerUp(e) {
                 } else {
                     doHang(pos, owner);
                     const ownerColorSet = COLORS[owner.toUpperCase()] || COLORS.BLUE;
-                    createParticleExplosion(hits[0].point, '#' + ownerColorSet.bright.toString(16).padStart(6, '0'));
+                    createParticleExplosion(hits[0].point, `#${  ownerColorSet.bright.toString(16).padStart(6, '0')}`);
                 }
             }
         }
@@ -1524,7 +1529,7 @@ function onPointerUp(e) {
             if (isValidMove(fromPos, toPos, movingCount)) {
                 doMove(fromPos, game.selectedWeight.index, toPos);
                 createParticleExplosion(hits[0].point, UI_COLORS.ACCENT);
-                triggerCameraShake(0.15);
+                triggerCameraShake(PHYSICS_CONFIG.CAMERA_SHAKE_INTENSITY);
             } else {
                 // 満杯の場合はメッセージ表示
                 const toStack = game.leverData[toPos] || [];
@@ -1563,16 +1568,16 @@ function showDragIndicator(x, y) {
     const dragText = document.getElementById(DOM_IDS.DRAG_TEXT);
     if (!indicator) return;
     indicator.classList.add('active');
-    indicator.style.left = (x - 25) + 'px';
-    indicator.style.top = (y - 25) + 'px';
+    indicator.style.left = `${x - 25  }px`;
+    indicator.style.top = `${y - 25  }px`;
     if (dragText) dragText.textContent = 'ここに配置！';
 }
 
 function updateDragIndicator(x, y) {
     const indicator = document.getElementById(DOM_IDS.DRAG_INDICATOR);
     if (!indicator) return;
-    indicator.style.left = (x - 25) + 'px';
-    indicator.style.top = (y - 25) + 'px';
+    indicator.style.left = `${x - 25  }px`;
+    indicator.style.top = `${y - 25  }px`;
 }
 
 function hideDragIndicator() {
@@ -1646,8 +1651,8 @@ function createParticleExplosion(point, color) {
         particle.className = 'particle';
         particle.style.background = color;
         particle.style.boxShadow = `0 0 10px ${color}`;
-        particle.style.left = screenPos.x + 'px';
-        particle.style.top = screenPos.y + 'px';
+        particle.style.left = `${screenPos.x  }px`;
+        particle.style.top = `${screenPos.y  }px`;
 
         const angle = (Math.PI * 2 / count) * i;
         const velocity = 60 + Math.random() * 60;
@@ -1656,7 +1661,7 @@ function createParticleExplosion(point, color) {
         particleData.push({
             el: particle,
             vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity
+            vy: Math.sin(angle) * velocity,
         });
     }
 
@@ -1684,7 +1689,7 @@ function toScreenPosition(point) {
     vector.project(camera);
     return {
         x: (vector.x * 0.5 + 0.5) * window.innerWidth,
-        y: (-vector.y * 0.5 + 0.5) * window.innerHeight
+        y: (-vector.y * 0.5 + 0.5) * window.innerHeight,
     };
 }
 
@@ -1694,7 +1699,7 @@ function triggerCameraShake(intensity) {
 
 function addSwingImpulse(pos, intensity) {
     Object.keys(weightPhysics).forEach(key => {
-        if (key.startsWith(pos + '_')) {
+        if (key.startsWith(`${pos  }_`)) {
             const physics = weightPhysics[key];
             physics.velocity += (Math.random() - 0.5) * intensity * 0.5;
         }
@@ -1737,13 +1742,13 @@ function doHang(pos, owner, isRehang = false) {
     game.currentTurnHungOwner = owner;
 
     playSound('drop');
-    triggerImpactPause(30);  // おもり配置時のインパクトポーズ
+    triggerImpactPause(PHYSICS_CONFIG.IMPACT_PAUSE_DURATION);  // おもり配置時のインパクトポーズ
 
     rebuildWeights();
     updateMomentDisplay();
     updateUI();
 
-    addSwingImpulse(pos, 0.8);
+    addSwingImpulse(pos, PHYSICS_CONFIG.SWING_IMPULSE_HANG);
 
     game.phase = 'move';
     playSound('phase');
@@ -1753,9 +1758,9 @@ function doHang(pos, owner, isRehang = false) {
         // 初回ターン：バランス説明を追加
         const m = calcMoment();
         if (m.diff === 0) {
-            showHint('⚖️ バランスOK！', 'L=' + m.left + ' R=' + m.right + ' で釣り合い中');
+            showHint('⚖️ バランスOK！', `L=${  m.left  } R=${  m.right  } で釣り合い中`);
         } else {
-            showHint('⚠️ 傾いてる！', 'L=' + m.left + ' R=' + m.right + ' → 動かしてバランスを取ろう');
+            showHint('⚠️ 傾いてる！', `L=${  m.left  } R=${  m.right  } → 動かしてバランスを取ろう`);
         }
     } else if (hasAnyValidMove()) {
         showHint('動かす or SKIP！', '隣はNG！');
@@ -1862,9 +1867,9 @@ function doMove(fromPos, fromIndex, toPos) {
     rebuildWeights();
     updateMomentDisplay();
 
-    addSwingImpulse(toPos, 1.2);
+    addSwingImpulse(toPos, PHYSICS_CONFIG.SWING_IMPULSE_MOVE);
 
-    setCpuTimeout(() => goToJudge(), 600);
+    setCpuTimeout(() => goToJudge(), PHYSICS_CONFIG.MOVE_JUDGE_DELAY);
 }
 
 // ==============================
@@ -2037,7 +2042,7 @@ function updateMomentDisplay() {
 
     if (mLeft) mLeft.textContent = m.left;
     if (mRight) mRight.textContent = m.right;
-    if (icon) icon.className = 'balance-icon ' + (m.diff === 0 ? 'balanced' : 'unbalanced');
+    if (icon) icon.className = `balance-icon ${  m.diff === 0 ? 'balanced' : 'unbalanced'}`;
 }
 
 function checkBalance() {
@@ -2105,9 +2110,9 @@ function switchTurn() {
         if (game.turnCount <= 1) {
             const m = calcMoment();
             if (m.diff === 0) {
-                showHint('⚖️ バランスOK！', 'L=' + m.left + ' R=' + m.right + ' で釣り合い中');
+                showHint('⚖️ バランスOK！', `L=${  m.left  } R=${  m.right  } で釣り合い中`);
             } else {
-                showHint('⚠️ 傾いてる！', 'L=' + m.left + ' R=' + m.right + ' → 動かしてバランスを取ろう');
+                showHint('⚠️ 傾いてる！', `L=${  m.left  } R=${  m.right  } → 動かしてバランスを取ろう`);
             }
         } else if (hasAnyValidMove()) {
             showHint('動かす or SKIP！', '隣はNG！');
@@ -2130,7 +2135,7 @@ function updatePhaseUI() {
 
     // プレイヤーパネルのアクティブ状態更新
     game.activePlayers.forEach(color => {
-        const panel = document.getElementById('panel-' + color);
+        const panel = document.getElementById(`panel-${  color}`);
         if (panel) {
             panel.classList.toggle('active', color === game.turn);
         }
@@ -2308,7 +2313,7 @@ function cpuTurn() {
 
         if (shouldMove) {
             const fromWeight = weightMeshes.find(w =>
-                w.pos === strategy.move.fromPos && w.stackIndex === strategy.move.index
+                w.pos === strategy.move.fromPos && w.stackIndex === strategy.move.index,
             );
             if (fromWeight) {
                 const movingCount = strategy.move.index + 1;
@@ -2346,7 +2351,7 @@ function findMistakeStrategy(player, personality) {
             return {
                 hangPos: null,
                 move: { fromPos: randomMove.fromPos, index: randomMove.index, toPos: randomMove.toPos },
-                resultDiff: randomMove.diff
+                resultDiff: randomMove.diff,
             };
         }
         return { hangPos: null, move: null, resultDiff: Infinity };
@@ -2457,7 +2462,7 @@ function findBestStrategyWithPersonality(player, personality) {
                 move: null,
                 resultDiff: 0,
                 positionBonus: positionBonus,
-                sabotageBonus: 0
+                sabotageBonus: 0,
             });
         }
 
@@ -2483,7 +2488,7 @@ function findBestStrategyWithPersonality(player, personality) {
                     move: { fromPos: bestSabotage.fromPos, index: bestSabotage.index, toPos: bestSabotage.toPos },
                     resultDiff: 0,
                     positionBonus: positionBonus,
-                    sabotageBonus: sabotageBonus
+                    sabotageBonus: sabotageBonus,
                 });
             }
 
@@ -2503,7 +2508,7 @@ function findBestStrategyWithPersonality(player, personality) {
                     move: { fromPos: best.fromPos, index: best.index, toPos: best.toPos },
                     resultDiff: best.diff,
                     positionBonus: positionBonus,
-                    sabotageBonus: (best.isLeaderWeight && best.sabotageValue > 0) ? best.sabotageValue * sabotageAggression : 0
+                    sabotageBonus: (best.isLeaderWeight && best.sabotageValue > 0) ? best.sabotageValue * sabotageAggression : 0,
                 });
             }
         }
@@ -2520,7 +2525,7 @@ function findBestStrategyWithPersonality(player, personality) {
             move: null,
             resultDiff: diffAfterHang + outerPenalty,
             positionBonus: positionBonus,
-            sabotageBonus: 0
+            sabotageBonus: 0,
         });
         game.leverData = backupForHang;
     });
@@ -2548,7 +2553,7 @@ function findBestStrategyWithPersonality(player, personality) {
     // リスクテイカーは時々最善手ではなく高ポイント位置を選ぶ
     if (personality.riskTolerance > CONFIG.RISKY_RISK_TOLERANCE && Math.random() < CONFIG.RISKY_RANDOM_CHANCE) {
         const riskyOptions = allStrategies.filter(s =>
-            Math.abs(s.hangPos) >= 4 && s.resultDiff <= 30
+            Math.abs(s.hangPos) >= 4 && s.resultDiff <= 30,
         );
         if (riskyOptions.length > 0) {
             return riskyOptions[0];
@@ -2558,7 +2563,7 @@ function findBestStrategyWithPersonality(player, personality) {
     // 攻撃派は時々純粋妨害を優先
     if (personality.riskTolerance >= 0.8 && sabotageAggression > 0.5 && Math.random() < CONFIG.ATTACK_SABOTAGE_CHANCE) {
         const sabotageOptions = allStrategies.filter(s =>
-            s.sabotageBonus > 20 && s.resultDiff <= 20
+            s.sabotageBonus > 20 && s.resultDiff <= 20,
         );
         if (sabotageOptions.length > 0) {
             return sabotageOptions[0];
@@ -2580,11 +2585,11 @@ function findBestMoveWithSabotage(sabotageAggression) {
         // すでにバランスしている場合、純粋に妨害を狙う
         const moves = findAllPossibleMoves();
         const sabotageMoves = moves.filter(m =>
-            m.isLeaderWeight && m.sabotageValue > 0 && m.diff <= 20
+            m.isLeaderWeight && m.sabotageValue > 0 && m.diff <= 20,
         );
         if (sabotageMoves.length > 0 && Math.random() < sabotageAggression) {
             const best = sabotageMoves.reduce((a, b) =>
-                (a.sabotageValue - a.diff) > (b.sabotageValue - b.diff) ? a : b
+                (a.sabotageValue - a.diff) > (b.sabotageValue - b.diff) ? a : b,
             );
             return { fromPos: best.fromPos, index: best.index, toPos: best.toPos };
         }
@@ -2643,7 +2648,7 @@ function findAllPossibleMoves() {
                         diff,
                         owner: w.owner,
                         sabotageValue: sabotageValue,
-                        isLeaderWeight: isLeaderWeight
+                        isLeaderWeight: isLeaderWeight,
                     });
                 }
             });
@@ -2774,28 +2779,28 @@ function createWeight(owner, pos, stackIdx, totalInStack) {
 
     const rope = new THREE.Mesh(
         new THREE.CylinderGeometry(0.025, 0.025, ropeLen, 8),
-        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 })
+        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 }),
     );
     group.add(rope);
 
     const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(sphereRadius, 32, 32),
         new THREE.MeshStandardMaterial({
-            color: color, metalness: 0.9, roughness: 0.1, emissive: emissive, emissiveIntensity: 0.5
-        })
+            color: color, metalness: 0.9, roughness: 0.1, emissive: emissive, emissiveIntensity: 0.5,
+        }),
     );
     sphere.castShadow = true;
     group.add(sphere);
 
     const hitbox = new THREE.Mesh(
         new THREE.SphereGeometry(0.8, 12, 12),
-        new THREE.MeshBasicMaterial({ visible: false })
+        new THREE.MeshBasicMaterial({ visible: false }),
     );
     sphere.add(hitbox);
 
     const glowRing = new THREE.Mesh(
         new THREE.TorusGeometry(0.5, 0.04, 8, 32),
-        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.4 })
+        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.4 }),
     );
     glowRing.rotation.x = Math.PI / 2;
     sphere.add(glowRing);
@@ -2812,7 +2817,7 @@ function createWeight(owner, pos, stackIdx, totalInStack) {
 
     const labelTexture = new THREE.CanvasTexture(labelCanvas);
     const labelSprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: labelTexture, transparent: true })
+        new THREE.SpriteMaterial({ map: labelTexture, transparent: true }),
     );
     labelSprite.scale.set(0.7, 0.35, 1);
     labelSprite.position.y = -0.65;
@@ -3119,26 +3124,26 @@ function endGame(winner) {
                     ${balanceHtml}
                     ${leverStateHtml}
                 `;
-                playEndGameEffects(false, 100);
-            }
-        } else {
+                    playEndGameEffects(false, 100);
+                }
+            } else {
             // ポイントも同点 → 完全引き分け
             // 引き分けはプレイヤーにとって悪くないので勝利扱い
-            icon.textContent = '🤝';
-            title.textContent = 'DRAW!';
-            title.className = 'result-title win';
+                icon.textContent = '🤝';
+                title.textContent = 'DRAW!';
+                title.className = 'result-title win';
 
-            detail.innerHTML = `
+                detail.innerHTML = `
                 <div style="margin-bottom:12px;">最後までバランスキープ！ポイントも同点！</div>
                 ${pointsHtml}
                 ${balanceHtml}
                 ${leverStateHtml}
             `;
-            showScreenFlash('win');
-            playSound('balance');  // 引き分けはバランス音
-            triggerImpactPause(100);
+                showScreenFlash('win');
+                playSound('balance');  // 引き分けはバランス音
+                triggerImpactPause(100);
+            }
         }
-    }
     } else if (winner === 'all_out') {
         // 全員脱落
         icon.textContent = '💥';
@@ -3199,7 +3204,7 @@ function endGame(winner) {
 // ==============================
 // ゲーム開始
 // ==============================
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attributes
+
 function startGame(mode) {
     playSound('click');
     startGameInternal(mode);
@@ -3209,7 +3214,7 @@ function startGameInternal(mode) {
     game.mode = mode;
 
     // モードに応じてプレイヤー数を設定
-    switch(mode) {
+    switch (mode) {
         case 'cpu1':
             game.playerCount = 4;
             game.humanCount = 1;
@@ -3394,7 +3399,7 @@ function resetGame(startIndex = 0) {
     targetLeverAngle = 0;
     leverAngularVelocity = 0;
 
-    Object.keys(weightPhysics).forEach(function(key) {
+    Object.keys(weightPhysics).forEach((key) => {
         weightPhysics[key] = { angle: 0, velocity: 0 };
     });
 
@@ -3424,13 +3429,13 @@ function toggleModal(modalId, show) {
     if (modal) modal.classList.toggle('hidden', !show);
 }
 
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function openHelp() { toggleModal('help-modal', true); }
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function closeHelp() { toggleModal('help-modal', false); }
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function openLearn() { toggleModal('learn-modal', true); }
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function closeLearn() { toggleModal('learn-modal', false); }
 function closeExitModal() { toggleModal('exit-modal', false); }
 
@@ -3441,7 +3446,7 @@ function confirmExit() {
     toggleModal('exit-modal', true);
 }
 
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function exitGame() {
     closeExitModal();
     game.isOver = true;
@@ -3765,8 +3770,7 @@ function animate() {
                 ph.angle += ph.velocity * DT;
 
                 // 振れすぎ防止
-                if (ph.angle > 0.6) { ph.angle = 0.6; ph.velocity *= -0.5; }
-                else if (ph.angle < -0.6) { ph.angle = -0.6; ph.velocity *= -0.5; }
+                if (ph.angle > 0.6) { ph.angle = 0.6; ph.velocity *= -0.5; } else if (ph.angle < -0.6) { ph.angle = -0.6; ph.velocity *= -0.5; }
             }
 
             // ワールド座標を計算
@@ -3810,8 +3814,8 @@ function checkDevice() {
     const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     // Note: window.orientation is deprecated but kept as fallback for older browsers
     const portrait = screen.orientation ? screen.orientation.type.includes('portrait') :
-                     typeof window.orientation !== 'undefined' ? (window.orientation === 0 || window.orientation === 180) :
-                     window.innerHeight > window.innerWidth;
+        typeof window.orientation !== 'undefined' ? (window.orientation === 0 || window.orientation === 180) :
+            window.innerHeight > window.innerWidth;
     // screen.widthが取得できない場合はwindow.innerWidthを使用、それも無ければ小型と仮定
     const screenWidth = screen.width || window.innerWidth || 0;
     const small = screenWidth < 700;
@@ -3857,7 +3861,7 @@ function showInstallGuide() {
     }
 }
 
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function closeInstallGuide() {
     const guide = document.getElementById('install-guide');
     if (guide) guide.style.display = 'none';
@@ -3867,7 +3871,7 @@ function closeInstallGuide() {
 // ==============================
 // スタート画面サウンドトグル
 // ==============================
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function toggleStartSound() {
     // スプラッシュ画面でオーディオは既に初期化済み
     // ここでは単純にトグルのみ
@@ -3904,7 +3908,7 @@ function updateHeaderSoundBtn() {
 // スプラッシュ画面をタップして開始
 let splashDismissed = false;
 
-// eslint-disable-next-line no-unused-vars -- Called from HTML onclick attribute
+
 function dismissSplash(event) {
     // イベント伝播を防止（touchstart/clickの重複発火を防ぐ）
     if (event) {
@@ -4027,26 +4031,31 @@ window.onload = () => {
     // 初期状態のBGMボタンを更新（isMuted=trueなので🔇を表示）
     updateHeaderSoundBtn();
     updateStartSoundBtn();
+
+    // イベントリスナーを初期化（onclick属性の代わり）
+    initializeEventListeners({
+        dismissSplash,
+        startGame,
+        toggleSound,
+        toggleStartSound,
+        openHelp,
+        closeHelp,
+        openLearn,
+        closeLearn,
+        confirmExit,
+        exitGame,
+        closeExitModal,
+        closeInstallGuide,
+        backToStart,
+        passMove,
+        redoHang,
+        hideHint,
+    });
 };
 
 // ==============================
-// グローバル関数のエクスポート（HTMLから呼び出される関数）
-// ES6モジュールではモジュールスコープになるため、
-// HTMLのonclick属性から呼び出せるようにwindowオブジェクトに公開
+// グローバル関数のエクスポート（レガシー互換性のため維持）
+// ⚠️ 非推奨: イベントハンドラーモジュールを使用してください
+// ベストプラクティス: HTMLのonclick属性は使用せず、event-handlers.jsで管理
 // ==============================
-window.toggleSound = toggleSound;
-window.startGame = startGame;
-window.openHelp = openHelp;
-window.closeHelp = closeHelp;
-window.openLearn = openLearn;
-window.closeLearn = closeLearn;
-window.exitGame = exitGame;
-window.confirmExit = confirmExit;
-window.closeExitModal = closeExitModal;
-window.closeInstallGuide = closeInstallGuide;
-window.toggleStartSound = toggleStartSound;
-window.dismissSplash = dismissSplash;
-window.backToStart = backToStart;
-window.hideHint = hideHint;
-window.redoHang = redoHang;
-window.passMove = passMove;
+// 以下のグローバルエクスポートは削除予定（2025年のベストプラクティスに準拠）
