@@ -3254,11 +3254,11 @@ function exitGame() {
 // - 合計Y範囲: 2.5 - (-6) = 8.5
 const LEVER_WIDTH = 18;      // てこ+ストックの横幅（余裕含む）
 const LEVER_HEIGHT = 11;     // ストックから吊るされたおもりまでの縦範囲
-const CAMERA_PADDING = 1.3;  // 余白係数（30%の余裕でドラッグ時もはみ出さない）
+const CAMERA_PADDING = 1.15; // 余白係数（15%の余裕で画面いっぱいに表示）
 
 function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
-    // 基準FOV（度）- デバイス別に最適化
-    let baseFov = 55;  // デフォルトを少し広げる（50→55）
+    // 基準FOV（度）- 広角でカメラを近づける
+    let baseFov = 65;  // 広角化（55→65）
 
     // スマホ横画面の判定（縦が狭い & 横長アスペクト）
     // iOS PWA: safe-area適用後のサイズで判定
@@ -3270,14 +3270,14 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         // 横画面スマホ: FOVを広げてゲーム全体を表示
         if (isUltraWide) {
             // iPhone等の超ワイド（Foldableスマホ含む）: FOVをさらに広げる
-            baseFov = Math.min(70, 58 + (aspect - 2.0) * 12);
+            baseFov = Math.min(75, 65 + (aspect - 2.0) * 10);
         } else {
             // 通常の横画面スマホ
-            baseFov = Math.min(65, 55 + (aspect - 1.5) * 8);
+            baseFov = Math.min(70, 62 + (aspect - 1.5) * 8);
         }
     } else if (isTablet) {
-        // タブレット: 適度なFOV
-        baseFov = 52;
+        // タブレット: 広角
+        baseFov = 60;
     }
 
     const fovRad = (baseFov * Math.PI) / 180;
@@ -3302,26 +3302,26 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         optimalZ = Math.max(distForWidth, distForHeight);
     }
 
-    // 最小・最大制限（デバイス別に最適化）
+    // 最小・最大制限（デバイス別に最適化 - カメラを近づける）
     let minZ;
     if (isLandscapeMobile) {
-        minZ = isUltraWide ? 9 : 10;  // 横画面スマホ: 少し遠めに
+        minZ = isUltraWide ? 7 : 8;  // 横画面スマホ: 近づける（9,10→7,8）
     } else if (isTablet) {
-        minZ = 11;  // タブレット: ゆったり表示
+        minZ = 8;  // タブレット: 近づける（11→8）
     } else {
-        minZ = 10;  // PC・縦スマホ: 標準距離
+        minZ = 8;  // PC・縦スマホ: 近づける（10→8）
     }
-    optimalZ = Math.max(minZ, Math.min(optimalZ, 28));
+    optimalZ = Math.max(minZ, Math.min(optimalZ, 25));
 
     // 画面が小さい場合の追加調整（縦スマホ）
     let fov = baseFov;
     if (!isLandscapeMobile && !isTablet) {
         // 縦スマホ: 画面高さに応じてFOVを調整
         if (effectiveHeight < 600) {
-            fov = Math.max(baseFov, 58);  // FOVを広げて全体を表示
-            optimalZ *= 0.95;
+            fov = Math.max(baseFov, 68);  // FOVを広げて全体を表示（58→68）
+            optimalZ *= 0.9;  // さらに近づける（0.95→0.9）
         } else if (effectiveHeight < 700) {
-            fov = Math.max(baseFov, 56);
+            fov = Math.max(baseFov, 66);  // 56→66
         }
     }
 
