@@ -253,6 +253,134 @@ const clearAllCpuTimeouts = createTimeoutClearer(cpuTimeoutIds);
 const setRouletteTimeout = createTimeoutSetter(rouletteTimeoutIds);
 const clearAllRouletteTimeouts = createTimeoutClearer(rouletteTimeoutIds);
 
+// ==============================
+// 音声生成ヘルパー関数（単一責任の原則に従った分割）
+// ==============================
+
+/**
+ * ランダム化されたバリエーションを計算
+ * @returns {{ pitchVar: number, volVar: number }}
+ */
+function getSoundVariation() {
+    return {
+        pitchVar: 0.95 + Math.random() * 0.1,  // ±5%
+        volVar: 0.9 + Math.random() * 0.2,     // ±10%
+    };
+}
+
+/**
+ * シンプルな音声生成（単一オシレーター）
+ */
+function playSimpleSound(config, variation) {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const { pitchVar, volVar } = variation;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type = config.type;
+
+    // 周波数設定
+    if (config.freqStart && config.freqEnd) {
+        osc.frequency.setValueAtTime(config.freqStart * pitchVar, now);
+        osc.frequency.exponentialRampToValueAtTime(config.freqEnd * pitchVar, now + config.freqDuration);
+    } else {
+        osc.frequency.value = config.frequency * pitchVar;
+    }
+
+    // ゲイン設定
+    gain.gain.setValueAtTime(config.volume * volVar, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + config.duration);
+
+    osc.start(now);
+    osc.stop(now + config.duration);
+}
+
+/**
+ * バランス達成音（3音のアルペジオ）
+ */
+function playBalanceSound(variation) {
+    const now = audioCtx.currentTime;
+    const { pitchVar, volVar } = variation;
+
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'sine';
+        o.frequency.value = freq * pitchVar;
+        g.gain.setValueAtTime(0.15 * volVar, now + i * 0.1);
+        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(now + i * 0.1);
+        o.stop(now + i * 0.1 + 0.3);
+    });
+}
+
+/**
+ * 勝利音（8音のアルペジオファンファーレ）
+ */
+function playWinSound(variation) {
+    const now = audioCtx.currentTime;
+    const { pitchVar, volVar } = variation;
+
+    [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00, 1567.98].forEach((freq, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = i < 4 ? 'square' : 'sine';
+        o.frequency.value = freq * pitchVar;
+        const gainVal = i < 4 ? 0.1 : 0.08;
+        g.gain.setValueAtTime(gainVal * volVar, now + i * 0.12);
+        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.5);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(now + i * 0.12);
+        o.stop(now + i * 0.12 + 0.5);
+    });
+}
+
+/**
+ * ゲームオーバー音（悲しい下降和音）
+ */
+function playGameOverSound(variation) {
+    const now = audioCtx.currentTime;
+    const { pitchVar, volVar } = variation;
+
+    [196.00, 233.08, 293.66].forEach((freq) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(freq * pitchVar, now);
+        o.frequency.exponentialRampToValueAtTime(freq * 0.5 * pitchVar, now + 1.0);
+        g.gain.setValueAtTime(0.12 * volVar, now);
+        g.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(now);
+        o.stop(now + 1.0);
+    });
+}
+
+/**
+ * 音声設定マップ（Data-Driven Approach）
+ */
+const SOUND_CONFIGS = {
+    drop: { type: 'sine', freqStart: 400, freqEnd: 200, freqDuration: 0.1, volume: 0.2, duration: 0.15 },
+    move: { type: 'triangle', freqStart: 300, freqEnd: 500, freqDuration: 0.1, volume: 0.2, duration: 0.12 },
+    lose: { type: 'sawtooth', freqStart: 150, freqEnd: 40, freqDuration: 0.3, volume: 0.25, duration: 0.3 },
+    turn: { type: 'sine', frequency: 880, volume: 0.08, duration: 0.1 },
+    click: { type: 'square', frequency: 1000, volume: 0.05, duration: 0.05 },
+    select: { type: 'sine', frequency: 600, volume: 0.1, duration: 0.08 },
+    error: { type: 'sawtooth', freqStart: 200, freqEnd: 150, freqDuration: 0.15, volume: 0.12, duration: 0.15 },
+    phase: { type: 'triangle', freqStart: 440, freqEnd: 880, freqDuration: 0.12, volume: 0.1, duration: 0.15 },
+};
+
+/**
+ * 音声再生メイン関数（ルーティングのみ）
+ * @param {string} type - 音声タイプ
+ */
 function playSound(type) {
     if (!audioCtx || isMuted) return;
 
@@ -261,148 +389,26 @@ function playSound(type) {
         return;
     }
 
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const variation = getSoundVariation();
 
-    // 自然さを出すためのランダム化（±5%ピッチ、±10%ボリューム）
-    const pitchVar = 0.95 + Math.random() * 0.1;
-    const volVar = 0.9 + Math.random() * 0.2;
+    // 複雑な音声（複数オシレーター）
+    if (type === 'balance') {
+        playBalanceSound(variation);
+        return;
+    }
+    if (type === 'win') {
+        playWinSound(variation);
+        return;
+    }
+    if (type === 'gameover') {
+        playGameOverSound(variation);
+        return;
+    }
 
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    switch(type) {
-        case 'drop':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400 * pitchVar, now);
-            osc.frequency.exponentialRampToValueAtTime(200 * pitchVar, now + 0.1);
-            gain.gain.setValueAtTime(0.2 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-            osc.start(now);
-            osc.stop(now + 0.15);
-            break;
-
-        case 'move':
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300 * pitchVar, now);
-            osc.frequency.exponentialRampToValueAtTime(500 * pitchVar, now + 0.1);
-            gain.gain.setValueAtTime(0.2 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-            osc.start(now);
-            osc.stop(now + 0.12);
-            break;
-
-        case 'balance':
-            // 独自のoscを使用するため、共通のosc/gainは使わない
-            [523.25, 659.25, 783.99].forEach((freq, i) => {
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.type = 'sine';
-                o.frequency.value = freq * pitchVar;
-                g.gain.setValueAtTime(0.15 * volVar, now + i * 0.1);
-                g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
-                o.connect(g);
-                g.connect(audioCtx.destination);
-                o.start(now + i * 0.1);
-                o.stop(now + i * 0.1 + 0.3);
-            });
-            return;
-
-        case 'win':
-            // 8音のアルペジオファンファーレ（C5→E5→G5→C6→E6→G6→C7→G6）
-            [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00, 1567.98].forEach((freq, i) => {
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.type = i < 4 ? 'square' : 'sine';  // 高音部はsineで柔らかく
-                o.frequency.value = freq * pitchVar;
-                const gainVal = i < 4 ? 0.1 : 0.08;  // 高音部は少し控えめ
-                g.gain.setValueAtTime(gainVal * volVar, now + i * 0.12);
-                g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.5);
-                o.connect(g);
-                g.connect(audioCtx.destination);
-                o.start(now + i * 0.12);
-                o.stop(now + i * 0.12 + 0.5);
-            });
-            return;
-
-        case 'lose':
-            // 脱落時：短い下降音（ドスン）
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150 * pitchVar, now);
-            osc.frequency.exponentialRampToValueAtTime(40 * pitchVar, now + 0.3);
-            gain.gain.setValueAtTime(0.25 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            osc.start(now);
-            osc.stop(now + 0.3);
-            break;
-
-        case 'gameover':
-            // ゲームオーバー時：悲しい下降和音（ドーン...）
-            [196.00, 233.08, 293.66].forEach((freq) => {  // G3, Bb3, D4 (Gm)
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.type = 'sawtooth';
-                o.frequency.setValueAtTime(freq * pitchVar, now);
-                o.frequency.exponentialRampToValueAtTime(freq * 0.5 * pitchVar, now + 1.0);
-                g.gain.setValueAtTime(0.12 * volVar, now);
-                g.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
-                o.connect(g);
-                g.connect(audioCtx.destination);
-                o.start(now);
-                o.stop(now + 1.0);
-            });
-            return;
-
-        case 'turn':
-            osc.type = 'sine';
-            osc.frequency.value = 880 * pitchVar;
-            gain.gain.setValueAtTime(0.08 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-            break;
-
-        case 'click':
-            osc.type = 'square';
-            osc.frequency.value = 1000 * pitchVar;
-            gain.gain.setValueAtTime(0.05 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-            osc.start(now);
-            osc.stop(now + 0.05);
-            break;
-
-        case 'select':
-            // おもり選択時の軽い音
-            osc.type = 'sine';
-            osc.frequency.value = 600 * pitchVar;
-            gain.gain.setValueAtTime(0.1 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-            osc.start(now);
-            osc.stop(now + 0.08);
-            break;
-
-        case 'error':
-            // 無効操作時の警告音（下降音）
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200 * pitchVar, now);
-            osc.frequency.exponentialRampToValueAtTime(150 * pitchVar, now + 0.15);
-            gain.gain.setValueAtTime(0.12 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-            osc.start(now);
-            osc.stop(now + 0.15);
-            break;
-
-        case 'phase':
-            // フェーズ移行音（上昇音）
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(440 * pitchVar, now);
-            osc.frequency.exponentialRampToValueAtTime(880 * pitchVar, now + 0.12);
-            gain.gain.setValueAtTime(0.1 * volVar, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-            osc.start(now);
-            osc.stop(now + 0.15);
-            break;
+    // シンプルな音声（設定から生成）
+    const config = SOUND_CONFIGS[type];
+    if (config) {
+        playSimpleSound(config, variation);
     }
 }
 
@@ -815,6 +821,255 @@ function showWebGLError() {
     document.body.appendChild(errorDiv);
 }
 
+/**
+ * レンダラーとカメラのセットアップ（SRP: レンダリング設定の責任）
+ * @param {HTMLElement} canvas - キャンバス要素
+ * @returns {{ w: number, h: number, isMobile: boolean }}
+ */
+function setupRenderer(canvas) {
+    const rect = canvas.getBoundingClientRect();
+    let w = rect.width;
+    let h = rect.height;
+
+    // CSSデフォルト値または異常に小さい場合はwindow sizeを使用
+    if (w <= 300 || h <= 150) {
+        w = window.innerWidth;
+        h = window.innerHeight;
+    }
+
+    // モバイル判定とpixelRatio調整
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || w < 768;
+    const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
+
+    // シーン作成
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a2040);
+    addBackgroundParticles();
+
+    // カメラ設定
+    const aspect = w / h;
+    const { z: optZ, fov: optFov, baseY: optY } = calculateOptimalCamera(w, h, aspect);
+    camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
+    camera.position.set(0, optY, optZ);
+    camera.lookAt(0, -0.5, 0);
+    cameraBaseY = optY;
+    cameraBaseZ = optZ;
+    cameraBaseFov = optFov;
+    targetFov = optFov;
+    currentFov = optFov;
+
+    // レンダラー設定
+    renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: !isMobile,
+        powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(w, h, false);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
+    return { w, h, isMobile };
+}
+
+/**
+ * ライティング設定（SRP: 照明の責任）
+ */
+function setupLighting() {
+    // 環境光
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.8));
+
+    // メインライト（45度の角度で立体感を最大化）
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    mainLight.position.set(12, 18, 16);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.left = -20;
+    mainLight.shadow.camera.right = 20;
+    mainLight.shadow.camera.top = 20;
+    mainLight.shadow.camera.bottom = -20;
+    scene.add(mainLight);
+
+    // リムライト
+    const rimLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+    rimLight.position.set(-15, 10, -8);
+    scene.add(rimLight);
+
+    // アクセントライト
+    const cyanLight = new THREE.PointLight(0x00ddff, 1.8, 35);
+    cyanLight.position.set(-12, 6, 10);
+    scene.add(cyanLight);
+
+    const pinkLight = new THREE.PointLight(0xff8899, 1.8, 35);
+    pinkLight.position.set(12, 6, 10);
+    scene.add(pinkLight);
+
+    // フィルライト
+    const fillLight = new THREE.PointLight(0xaabbcc, 1.0, 30);
+    fillLight.position.set(0, -3, 12);
+    scene.add(fillLight);
+}
+
+/**
+ * 床とグリッドの設定（SRP: 環境の責任）
+ */
+function setupFloorAndGrid() {
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 40),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a30, roughness: 0.8 }),
+    );
+    floor.rotation.x = -Math.PI/2;
+    floor.position.y = -14;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const gridHelper = new THREE.GridHelper(50, 50, COLORS.BLUE.primary, 0x2a2a50);
+    gridHelper.position.y = -13.95;
+    gridHelper.material.opacity = 0.5;
+    gridHelper.material.transparent = true;
+    scene.add(gridHelper);
+}
+
+/**
+ * 支点構造の設定（SRP: 支点の責任）
+ */
+function setupPivotStructure() {
+    pivotGroup = new THREE.Group();
+    scene.add(pivotGroup);
+
+    const basePlate = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.8, 1.8, 0.15, 48),
+        new THREE.MeshStandardMaterial({ color: 0x4a4a6a, metalness: 0.9, roughness: 0.2 }),
+    );
+    basePlate.position.y = -12.5;
+    pivotGroup.add(basePlate);
+
+    const baseGlow = new THREE.Mesh(
+        new THREE.TorusGeometry(1.8, 0.06, 16, 64),
+        new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 1.0 }),
+    );
+    baseGlow.rotation.x = Math.PI / 2;
+    baseGlow.position.y = -12.42;
+    pivotGroup.add(baseGlow);
+
+    const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.2, 12.2, 24),
+        new THREE.MeshStandardMaterial({ color: 0x6a6a8a, metalness: 0.9, roughness: 0.1 }),
+    );
+    pillar.position.y = -6.3;
+    pivotGroup.add(pillar);
+
+    const pivotTop = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5, 0.8, 3),
+        new THREE.MeshStandardMaterial({ color: 0x7a7a9a, metalness: 0.9, roughness: 0.1 }),
+    );
+    pivotTop.position.y = 0.1;
+    pivotTop.rotation.y = Math.PI / 6;
+    pivotGroup.add(pivotTop);
+}
+
+/**
+ * てこの設定（SRP: てこの責任）
+ */
+function setupLeverBeam() {
+    leverGroup = new THREE.Group();
+    leverGroup.position.y = 0.5;
+    scene.add(leverGroup);
+
+    const leverBeam = new THREE.Mesh(
+        new THREE.BoxGeometry(17, 0.25, 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.8, roughness: 0.2 }),
+    );
+    leverBeam.castShadow = true;
+    leverGroup.add(leverBeam);
+
+    const topGlowCenter = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 0.02, 0.4),
+        new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.9 }),
+    );
+    topGlowCenter.position.y = 0.14;
+    leverGroup.add(topGlowCenter);
+
+    const topGlowLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(6.5, 0.02, 0.3),
+        new THREE.MeshBasicMaterial({ color: COLORS.BLUE.primary, transparent: true, opacity: 0.7 }),
+    );
+    topGlowLeft.position.set(-5, 0.14, 0);
+    leverGroup.add(topGlowLeft);
+
+    const topGlowRight = new THREE.Mesh(
+        new THREE.BoxGeometry(6.5, 0.02, 0.3),
+        new THREE.MeshBasicMaterial({ color: COLORS.RED.primary, transparent: true, opacity: 0.7 }),
+    );
+    topGlowRight.position.set(5, 0.14, 0);
+    leverGroup.add(topGlowRight);
+
+    const leftEnd = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25, 24, 24),
+        new THREE.MeshStandardMaterial({
+            color: COLORS.BLUE.bright, emissive: 0x0088aa, emissiveIntensity: 0.5, metalness: 0.9, roughness: 0.1,
+        }),
+    );
+    leftEnd.position.set(-8.5, 0, 0);
+    leverGroup.add(leftEnd);
+
+    const rightEnd = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25, 24, 24),
+        new THREE.MeshStandardMaterial({
+            color: COLORS.RED.primary, emissive: 0xaa2244, emissiveIntensity: 0.5, metalness: 0.9, roughness: 0.1,
+        }),
+    );
+    rightEnd.position.set(8.5, 0, 0);
+    leverGroup.add(rightEnd);
+}
+
+/**
+ * ゴーストの設定（SRP: インタラクション表示の責任）
+ */
+function setupGhosts() {
+    allPositions.forEach(pos => {
+        const ghost = createGhost(pos);
+        ghost.position.set(pos * 1.4, -0.8, 0);
+        ghost.visible = false;
+        leverGroup.add(ghost);
+        ghosts[pos] = ghost;
+    });
+    ghostsArray = Object.values(ghosts);
+}
+
+/**
+ * イベントリスナーの設定（SRP: イベント管理の責任）
+ * @param {HTMLElement} canvas - キャンバス要素
+ */
+function setupEventListeners(canvas) {
+    eventAbortController = new AbortController();
+    const { signal } = eventAbortController;
+
+    canvas.addEventListener('pointerdown', onPointerDown, { passive: false, signal });
+    canvas.addEventListener('pointermove', onPointerMove, { passive: false, signal });
+    canvas.addEventListener('pointerup', onPointerUp, { passive: false, signal });
+    canvas.addEventListener('pointercancel', onPointerUp, { passive: false, signal });
+    window.addEventListener('resize', onResize, { passive: true, signal });
+
+    // ResizeObserver（iOS PWA対応）
+    if (typeof ResizeObserver !== 'undefined') {
+        let resizeTimeout;
+        resizeObserver = new ResizeObserver(() => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(onResize, 100);
+        });
+        resizeObserver.observe(canvas);
+    }
+}
+
+/**
+ * Three.js初期化のメイン関数（SRP: オーケストレーションの責任）
+ * 各setup関数を呼び出して初期化を調整
+ */
 function initThree() {
     // 重複初期化防止
     if (threeInitialized) {
@@ -822,7 +1077,7 @@ function initThree() {
         return false;
     }
 
-    // WebGL機能検出（ベストプラクティス）
+    // WebGL機能検出
     if (!isWebGLAvailable()) {
         console.error('WebGL is not supported on this device');
         showWebGLError();
@@ -836,235 +1091,21 @@ function initThree() {
     }
 
     try {
+        setupRenderer(canvas);
+        setupLighting();
+        setupFloorAndGrid();
+        setupPivotStructure();
+        setupLeverBeam();
+        setupGhosts();
 
-    // キャンバスの実際の表示サイズを取得
-    // CSSが適用される前はデフォルト値(300x150)になるので、window sizeを使用
-    const rect = canvas.getBoundingClientRect();
-    let w = rect.width;
-    let h = rect.height;
+        dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        reusableIntersectPoint = new THREE.Vector3();
 
-    // CSSデフォルト値(300x150)または異常に小さい場合はwindow sizeを使用
-    if (w <= 300 || h <= 150) {
-        w = window.innerWidth;
-        h = window.innerHeight;
-    }
+        createPositionLabels();
+        createStockWeights();
 
-    // ベストプラクティス: モバイルでは低いpixelRatioを使用
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || w < 768;
-    const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
+        setupEventListeners(canvas);
 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a2040);
-
-    addBackgroundParticles();
-
-    // 画面サイズに応じた最適なカメラ設定を計算
-    const aspect = w / h;
-    const { z: optZ, fov: optFov, baseY: optY } = calculateOptimalCamera(w, h, aspect);
-
-    camera = new THREE.PerspectiveCamera(optFov, aspect, 0.1, 1000);
-    // 操作性と学習効果重視: 真正面から見下ろす角度（立体感はライティングで確保）
-    camera.position.set(0, optY, optZ);
-    // てこの原理を理解しやすい視点: 支点付近を見る
-    camera.lookAt(0, -0.5, 0);
-    cameraBaseY = optY;
-    cameraBaseZ = optZ;
-    cameraBaseFov = optFov;
-    targetFov = optFov;
-    currentFov = optFov;
-
-    // ベストプラクティス: モバイルではantialiasを無効化してパフォーマンス向上
-    renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias: !isMobile,  // モバイルではfalse
-        powerPreference: 'high-performance'  // パフォーマンス優先
-    });
-    renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(w, h, false);  // CSSサイズはスタイルシートで管理
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
-
-    // ライティング - ベストプラクティス: 45度の角度で立体感を出す
-    // 環境光: 全体を柔らかく照らす（少し暗めに調整）
-    scene.add(new THREE.AmbientLight(0x8899bb, 0.8));
-
-    // メインライト: カメラから45度の角度（右上前方）で配置
-    // ベストプラクティス: 45度の角度が影を作り、立体感を最大化
-    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
-    mainLight.position.set(12, 18, 16);  // 45度の角度で配置
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    mainLight.shadow.camera.left = -20;
-    mainLight.shadow.camera.right = 20;
-    mainLight.shadow.camera.top = 20;
-    mainLight.shadow.camera.bottom = -20;
-    scene.add(mainLight);
-
-    // リムライト: 左後方から輪郭を強調（立体感向上）
-    const rimLight = new THREE.DirectionalLight(0xaaccff, 0.8);
-    rimLight.position.set(-15, 10, -8);
-    scene.add(rimLight);
-
-    // アクセントライト: 色付きライトで雰囲気と深度を追加
-    const cyanLight = new THREE.PointLight(0x00ddff, 1.8, 35);
-    cyanLight.position.set(-12, 6, 10);
-    scene.add(cyanLight);
-
-    const pinkLight = new THREE.PointLight(0xff8899, 1.8, 35);
-    pinkLight.position.set(12, 6, 10);
-    scene.add(pinkLight);
-
-    // フィルライト: 下からの補助光で影を柔らかく
-    const fillLight = new THREE.PointLight(0xaabbcc, 1.0, 30);
-    fillLight.position.set(0, -3, 12);
-    scene.add(fillLight);
-
-    // 床
-    const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 40),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a30, roughness: 0.8 })
-    );
-    floor.rotation.x = -Math.PI/2;
-    floor.position.y = -14;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    const gridHelper = new THREE.GridHelper(50, 50, COLORS.BLUE.primary, 0x2a2a50);
-    gridHelper.position.y = -13.95;
-    gridHelper.material.opacity = 0.5;
-    gridHelper.material.transparent = true;
-    scene.add(gridHelper);
-
-    // 支点
-    pivotGroup = new THREE.Group();
-    scene.add(pivotGroup);
-
-    const basePlate = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.8, 1.8, 0.15, 48),
-        new THREE.MeshStandardMaterial({ color: 0x4a4a6a, metalness: 0.9, roughness: 0.2 })
-    );
-    basePlate.position.y = -12.5;
-    pivotGroup.add(basePlate);
-
-    const baseGlow = new THREE.Mesh(
-        new THREE.TorusGeometry(1.8, 0.06, 16, 64),
-        new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 1.0 })
-    );
-    baseGlow.rotation.x = Math.PI / 2;
-    baseGlow.position.y = -12.42;
-    pivotGroup.add(baseGlow);
-
-    const pillar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.15, 0.2, 12.2, 24),
-        new THREE.MeshStandardMaterial({ color: 0x6a6a8a, metalness: 0.9, roughness: 0.1 })
-    );
-    pillar.position.y = -6.3;
-    pivotGroup.add(pillar);
-
-    const pivotTop = new THREE.Mesh(
-        new THREE.ConeGeometry(0.5, 0.8, 3),
-        new THREE.MeshStandardMaterial({ color: 0x7a7a9a, metalness: 0.9, roughness: 0.1 })
-    );
-    pivotTop.position.y = 0.1;
-    pivotTop.rotation.y = Math.PI / 6;
-    pivotGroup.add(pivotTop);
-
-    // てこ
-    leverGroup = new THREE.Group();
-    leverGroup.position.y = 0.5;
-    scene.add(leverGroup);
-
-    const leverBeam = new THREE.Mesh(
-        new THREE.BoxGeometry(17, 0.25, 0.6),
-        new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.8, roughness: 0.2 })
-    );
-    leverBeam.castShadow = true;
-    leverGroup.add(leverBeam);
-
-    const topGlowCenter = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 0.02, 0.4),
-        new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.9 })
-    );
-    topGlowCenter.position.y = 0.14;
-    leverGroup.add(topGlowCenter);
-
-    const topGlowLeft = new THREE.Mesh(
-        new THREE.BoxGeometry(6.5, 0.02, 0.3),
-        new THREE.MeshBasicMaterial({ color: COLORS.BLUE.primary, transparent: true, opacity: 0.7 })
-    );
-    topGlowLeft.position.set(-5, 0.14, 0);
-    leverGroup.add(topGlowLeft);
-
-    const topGlowRight = new THREE.Mesh(
-        new THREE.BoxGeometry(6.5, 0.02, 0.3),
-        new THREE.MeshBasicMaterial({ color: COLORS.RED.primary, transparent: true, opacity: 0.7 })
-    );
-    topGlowRight.position.set(5, 0.14, 0);
-    leverGroup.add(topGlowRight);
-
-    const leftEnd = new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 24, 24),
-        new THREE.MeshStandardMaterial({
-            color: COLORS.BLUE.bright, emissive: 0x0088aa, emissiveIntensity: 0.5, metalness: 0.9, roughness: 0.1
-        })
-    );
-    leftEnd.position.set(-8.5, 0, 0);
-    leverGroup.add(leftEnd);
-
-    const rightEnd = new THREE.Mesh(
-        new THREE.SphereGeometry(0.25, 24, 24),
-        new THREE.MeshStandardMaterial({
-            color: COLORS.RED.primary, emissive: 0xaa2244, emissiveIntensity: 0.5, metalness: 0.9, roughness: 0.1
-        })
-    );
-    rightEnd.position.set(8.5, 0, 0);
-    leverGroup.add(rightEnd);
-
-    // ゴースト
-    allPositions.forEach(pos => {
-        const ghost = createGhost(pos);
-        ghost.position.set(pos * 1.4, -0.8, 0);
-        ghost.visible = false;
-        leverGroup.add(ghost);
-        ghosts[pos] = ghost;
-    });
-    // ghostsの配列キャッシュを作成（animate用パフォーマンス最適化）
-    ghostsArray = Object.values(ghosts);
-
-    dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-
-    // パフォーマンス最適化用の再利用可能なVector3を初期化
-    reusableIntersectPoint = new THREE.Vector3();
-
-    createPositionLabels();
-    createStockWeights();
-
-        // AbortControllerを使用したイベントリスナー管理（2025ベストプラクティス）
-        eventAbortController = new AbortController();
-        const { signal } = eventAbortController;
-
-        // passive: false でpreventDefaultを有効化（スクロール防止）
-        canvas.addEventListener('pointerdown', onPointerDown, { passive: false, signal });
-        canvas.addEventListener('pointermove', onPointerMove, { passive: false, signal });
-        canvas.addEventListener('pointerup', onPointerUp, { passive: false, signal });
-        canvas.addEventListener('pointercancel', onPointerUp, { passive: false, signal });
-        window.addEventListener('resize', onResize, { passive: true, signal });
-
-        // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
-        if (typeof ResizeObserver !== 'undefined') {
-            let resizeTimeout;
-            resizeObserver = new ResizeObserver(() => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(onResize, 100);
-            });
-            resizeObserver.observe(canvas);
-        }
-
-        // 初期カメラ位置を調整（CSSとcanvas初期化の完了を待つ）
         setTimeout(onResize, 100);
 
         threeInitialized = true;
@@ -1074,8 +1115,6 @@ function initThree() {
     } catch (error) {
         console.error('Three.js initialization failed:', error);
 
-        // エラー表示
-        const canvas = document.getElementById('game-canvas');
         if (canvas) canvas.style.display = 'none';
 
         const errorDiv = document.createElement('div');
