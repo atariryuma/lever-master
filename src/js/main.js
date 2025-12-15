@@ -3299,13 +3299,11 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         }
     }
 
-    // カメラY位置（スマホ横画面は低め、画面が小さいほど低めに）
-    // テコの中心（Y=0.5付近）が画面中央に来るように調整
+    // カメラY位置（テコが画面中央に来るように調整）
     let baseY;
     if (isLandscapeMobile) {
-        // スマホ横画面: カメラを下げてテコを中央より少し上に
-        // アスペクト比が大きいほど下げる
-        baseY = isUltraWide ? 2 : 2.5;
+        // スマホ横画面: テコが中央に来るように調整
+        baseY = isUltraWide ? 3.5 : 4;
     } else if (effectiveHeight < 400) {
         baseY = 4;
     } else {
@@ -3597,7 +3595,13 @@ function updateHeaderSoundBtn() {
 // スプラッシュ画面をタップして開始
 let splashDismissed = false;
 
-function dismissSplash() {
+function dismissSplash(event) {
+    // イベント伝播を防止（touchstart/clickの重複発火を防ぐ）
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     // 重複呼び出し防止
     if (splashDismissed) return;
     splashDismissed = true;

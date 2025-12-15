@@ -1431,12 +1431,15 @@ body {
     .phase-badge {
         writing-mode: horizontal-tb;
         font-size: 0.5rem;
-        padding: 6px 4px;
+        padding: 4px 3px;
         letter-spacing: 0;
-        border-radius: 6px;
+        border-radius: 4px;
         text-align: center;
-        line-height: 1.2;
-        max-width: 100%;
+        line-height: 1.1;
+        max-width: 42px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* アクションボタン: 大きなタッチターゲット */
@@ -1517,6 +1520,7 @@ body {
         max-width: 55vw;
         padding: 8px 14px;
         border-radius: 12px;
+        -webkit-backdrop-filter: blur(8px);
         backdrop-filter: blur(8px);
     }
 
