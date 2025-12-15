@@ -81,12 +81,95 @@ function hexToCSS(hexColor) {
     return '#' + hexColor.toString(16).padStart(6, '0');
 }
 
+// THREE.jsカラー/CSSカラーをrgba形式に変換
+function hexToRGBA(hexColor, alpha = 1) {
+    const hex = typeof hexColor === 'number' ? hexColor : parseInt(hexColor.replace('#', ''), 16);
+    const r = (hex >> 16) & 255;
+    const g = (hex >> 8) & 255;
+    const b = hex & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // プレイヤーメタデータ（表示用）
 const PLAYER_META = {
     blue:   { displayName: 'P1', icon: '⚡', cssColor: hexToCSS(COLORS.BLUE.primary) },
     yellow: { displayName: 'P2', icon: '⭐', cssColor: hexToCSS(COLORS.YELLOW.primary) },
     red:    { displayName: 'P3', icon: '🔥', cssColor: hexToCSS(COLORS.RED.primary) },
     green:  { displayName: 'P4', icon: '🍀', cssColor: hexToCSS(COLORS.GREEN.primary) }
+};
+
+// UI用カラー定数（拡張）
+const UI_COLORS = {
+    WARNING: '#ff9500',      // 警告色（オレンジ）
+    SUCCESS: '#00ff88',      // 成功色（グリーン）
+    DANGER: '#ff3366',       // 危険色（レッド）
+    INFO: '#00ccff',         // 情報色（シアン）
+    ACCENT: '#ffff00',       // アクセント色（イエロー）
+    MAGENTA: '#ff00ff',      // マゼンタ
+    WHITE: '#ffffff',        // 白
+    // Canvas描画用
+    CANVAS_LEFT: '#00ffff',  // 左側（シアン）
+    CANVAS_RIGHT: '#ff6688', // 右側（ピンク）
+    CANVAS_BORDER: '#ff4466' // 枠線（レッド）
+};
+
+// DOM要素ID定数（タイポ防止・一元管理）
+const DOM_IDS = {
+    // オーバーレイ
+    START_OVERLAY: 'start-overlay',
+    RESULT_OVERLAY: 'result-overlay',
+    ROULETTE_OVERLAY: 'roulette-overlay',
+    HELP_MODAL: 'help-modal',
+    LEARN_MODAL: 'learn-modal',
+    SPLASH_SCREEN: 'splash-screen',
+    DEVICE_OVERLAY: 'device-overlay',
+    INSTALL_GUIDE: 'install-guide',
+    // ゲーム要素
+    GAME_CANVAS: 'game-canvas',
+    SCREEN_FLASH: 'screen-flash',
+    COMBO_TEXT: 'combo-text',
+    PARTICLES: 'particles',
+    // UI要素
+    DRAG_INDICATOR: 'drag-indicator',
+    DRAG_TEXT: 'drag-text',
+    GAME_HINT: 'game-hint',
+    HINT_TEXT: 'hint-text',
+    HINT_SUB: 'hint-sub',
+    // ステータス表示
+    MOMENT_LEFT: 'm-left',
+    MOMENT_RIGHT: 'm-right',
+    BALANCE_ICON: 'balance-icon',
+    PHASE_BADGE: 'phase-badge',
+    // ボタン
+    BTN_PASS: 'btn-pass',
+    BTN_REDO: 'btn-redo',
+    SOUND_BTN: 'sound-btn',
+    START_SOUND_BTN: 'start-sound-btn',
+    START_SOUND_ICON: 'start-sound-icon',
+    START_SOUND_LABEL: 'start-sound-label',
+    // リザルト
+    RESULT_ICON: 'result-icon',
+    RESULT_TITLE: 'result-title',
+    RESULT_DETAIL: 'result-detail',
+    // ルーレット
+    ROULETTE_WHEEL: 'roulette-wheel',
+    ROULETTE_RESULT: 'roulette-result',
+    ROULETTE_ORDER: 'roulette-order',
+    // インストールガイド
+    INSTALL_TEXT: 'install-text'
+};
+
+// ユーザーメッセージ定数（多言語化対応準備）
+const MESSAGES = {
+    // ゲーム内アクション
+    CANNOT_MOVE: '移動不可！',
+    REDO: 'REDO!',
+    BALANCED: 'BALANCED!',
+    FINAL_TURN: 'FINAL!',
+    PLAYER_OUT: 'OUT!',
+    // FOV調整
+    FOV_LABEL: 'FOV:',
+    FOV_RESET: 'FOV: リセット'
 };
 
 // ==============================
@@ -145,21 +228,21 @@ document.addEventListener('keydown', (e) => {
     if (game.isOver) return;
     // S: Skip（moveフェーズで有効）
     if (e.code === 'KeyS' && game.phase === 'move' && !isCurrentPlayerCPU()) {
-        const btn = document.getElementById('btn-pass');
+        const btn = document.getElementById(DOM_IDS.BTN_PASS);
         if (btn && !btn.classList.contains('hidden')) {
             passMove();
         }
     }
     // R: Redo（moveフェーズで有効）
     if (e.code === 'KeyR' && game.phase === 'move' && !isCurrentPlayerCPU()) {
-        const btn = document.getElementById('btn-redo');
+        const btn = document.getElementById(DOM_IDS.BTN_REDO);
         if (btn && !btn.classList.contains('hidden')) {
             redoHang();
         }
     }
     // Escape: Exit確認
     if (e.code === 'Escape') {
-        const startOverlay = document.getElementById('start-overlay');
+        const startOverlay = document.getElementById(DOM_IDS.START_OVERLAY);
         if (startOverlay && startOverlay.classList.contains('hidden')) {
             confirmExit();
         }
@@ -461,7 +544,7 @@ function toggleSound() {
 // 画面エフェクト
 // ==============================
 function showScreenFlash(type) {
-    const flash = document.getElementById('screen-flash');
+    const flash = document.getElementById(DOM_IDS.SCREEN_FLASH);
     if (!flash) return;
     flash.className = 'screen-flash ' + type + ' active';
     setTimeout(() => {
@@ -474,7 +557,7 @@ let comboTimeoutId1 = null;
 let comboTimeoutId2 = null;
 
 function showComboText(text, color) {
-    const combo = document.getElementById('combo-text');
+    const combo = document.getElementById(DOM_IDS.COMBO_TEXT);
     if (!combo) return;
 
     // 前のタイムアウトをキャンセル
@@ -509,8 +592,8 @@ function createConfetti(count = CONFIG.CONFETTI_COUNT) {
         hexToCSS(COLORS.YELLOW.primary),
         hexToCSS(COLORS.RED.primary),
         hexToCSS(COLORS.GREEN.primary),
-        '#ff00ff',
-        '#ffffff'
+        UI_COLORS.MAGENTA,
+        UI_COLORS.WHITE
     ];
     const container = document.body;
     if (!container) return;
@@ -1089,7 +1172,7 @@ function createGhost(pos) {
     canvas2d.width = 64;
     canvas2d.height = 64;
     const ctx = canvas2d.getContext('2d');
-    ctx.fillStyle = isLeft ? '#00ffff' : '#ff6688';
+    ctx.fillStyle = isLeft ? UI_COLORS.CANVAS_LEFT : UI_COLORS.CANVAS_RIGHT;
     ctx.font = 'bold 48px Orbitron, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1114,7 +1197,7 @@ function createGhost(pos) {
     fullCanvas.width = 64;
     fullCanvas.height = 64;
     const fullCtx = fullCanvas.getContext('2d');
-    fullCtx.strokeStyle = '#ff4466';
+    fullCtx.strokeStyle = UI_COLORS.CANVAS_BORDER;
     fullCtx.lineWidth = 8;
     fullCtx.lineCap = 'round';
     fullCtx.beginPath();
@@ -1150,7 +1233,7 @@ function createPositionLabels() {
         canvas2d.width = 64;
         canvas2d.height = 64;
         const ctx = canvas2d.getContext('2d');
-        ctx.fillStyle = isLeft ? 'rgba(0,255,255,0.6)' : 'rgba(255,100,136,0.6)';
+        ctx.fillStyle = isLeft ? hexToRGBA(UI_COLORS.CANVAS_LEFT, 0.6) : hexToRGBA(UI_COLORS.CANVAS_RIGHT, 0.6);
         ctx.font = 'bold 48px Orbitron, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1233,7 +1316,7 @@ function onPointerDown(e) {
                 // 吊るした位置のおもりは全て移動不可（新ルール）
                 if (game.currentTurnHungPos === weightData.pos) {
                     playSound('error');
-                    showComboText('移動不可！', '#ff9500');
+                    showComboText(MESSAGES.CANNOT_MOVE, UI_COLORS.WARNING);
                     return;
                 }
 
@@ -1353,7 +1436,7 @@ function onPointerUp(e) {
 
             if (isValidMove(fromPos, toPos, movingCount)) {
                 doMove(fromPos, game.selectedWeight.index, toPos);
-                createParticleExplosion(hits[0].point, '#ffff00');
+                createParticleExplosion(hits[0].point, UI_COLORS.ACCENT);
                 triggerCameraShake(0.15);
             } else {
                 // 満杯の場合はメッセージ表示
@@ -1384,8 +1467,8 @@ function updateMouse(x, y) {
 // ドラッグインジケーター
 // ==============================
 function showDragIndicator(x, y, isHangPhase = false) {
-    const indicator = document.getElementById('drag-indicator');
-    const dragText = document.getElementById('drag-text');
+    const indicator = document.getElementById(DOM_IDS.DRAG_INDICATOR);
+    const dragText = document.getElementById(DOM_IDS.DRAG_TEXT);
     if (!indicator) return;
     indicator.classList.add('active');
     indicator.style.left = (x - 25) + 'px';
@@ -1394,14 +1477,14 @@ function showDragIndicator(x, y, isHangPhase = false) {
 }
 
 function updateDragIndicator(x, y) {
-    const indicator = document.getElementById('drag-indicator');
+    const indicator = document.getElementById(DOM_IDS.DRAG_INDICATOR);
     if (!indicator) return;
     indicator.style.left = (x - 25) + 'px';
     indicator.style.top = (y - 25) + 'px';
 }
 
 function hideDragIndicator() {
-    const indicator = document.getElementById('drag-indicator');
+    const indicator = document.getElementById(DOM_IDS.DRAG_INDICATOR);
     if (indicator) indicator.classList.remove('active');
 }
 
@@ -1449,7 +1532,7 @@ function resetStockPosition(stock) {
 // パーティクル
 // ==============================
 function createParticleExplosion(point, color) {
-    const container = document.getElementById('particles');
+    const container = document.getElementById(DOM_IDS.PARTICLES);
     if (!container) return;
 
     const count = CONFIG.PARTICLE_COUNT;
@@ -1691,7 +1774,7 @@ function redoHang() {
         updatePhaseUI();
         updateStockWeightsVisibility();
         showHint('やり直しOK！', '別の場所へ');
-        showComboText('REDO!', '#ff9500');
+        showComboText(MESSAGES.REDO, UI_COLORS.WARNING);
     }
 }
 
@@ -1724,8 +1807,7 @@ function goToJudge() {
             game[eliminatedPlayer].eliminated = true;
             game.activePlayers = game.activePlayers.filter(p => p !== eliminatedPlayer);
 
-            const playerNames = { blue: 'P1', yellow: 'P2', red: 'P3', green: 'P4' };
-            showComboText(`${playerNames[eliminatedPlayer]} OUT!`, '#ff3366');
+            showComboText(`${PLAYER_META[eliminatedPlayer].displayName} ${MESSAGES.PLAYER_OUT}`, UI_COLORS.DANGER);
 
             // 生存者が1人なら勝利
             if (game.activePlayers.length === 1) {
@@ -1756,14 +1838,14 @@ function goToJudge() {
 
             if (allOutOfStock || maxTurnsReached) {
                 playSound('balance');
-                showComboText('FINAL!', '#ffff00');
+                showComboText(MESSAGES.FINAL_TURN, UI_COLORS.ACCENT);
                 setCpuTimeout(() => {
                     if (!game.isOver) endGame('draw');
                     game.isJudging = false;
                 }, CONFIG.BALANCE_RESULT_DELAY);
             } else {
                 playSound('balance');
-                showComboText('BALANCED!', '#00ff88');
+                showComboText(MESSAGES.BALANCED, UI_COLORS.SUCCESS);
                 // 成功時のカメラ演出: 軽くズームイン（達成感）
                 targetFov = cameraBaseFov - 5;
                 setTimeout(() => {
@@ -1913,9 +1995,9 @@ function switchTurn() {
 }
 
 function updatePhaseUI() {
-    const badge = document.getElementById('phase-badge');
-    const btnPass = document.getElementById('btn-pass');
-    const btnRedo = document.getElementById('btn-redo');
+    const badge = document.getElementById(DOM_IDS.PHASE_BADGE);
+    const btnPass = document.getElementById(DOM_IDS.BTN_PASS);
+    const btnRedo = document.getElementById(DOM_IDS.BTN_REDO);
 
     if (!badge || !btnPass || !btnRedo) return;
 
@@ -1957,9 +2039,9 @@ function updatePhaseUI() {
 }
 
 function showHint(text, sub) {
-    const hint = document.getElementById('game-hint');
-    const hintText = document.getElementById('hint-text');
-    const hintSub = document.getElementById('hint-sub');
+    const hint = document.getElementById(DOM_IDS.GAME_HINT);
+    const hintText = document.getElementById(DOM_IDS.HINT_TEXT);
+    const hintSub = document.getElementById(DOM_IDS.HINT_SUB);
     if (!hint) return;
     if (hintText) hintText.textContent = text;
     if (hintSub) hintSub.textContent = sub || '';
@@ -1967,7 +2049,7 @@ function showHint(text, sub) {
 }
 
 function hideHint() {
-    const hint = document.getElementById('game-hint');
+    const hint = document.getElementById(DOM_IDS.GAME_HINT);
     if (hint) hint.classList.remove('show');
 }
 
@@ -2588,7 +2670,7 @@ function createWeight(owner, pos, stackIdx, totalInStack) {
     labelCanvas.width = 128;
     labelCanvas.height = 64;
     const ctx = labelCanvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = UI_COLORS.WHITE;
     ctx.font = 'bold 40px Orbitron, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -2798,9 +2880,9 @@ function endGame(winner) {
     // ポイント計算
     const points = calcPlayerPoints();
 
-    const icon = document.getElementById('result-icon');
-    const title = document.getElementById('result-title');
-    const detail = document.getElementById('result-detail');
+    const icon = document.getElementById(DOM_IDS.RESULT_ICON);
+    const title = document.getElementById(DOM_IDS.RESULT_TITLE);
+    const detail = document.getElementById(DOM_IDS.RESULT_DETAIL);
 
     if (!icon || !title || !detail) return;
 
@@ -3009,18 +3091,19 @@ function endGame(winner) {
 
     // 1秒後に結果画面を表示
     setTimeout(() => {
-        const resultOverlay = document.getElementById('result-overlay');
+        const resultOverlay = document.getElementById(DOM_IDS.RESULT_OVERLAY);
         if (resultOverlay) resultOverlay.classList.remove('hidden');
     }, 1000);
 }
 
 // てこの状態をHTMLで生成（学習用）
 function generateLeverStateHtml() {
+    // プレイヤーカラーをrgba形式で生成
     const ownerColors = {
-        blue: 'rgba(0,245,255,0.8)',
-        yellow: 'rgba(255,238,0,0.8)',
-        red: 'rgba(255,85,119,0.8)',
-        green: 'rgba(68,255,136,0.8)'
+        blue: hexToRGBA(COLORS.BLUE.primary, 0.8),
+        yellow: hexToRGBA(COLORS.YELLOW.primary, 0.8),
+        red: hexToRGBA(COLORS.RED.primary, 0.8),
+        green: hexToRGBA(COLORS.GREEN.primary, 0.8)
     };
 
     let html = '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-top:8px;">';
@@ -3863,21 +3946,21 @@ window.addEventListener('keydown', (e) => {
         userFovOffset = Math.min(10, userFovOffset + 1);
         saveCameraSettings();
         updateFovSettings(); // 軽量なFOV更新のみ
-        showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
+        showComboText(`${MESSAGES.FOV_LABEL} ${Math.round(cameraBaseFov)}°`, UI_COLORS.INFO, 800);
     }
     // -キー: FOVを狭める（ズームイン）
     else if (e.key === '-') {
         userFovOffset = Math.max(-10, userFovOffset - 1);
         saveCameraSettings();
         updateFovSettings(); // 軽量なFOV更新のみ
-        showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
+        showComboText(`${MESSAGES.FOV_LABEL} ${Math.round(cameraBaseFov)}°`, UI_COLORS.INFO, 800);
     }
     // 0キー: FOVをリセット
     else if (e.key === '0') {
         userFovOffset = 0;
         saveCameraSettings();
         updateFovSettings(); // 軽量なFOV更新のみ
-        showComboText('FOV: リセット', '#00ccff', 800);
+        showComboText(MESSAGES.FOV_RESET, UI_COLORS.INFO, 800);
     }
 });
 
