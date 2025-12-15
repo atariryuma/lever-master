@@ -3374,6 +3374,9 @@ function triggerImpactPause(duration = 60) {
 function animate() {
     requestAnimationFrame(animate);
 
+    // 初期化前はスキップ
+    if (!camera || !renderer || !scene) return;
+
     // インパクトポーズ中は物理演算をスキップ（描画は継続）
     const isPaused = Date.now() < impactPauseUntil;
 
