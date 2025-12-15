@@ -3488,10 +3488,15 @@ function animate() {
         targetFov = cameraBaseFov;
     }
 
-    // スムーズなFOV遷移（補間）
+    // スムーズなFOV遷移（補間）- パフォーマンス最適化
+    const prevFov = currentFov;
     currentFov += (targetFov - currentFov) * 0.12;
-    camera.fov = currentFov;
-    camera.updateProjectionMatrix();
+
+    // FOVが変化した時のみupdateProjectionMatrixを呼ぶ（重い処理）
+    if (Math.abs(currentFov - prevFov) > 0.01) {
+        camera.fov = currentFov;
+        camera.updateProjectionMatrix();
+    }
 
     // 動的lookAtターゲット: インテリジェントフォーカス
     let lookAtX = 0;
@@ -3768,26 +3773,52 @@ function saveCameraSettings() {
 // ==============================
 // FOVカスタマイズ: キーボード操作（+/-キー）
 // ==============================
+function updateFovSettings() {
+    if (!camera) return;
+
+    // パフォーマンス最適化: onResize()の代わりに必要な計算のみ実行
+    const canvas = document.getElementById('game-canvas');
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let w = rect.width;
+    let h = rect.height;
+
+    if (w <= 300 || h <= 150) {
+        w = window.innerWidth;
+        h = window.innerHeight;
+    }
+
+    const aspect = w / h;
+    const { fov } = calculateOptimalCamera(w, h, aspect);
+
+    cameraBaseFov = fov;
+    targetFov = fov;
+    currentFov = fov;
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+}
+
 window.addEventListener('keydown', (e) => {
     // +キーまたは=キー: FOVを広げる（ズームアウト）
     if (e.key === '+' || e.key === '=' || e.key === ';') {
         userFovOffset = Math.min(10, userFovOffset + 1);
         saveCameraSettings();
-        onResize(); // カメラを再計算
+        updateFovSettings(); // 軽量なFOV更新のみ
         showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
     }
     // -キー: FOVを狭める（ズームイン）
     else if (e.key === '-') {
         userFovOffset = Math.max(-10, userFovOffset - 1);
         saveCameraSettings();
-        onResize(); // カメラを再計算
+        updateFovSettings(); // 軽量なFOV更新のみ
         showComboText(`FOV: ${Math.round(cameraBaseFov)}°`, '#00ccff', 800);
     }
     // 0キー: FOVをリセット
     else if (e.key === '0') {
         userFovOffset = 0;
         saveCameraSettings();
-        onResize(); // カメラを再計算
+        updateFovSettings(); // 軽量なFOV更新のみ
         showComboText('FOV: リセット', '#00ccff', 800);
     }
 });
