@@ -653,6 +653,14 @@ const weightPhysics = {};
 // パフォーマンス最適化: 再利用可能なVector3（initThree()で初期化）
 let reusableIntersectPoint = null;
 
+// パフォーマンス最適化: ゴーストのヒットテストをヘルパー関数化（重複コード削減）
+function raycastVisibleGhosts() {
+    const visibleGhosts = Object.values(ghosts).filter(g => g.visible);
+    const hitboxes = visibleGhosts.map(g => g.hitbox);
+    const hits = raycaster.intersectObjects(hitboxes);
+    return { visibleGhosts, hits };
+}
+
 // 物理定数
 const PHYSICS = {
     G: 9.8,              // 重力加速度 [m/s²]
@@ -667,6 +675,14 @@ const PHYSICS = {
     // 振り子の物理パラメータ
     PEND_DAMP: 0.992,    // 振り子の減衰（自然な空気抵抗）
     PEND_INERTIA_COEF: 0.05  // 振り子の慣性力係数
+};
+
+// ドラッグ制限定数
+const DRAG_LIMITS = {
+    X_MIN: -10,    // X軸最小値（てこの範囲-8.5より少し広め）
+    X_MAX: 10,     // X軸最大値（てこの範囲8.5より少し広め）
+    Y_MIN: -6,     // Y軸最小値（てこの下）
+    Y_MAX: 3.5     // Y軸最大値（ストック位置より少し上）
 };
 
 // てこの角速度（状態変数）
@@ -1207,15 +1223,14 @@ function onPointerMove(e) {
         // 再利用可能なVector3を使用（毎フレーム生成しない）
         const hasIntersection = raycaster.ray.intersectPlane(dragPlane, reusableIntersectPoint);
         if (hasIntersection) {
-            draggedStock.position.x = reusableIntersectPoint.x;
-            draggedStock.position.y = Math.max(reusableIntersectPoint.y, -6);
+            // ドラッグ範囲を制限（てこの範囲＋余裕）
+            draggedStock.position.x = Math.max(DRAG_LIMITS.X_MIN, Math.min(DRAG_LIMITS.X_MAX, reusableIntersectPoint.x));
+            draggedStock.position.y = Math.max(DRAG_LIMITS.Y_MIN, Math.min(DRAG_LIMITS.Y_MAX, reusableIntersectPoint.y));
         }
     }
 
     // ゴーストのハイライト処理（raycasterは既にセット済み）
-    const visibleGhosts = Object.values(ghosts).filter(g => g.visible);
-    const hitboxes = visibleGhosts.map(g => g.hitbox);
-    const hits = raycaster.intersectObjects(hitboxes);
+    const { visibleGhosts, hits } = raycastVisibleGhosts();
 
     if (hits.length > 0) {
         const hitGhost = visibleGhosts.find(g => g.hitbox === hits[0].object);
@@ -1249,9 +1264,7 @@ function onPointerUp(e) {
         updateMouse(e.clientX, e.clientY);
         raycaster.setFromCamera(mouse, camera);
 
-        const visibleGhosts = Object.values(ghosts).filter(g => g.visible);
-        const hitboxes = visibleGhosts.map(g => g.hitbox);
-        const hits = raycaster.intersectObjects(hitboxes);
+        const { visibleGhosts, hits } = raycastVisibleGhosts();
 
         if (hits.length > 0) {
             const hitGhost = visibleGhosts.find(g => g.hitbox === hits[0].object);
@@ -1288,9 +1301,7 @@ function onPointerUp(e) {
     updateMouse(e.clientX, e.clientY);
     raycaster.setFromCamera(mouse, camera);
 
-    const visibleGhosts = Object.values(ghosts).filter(g => g.visible);
-    const hitboxes = visibleGhosts.map(g => g.hitbox);
-    const hits = raycaster.intersectObjects(hitboxes);
+    const { visibleGhosts, hits } = raycastVisibleGhosts();
 
     if (hits.length > 0) {
         const hitGhost = visibleGhosts.find(g => g.hitbox === hits[0].object);
