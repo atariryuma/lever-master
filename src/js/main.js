@@ -685,6 +685,21 @@ const DRAG_LIMITS = {
     Y_MAX: 3.5     // Y軸最大値（ストック位置より少し上）
 };
 
+// カメラ動的調整定数
+const CAMERA_DYNAMICS = {
+    STACK_THRESHOLD: 3,      // カメラ調整が開始されるスタック数
+    Z_DISTANCE_PER_STACK: 1.2,  // スタック1つあたりのZ軸距離増加量
+    Y_OFFSET_PER_STACK: 0.3,    // スタック1つあたりのY軸オフセット
+    POSITION_LERP: 0.15,     // カメラ位置の補間係数（高いほどスムーズ）
+    FOV_LERP: 0.15,          // FOVの補間係数（位置と統一）
+    FOV_ZOOM_IN: -8,         // ドラッグ時のFOVオフセット（度）
+    FOV_UPDATE_THRESHOLD: 0.01,  // updateProjectionMatrixを呼ぶ最小変化量
+    LOOKAT_Y_NORMAL: -0.5,   // 通常時のlookAtターゲットY座標
+    LOOKAT_Y_STACKED: -1.5,  // スタック多い時のlookAtターゲットY座標
+    DRAG_FOLLOW_X: 0.3,      // ドラッグ時のX軸追従率（30%）
+    DRAG_FOLLOW_Y: 0.5       // ドラッグ時のY軸追従率（50%）
+};
+
 // てこの角速度（状態変数）
 let leverAngularVelocity = 0;
 
@@ -3472,17 +3487,17 @@ function animate() {
     }
 
     // カメラ距離: おもりが多いほど引く
-    const extraZ = Math.max(0, maxStack - 3) * 1.2;
+    const extraZ = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Z_DISTANCE_PER_STACK;
     const targetZ = cameraBaseZ + extraZ;
 
     // カメラ高さ: おもりの範囲を見やすく
     // 視点の中心をゲームアクション（Y=-1～-3付近）に合わせる
-    const extraY = Math.max(0, maxStack - 3) * 0.3;
+    const extraY = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Y_OFFSET_PER_STACK;
     const targetY = cameraBaseY - extraY;
 
-    // スムーズなカメラ移動（滑らかに追従）
-    camera.position.z += (targetZ - camera.position.z) * 0.08;
-    const smoothY = camera.position.y + (targetY - camera.position.y) * 0.08;
+    // スムーズなカメラ移動（滑らかに追従）- 補間係数を統一して高めに設定
+    camera.position.z += (targetZ - camera.position.z) * CAMERA_DYNAMICS.POSITION_LERP;
+    const smoothY = camera.position.y + (targetY - camera.position.y) * CAMERA_DYNAMICS.POSITION_LERP;
 
     // カメラシェイク
     if (cameraShake.intensity > 0.01) {
@@ -3501,31 +3516,33 @@ function animate() {
 
     // 動的FOV調整: ドラッグ時にズームイン（没入感向上）
     if (draggedStock) {
-        // ドラッグ中: わずかにズームイン（FOV -8度）
-        targetFov = cameraBaseFov - 8;
+        // ドラッグ中: わずかにズームイン
+        targetFov = cameraBaseFov + CAMERA_DYNAMICS.FOV_ZOOM_IN;
     } else {
         // 通常時: 基準FOVに戻る
         targetFov = cameraBaseFov;
     }
 
-    // スムーズなFOV遷移（補間）- パフォーマンス最適化
+    // スムーズなFOV遷移（補間）- カメラ位置と統一された補間係数
     const prevFov = currentFov;
-    currentFov += (targetFov - currentFov) * 0.12;
+    currentFov += (targetFov - currentFov) * CAMERA_DYNAMICS.FOV_LERP;
 
     // FOVが変化した時のみupdateProjectionMatrixを呼ぶ（重い処理）
-    if (Math.abs(currentFov - prevFov) > 0.01) {
+    if (Math.abs(currentFov - prevFov) > CAMERA_DYNAMICS.FOV_UPDATE_THRESHOLD) {
         camera.fov = currentFov;
         camera.updateProjectionMatrix();
     }
 
     // 動的lookAtターゲット: インテリジェントフォーカス
     let lookAtX = 0;
-    let lookAtY = maxStack > 3 ? -1.5 : -0.5;
+    let lookAtY = maxStack > CAMERA_DYNAMICS.STACK_THRESHOLD
+        ? CAMERA_DYNAMICS.LOOKAT_Y_STACKED
+        : CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
 
     // ドラッグ中: ドラッグ対象物にフォーカス（没入感向上）
     if (draggedStock && draggedStock.visible) {
-        lookAtX = draggedStock.position.x * 0.3; // 30%追従（過剰でない程度に）
-        lookAtY = draggedStock.position.y * 0.5; // 50%追従
+        lookAtX = draggedStock.position.x * CAMERA_DYNAMICS.DRAG_FOLLOW_X;
+        lookAtY = draggedStock.position.y * CAMERA_DYNAMICS.DRAG_FOLLOW_Y;
     }
 
     camera.lookAt(lookAtX, lookAtY, 0);
