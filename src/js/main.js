@@ -219,7 +219,6 @@ function startBGM() {
 }
 
 // BGMループを停止（ページ離脱時などに使用）
-// eslint-disable-next-line no-unused-vars -- Used in page unload cleanup
 function stopBGM() {
     if (bgmLoopTimeoutId) {
         clearTimeout(bgmLoopTimeoutId);
@@ -704,23 +703,139 @@ const CAMERA_DYNAMICS = {
 let leverAngularVelocity = 0;
 
 // ==============================
-// Three.js初期化
+// クリーンアップ管理（メモリリーク対策）
+// ==============================
+let eventAbortController = null;  // イベントリスナーのAbortController（2025ベストプラクティス）
+let resizeObserver = null;        // ResizeObserver参照
+
+/**
+ * Three.jsとイベントリスナーのクリーンアップ
+ * メモリリーク防止のため、ゲーム終了時やページ離脱時に呼び出す
+ */
+function cleanupThree() {
+    // イベントリスナーのクリーンアップ（AbortController使用）
+    if (eventAbortController) {
+        eventAbortController.abort();
+        eventAbortController = null;
+    }
+
+    // ResizeObserverのクリーンアップ
+    if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+    }
+
+    // タイムアウトのクリーンアップ（メモリリーク防止）
+    clearAllCpuTimeouts();
+    clearAllRouletteTimeouts();
+    if (bgmLoopTimeoutId) {
+        clearTimeout(bgmLoopTimeoutId);
+        bgmLoopTimeoutId = null;
+    }
+
+    // Three.jsリソースのクリーンアップ
+    if (scene) {
+        scene.traverse(object => {
+            if (object.geometry) {
+                object.geometry.dispose();
+            }
+            if (object.material) {
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(material => material.dispose());
+                } else {
+                    object.material.dispose();
+                }
+            }
+        });
+    }
+
+    if (renderer) {
+        renderer.dispose();
+        renderer = null;
+    }
+
+    threeInitialized = false;
+}
+
+// ページ離脱時のクリーンアップ（メモリリーク防止）
+window.addEventListener('beforeunload', cleanupThree);
+
+// ==============================
+// Three.js初期化（エラーハンドリング強化）
 // ==============================
 let threeInitialized = false;  // 重複初期化防止フラグ
+
+/**
+ * WebGL機能検出（2025ベストプラクティス）
+ * @returns {boolean} WebGLが利用可能かどうか
+ */
+function isWebGLAvailable() {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        return !!gl;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * WebGL未対応時のエラー表示
+ */
+function showWebGLError() {
+    const canvas = document.getElementById('game-canvas');
+    if (!canvas) return;
+
+    canvas.style.display = 'none';
+
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 51, 102, 0.95);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 400px;
+        z-index: 10000;
+        font-family: 'M PLUS Rounded 1c', sans-serif;
+    `;
+    errorDiv.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 24px;">⚠️ WebGL未対応</h2>
+        <p style="margin: 0 0 12px 0; line-height: 1.6;">
+            お使いのブラウザまたはデバイスは3D描画（WebGL）に対応していません。
+        </p>
+        <p style="margin: 0; line-height: 1.6; font-size: 14px; opacity: 0.9;">
+            💡 最新のChromeまたはSafariをお試しください。
+        </p>
+    `;
+    document.body.appendChild(errorDiv);
+}
 
 function initThree() {
     // 重複初期化防止
     if (threeInitialized) {
         console.warn('initThree() called multiple times, skipping');
-        return;
+        return false;
     }
-    threeInitialized = true;
+
+    // WebGL機能検出（ベストプラクティス）
+    if (!isWebGLAvailable()) {
+        console.error('WebGL is not supported on this device');
+        showWebGLError();
+        return false;
+    }
 
     const canvas = document.getElementById('game-canvas');
     if (!canvas) {
         console.error('Canvas element not found!');
-        return;
+        return false;
     }
+
+    try {
 
     // キャンバスの実際の表示サイズを取得
     // CSSが適用される前はデフォルト値(300x150)になるので、window sizeを使用
@@ -928,27 +1043,69 @@ function initThree() {
     createPositionLabels();
     createStockWeights();
 
-    // passive: false でpreventDefaultを有効化（スクロール防止）
-    canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
-    canvas.addEventListener('pointermove', onPointerMove, { passive: false });
-    canvas.addEventListener('pointerup', onPointerUp, { passive: false });
-    canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
-    window.addEventListener('resize', onResize, { passive: true });
+        // AbortControllerを使用したイベントリスナー管理（2025ベストプラクティス）
+        eventAbortController = new AbortController();
+        const { signal } = eventAbortController;
 
-    // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
-    if (typeof ResizeObserver !== 'undefined') {
-        let resizeTimeout;
-        const resizeObserver = new ResizeObserver(() => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(onResize, 100);
-        });
-        resizeObserver.observe(canvas);
+        // passive: false でpreventDefaultを有効化（スクロール防止）
+        canvas.addEventListener('pointerdown', onPointerDown, { passive: false, signal });
+        canvas.addEventListener('pointermove', onPointerMove, { passive: false, signal });
+        canvas.addEventListener('pointerup', onPointerUp, { passive: false, signal });
+        canvas.addEventListener('pointercancel', onPointerUp, { passive: false, signal });
+        window.addEventListener('resize', onResize, { passive: true, signal });
+
+        // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
+        if (typeof ResizeObserver !== 'undefined') {
+            let resizeTimeout;
+            resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(onResize, 100);
+            });
+            resizeObserver.observe(canvas);
+        }
+
+        // 初期カメラ位置を調整（CSSとcanvas初期化の完了を待つ）
+        setTimeout(onResize, 100);
+
+        threeInitialized = true;
+        animate();
+        return true;
+
+    } catch (error) {
+        console.error('Three.js initialization failed:', error);
+
+        // エラー表示
+        const canvas = document.getElementById('game-canvas');
+        if (canvas) canvas.style.display = 'none';
+
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 51, 102, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            z-index: 10000;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+        `;
+        errorDiv.innerHTML = `
+            <h2 style="margin: 0 0 16px 0; font-size: 24px;">⚠️ 初期化エラー</h2>
+            <p style="margin: 0 0 12px 0; line-height: 1.6;">
+                3D描画の初期化に失敗しました。
+            </p>
+            <p style="margin: 0; line-height: 1.6; font-size: 14px; opacity: 0.9;">
+                💡 ページを再読み込みしてください。
+            </p>
+        `;
+        document.body.appendChild(errorDiv);
+
+        return false;
     }
-
-    // 初期カメラ位置を調整（CSSとcanvas初期化の完了を待つ）
-    setTimeout(onResize, 100);
-
-    animate();
 }
 
 function createStockWeights() {

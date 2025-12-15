@@ -41,6 +41,7 @@ export default [
         localStorage: 'readonly',
         sessionStorage: 'readonly',
         screen: 'readonly',
+        AbortController: 'readonly',
 
         // THREE.js グローバル
         THREE: 'readonly',
