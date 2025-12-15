@@ -1466,8 +1466,8 @@ body {
         bottom: 0;
         left: calc(var(--side-panel-width) + var(--safe-left));
         right: calc(var(--side-panel-width) + var(--safe-right));
-        width: auto;
-        height: auto;
+        width: calc(100vw - var(--side-panel-width) * 2 - var(--safe-left) - var(--safe-right));
+        height: calc(100vh - var(--safe-top) - var(--safe-bottom));
     }
 
     /* ==============================

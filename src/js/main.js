@@ -3362,16 +3362,21 @@ function onResize() {
     const canvas = document.getElementById('game-canvas');
     if (!canvas) return;
 
-    // 全画面時はscreen sizeを使用、それ以外はwindow sizeを使用
-    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-    let w, h;
+    // キャンバスの実際のサイズを取得（CSS適用後）
+    const rect = canvas.getBoundingClientRect();
+    let w = rect.width;
+    let h = rect.height;
 
-    if (isFullscreen) {
-        w = screen.width;
-        h = screen.height;
-    } else {
-        w = window.innerWidth;
-        h = window.innerHeight;
+    // CSSデフォルト値(300x150)または異常に小さい場合はwindow sizeを使用
+    if (w <= 300 || h <= 150) {
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        if (isFullscreen) {
+            w = screen.width;
+            h = screen.height;
+        } else {
+            w = window.innerWidth;
+            h = window.innerHeight;
+        }
     }
 
     const aspect = w / h;
@@ -3383,6 +3388,7 @@ function onResize() {
     const { z, fov, baseY } = calculateOptimalCamera(w, h, aspect);
 
     camera.position.z = z;
+    camera.position.y = baseY;  // カメラのY位置も更新
     camera.fov = fov;
     cameraBaseY = baseY;
 
