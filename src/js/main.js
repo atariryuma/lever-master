@@ -74,7 +74,7 @@ const COLORS = {
 // サウンドシステム（Web Audio API）
 // ==============================
 let audioCtx = null;
-let isMuted = false;
+let isMuted = true;  // 初期状態はミュート（スプラッシュでタップ時にONになる）
 let bgmGain = null;
 let bgmStarted = false;
 let bgmLoopTimeoutId = null;  // BGMループのタイムアウトID
@@ -696,7 +696,9 @@ function initThree() {
         h = window.innerHeight;
     }
 
-    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    // ベストプラクティス: モバイルでは低いpixelRatioを使用
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || w < 768;
+    const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a2040);
@@ -713,10 +715,14 @@ function initThree() {
     cameraBaseY = optY;
     cameraBaseZ = optZ;
 
-    // Three.jsにcanvasサイズの管理を任せる（updateStyle=trueで）
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    // ベストプラクティス: モバイルではantialiasを無効化してパフォーマンス向上
+    renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: !isMobile,  // モバイルではfalse
+        powerPreference: 'high-performance'  // パフォーマンス優先
+    });
     renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(w, h, true);  // updateStyle=true でCSSも更新
+    renderer.setSize(w, h, false);  // CSSサイズはスタイルシートで管理
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -871,18 +877,6 @@ function initThree() {
     canvas.addEventListener('pointerup', onPointerUp, { passive: false });
     canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
     window.addEventListener('resize', onResize, { passive: true });
-
-    // 全画面切り替え時にリサイズ処理とボタン更新
-    document.addEventListener('fullscreenchange', () => {
-        setTimeout(onResize, 100);
-        setTimeout(onResize, 300);
-        updateFullscreenBtn();
-    }, { passive: true });
-    document.addEventListener('webkitfullscreenchange', () => {
-        setTimeout(onResize, 100);
-        setTimeout(onResize, 300);
-        updateFullscreenBtn();
-    }, { passive: true });
 
     // ResizeObserverでキャンバスのサイズ変更を検知（iOS PWA対応）
     // window.resizeだけでは検知できないケースに対応
@@ -2993,40 +2987,6 @@ function generateLeverStateHtml() {
 }
 
 // ==============================
-// フルスクリーン切り替え（ユーザー操作で呼び出し）
-// ==============================
-function toggleFullscreen() {
-    const el = document.documentElement;
-    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-
-    if (isFullscreen) {
-        // フルスクリーン解除
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        }
-    } else {
-        // フルスクリーン開始
-        if (el.requestFullscreen) {
-            el.requestFullscreen().catch(() => {});
-        } else if (el.webkitRequestFullscreen) {
-            el.webkitRequestFullscreen();
-        }
-    }
-    playSound('click');
-}
-
-// フルスクリーンボタンのアイコン更新
-function updateFullscreenBtn() {
-    const btn = document.getElementById('fullscreen-btn');
-    if (!btn) return;
-    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-    btn.textContent = isFullscreen ? '⛶' : '⛶';  // 同じアイコン（状態はCSSで管理も可）
-    btn.title = isFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
-}
-
-// ==============================
 // ゲーム開始
 // ==============================
 async function startGame(mode) {
@@ -3369,14 +3329,8 @@ function onResize() {
 
     // CSSデフォルト値(300x150)または異常に小さい場合はwindow sizeを使用
     if (w <= 300 || h <= 150) {
-        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-        if (isFullscreen) {
-            w = screen.width;
-            h = screen.height;
-        } else {
-            w = window.innerWidth;
-            h = window.innerHeight;
-        }
+        w = window.innerWidth;
+        h = window.innerHeight;
     }
 
     const aspect = w / h;
@@ -3395,10 +3349,11 @@ function onResize() {
     cameraBaseZ = camera.position.z;
     camera.updateProjectionMatrix();
 
-    // Three.jsにサイズ管理を任せる
-    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    // ベストプラクティス: デバイスに応じた最適なpixelRatioを設定
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || w < 768;
+    const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
     renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(w, h, true);
+    renderer.setSize(w, h, false);  // CSSサイズはスタイルシートで管理
 }
 
 // ==============================
