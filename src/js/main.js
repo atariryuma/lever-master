@@ -435,7 +435,7 @@ function toggleSound() {
         bgmGain.gain.value = isMuted ? 0 : CONFIG.BGM_VOLUME;
     }
     updateHeaderSoundBtn();
-    updateStartSoundBtn();
+    // スタート画面のボタンは存在しないので不要
 }
 
 // ==============================
@@ -3296,13 +3296,14 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         }
     }
 
-    // カメラY位置（テコが画面中央に来るように調整）
+    // カメラY位置（テコが画面中央よりやや上に来るように調整）
     let baseY;
     if (isLandscapeMobile) {
-        // スマホ横画面: テコが中央に来るように調整
-        baseY = isUltraWide ? 3.5 : 4;
-    } else if (effectiveHeight < 400) {
-        baseY = 4;
+        // スマホ横画面: カメラを低めにしてテコを上部に配置
+        baseY = isUltraWide ? 3 : 3.5;
+    } else if (effectiveHeight < 500) {
+        // 小さい画面: カメラを少し低めに
+        baseY = 3.5;
     } else {
         baseY = 5;
     }
@@ -3633,4 +3634,7 @@ window.onload = () => {
     checkDevice();
     initThree();
     updateUI();
+    // 初期状態のBGMボタンを更新（isMuted=trueなので🔇を表示）
+    updateHeaderSoundBtn();
+    updateStartSoundBtn();
 };
