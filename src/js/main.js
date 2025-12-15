@@ -3382,9 +3382,9 @@ function animate() {
     }
     const extra = Math.max(0, maxStack - 3);
     const targetZ = cameraBaseZ + extra * 1.5;
-    const targetY = 5 - extra * 0.4;
+    const targetY = cameraBaseY - extra * 0.4;
     camera.position.z += (targetZ - camera.position.z) * 0.05;
-    cameraBaseY += (targetY - cameraBaseY) * 0.05;
+    camera.position.y += (targetY - camera.position.y) * 0.05;
 
     // カメラシェイク（cameraBaseYはonResizeで設定済み）
     if (cameraShake.intensity > 0.01) {
