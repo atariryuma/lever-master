@@ -2649,7 +2649,7 @@ function findAllPossibleMoves() {
             allPositions.forEach(toPos => {
                 if (isValidMove(fromPos, toPos, movingCount)) {
                     const diff = simulateMoveInternal(fromPos, idx, toPos);
-                    const sabotageValue = evaluateSabotageValue(fromPos, toPos, w.owner);
+                    const sabotageValue = evaluateSabotageValue(fromPos, toPos);
                     const isLeaderWeight = (w.owner === leader.player);
 
                     moves.push({
