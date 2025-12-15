@@ -88,7 +88,7 @@ async function initAudio() {
         source.start(0);
 
         audioUnlocked = true;
-        console.log('Audio unlocked, state:', audioCtx.state);
+        // デバッグ用: console.warn('Audio unlocked, state:', audioCtx.state);
 
         // BGM開始
         if (!bgmStarted) startBGM();
@@ -643,7 +643,8 @@ const cpuPersonalities = {
 const allPositions = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
 
 let scene, camera, renderer, leverGroup, pivotGroup;
-let ghosts = {}, weightMeshes = [];
+const ghosts = {};
+let weightMeshes = [];
 let ghostsArray = [];  // ghostsの配列キャッシュ（animate用）
 let weightGroups = {};  // 位置ごとにグループ化されたおもり（パフォーマンス最適化用）
 let weightGroupsKeys = [];  // weightGroupsのキーキャッシュ（animate用）
@@ -1352,7 +1353,8 @@ function addBackgroundParticles() {
     for (let i = 0; i < particleCount; i++) {
         positions[i * 3] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_X_RANGE;
         positions[i * 3 + 1] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_Y_RANGE;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_Z_RANGE + CONFIG.BACKGROUND_PARTICLE_Z_OFFSET;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * CONFIG.BACKGROUND_PARTICLE_Z_RANGE
+            + CONFIG.BACKGROUND_PARTICLE_Z_OFFSET;
 
         const color = Math.random() > 0.5 ? new THREE.Color(COLORS.BLUE.primary) : new THREE.Color(COLORS.RED.primary);
         colors[i * 3] = color.r;
@@ -1406,7 +1408,8 @@ function onPointerDown(e) {
 
         if (hits.length > 0) {
             const hitObject = hits[0].object;
-            const weightData = allWeights.find(w => w.hitbox === hitObject || w.sphere === hitObject || w.sphere === hitObject.parent);
+            const weightData = allWeights.find(w =>
+                w.hitbox === hitObject || w.sphere === hitObject || w.sphere === hitObject.parent);
             if (weightData) {
                 // 吊るした位置のおもりは全て移動不可（新ルール）
                 if (game.currentTurnHungPos === weightData.pos) {
@@ -1443,8 +1446,10 @@ function onPointerMove(e) {
         const hasIntersection = raycaster.ray.intersectPlane(dragPlane, reusableIntersectPoint);
         if (hasIntersection) {
             // ドラッグ範囲を制限（てこの範囲＋余裕）
-            draggedStock.position.x = Math.max(DRAG_LIMITS.X_MIN, Math.min(DRAG_LIMITS.X_MAX, reusableIntersectPoint.x));
-            draggedStock.position.y = Math.max(DRAG_LIMITS.Y_MIN, Math.min(DRAG_LIMITS.Y_MAX, reusableIntersectPoint.y));
+            const clampedX = Math.max(DRAG_LIMITS.X_MIN, Math.min(DRAG_LIMITS.X_MAX, reusableIntersectPoint.x));
+            const clampedY = Math.max(DRAG_LIMITS.Y_MIN, Math.min(DRAG_LIMITS.Y_MAX, reusableIntersectPoint.y));
+            draggedStock.position.x = clampedX;
+            draggedStock.position.y = clampedY;
         }
     }
 
@@ -2433,7 +2438,8 @@ function findBestStrategyWithPersonality(player, personality) {
 
     if (game[player].stock <= 0) {
         const move = findBestMoveWithSabotage(sabotageAggression);
-        return { hangPos: null, move: move, resultDiff: move ? simulateMoveInternal(move.fromPos, move.index, move.toPos) : Infinity };
+        const resultDiff = move ? simulateMoveInternal(move.fromPos, move.index, move.toPos) : Infinity;
+        return { hangPos: null, move: move, resultDiff };
     }
 
     const allStrategies = [];
@@ -2506,12 +2512,14 @@ function findBestStrategyWithPersonality(player, personality) {
                 });
                 const best = scored.reduce((a, b) => a.score > b.score ? a : b);
 
+                const sabBonus = (best.isLeaderWeight && best.sabotageValue > 0)
+                    ? best.sabotageValue * sabotageAggression : 0;
                 allStrategies.push({
                     hangPos: hangPos,
                     move: { fromPos: best.fromPos, index: best.index, toPos: best.toPos },
                     resultDiff: best.diff,
                     positionBonus: positionBonus,
-                    sabotageBonus: (best.isLeaderWeight && best.sabotageValue > 0) ? best.sabotageValue * sabotageAggression : 0,
+                    sabotageBonus: sabBonus,
                 });
             }
         }
@@ -3029,6 +3037,138 @@ function playEndGameEffects(isWin, impactIntensity = 150) {
     }
 }
 
+/**
+ * ドロー結果の処理
+ */
+function handleDrawResult(elements, ctx) {
+    const { icon, title, detail } = elements;
+    const { points, humanPlayers, pointsHtml, balanceHtml, leverStateHtml } = ctx;
+    const humanStillActive = humanPlayers.some(p => game.activePlayers.includes(p));
+
+    if (!humanStillActive) {
+        icon.textContent = '💀';
+        title.textContent = 'GAME OVER';
+        title.className = 'result-title lose';
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">脱落してしまった...CPUの勝利！</div>
+            <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 バランスを崩して脱落...</div>
+            </div>
+            ${pointsHtml}${leverStateHtml}`;
+        playEndGameEffects(false, 100);
+        return;
+    }
+
+    const sortedPlayers = [...game.activePlayers].sort((a, b) => points[b] - points[a]);
+    const topPoint = points[sortedPlayers[0]];
+    const topPlayers = sortedPlayers.filter(p => points[p] === topPoint);
+
+    if (topPlayers.length === 1) {
+        handlePointWinner(elements, ctx, topPlayers[0], topPoint);
+    } else {
+        icon.textContent = '🤝';
+        title.textContent = 'DRAW!';
+        title.className = 'result-title win';
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">最後までバランスキープ！ポイントも同点！</div>
+            ${pointsHtml}${balanceHtml}${leverStateHtml}`;
+        showScreenFlash('win');
+        playSound('balance');
+        triggerImpactPause(100);
+    }
+}
+
+/**
+ * ポイント勝者の処理
+ */
+function handlePointWinner(elements, ctx, pointWinner, topPoint) {
+    const { icon, title, detail } = elements;
+    const { humanPlayers, pointsHtml, balanceHtml, leverStateHtml } = ctx;
+    const winnerMeta = PLAYER_META[pointWinner];
+    const isHuman = humanPlayers.includes(pointWinner);
+
+    if (isHuman) {
+        icon.textContent = '🏆';
+        title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
+        title.className = 'result-title win';
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">最後までバランスキープ！ポイント勝負で勝ち！</div>
+            <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.9rem;color:#00ff88;margin-bottom:4px;">🎯 1位</div>
+                <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
+            </div>
+            ${pointsHtml}${balanceHtml}${leverStateHtml}`;
+        playEndGameEffects(true, 150);
+    } else {
+        icon.textContent = '💀';
+        title.textContent = 'GAME OVER';
+        title.className = 'result-title lose';
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">最後までバランスキープ...でもポイント負け！</div>
+            <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.9rem;color:#ff5577;margin-bottom:4px;">💀 1位はCPU...</div>
+                <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
+            </div>
+            ${pointsHtml}${balanceHtml}${leverStateHtml}`;
+        playEndGameEffects(false, 100);
+    }
+}
+
+/**
+ * 全員脱落結果の処理
+ */
+function handleAllOutResult(elements, ctx) {
+    const { icon, title, detail } = elements;
+    const { pointsHtml, leverStateHtml } = ctx;
+    icon.textContent = '💥';
+    title.textContent = 'ALL OUT!';
+    title.className = 'result-title lose';
+    detail.innerHTML = `
+        <div style="margin-bottom:12px;">全員脱落！勝者なし...</div>
+        <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
+            <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 誰もバランスを保てなかった...</div>
+        </div>
+        ${pointsHtml}${leverStateHtml}`;
+    playEndGameEffects(false, 100);
+}
+
+/**
+ * 勝者ありの結果処理
+ */
+function handleWinnerResult(elements, ctx, winner) {
+    const { icon, title, detail } = elements;
+    const { points, humanPlayers, pointsHtml, leverStateHtml } = ctx;
+    const winnerMeta = PLAYER_META[winner];
+    const winnerPoint = points[winner];
+    const isWinnerHuman = humanPlayers.includes(winner);
+
+    if (isWinnerHuman) {
+        icon.textContent = '🏆';
+        title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
+        title.className = 'result-title win';
+        const playerName = game.humanCount === 1 ? 'あなた' : winnerMeta.displayName;
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">${winnerMeta.icon} <strong>${playerName}</strong>が最後まで生き残った！</div>
+            <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.85rem;color:#00ff88;margin-bottom:4px;">🏅 獲得ポイント</div>
+                <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;">${winnerPoint} PT</div>
+            </div>
+            ${pointsHtml}${leverStateHtml}`;
+        playEndGameEffects(true, 150);
+    } else {
+        icon.textContent = '💀';
+        title.textContent = 'GAME OVER';
+        title.className = 'result-title lose';
+        detail.innerHTML = `
+            <div style="margin-bottom:12px;">CPUが最後まで生き残った...</div>
+            <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
+                <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 脱落してしまった...</div>
+            </div>
+            ${pointsHtml}${leverStateHtml}`;
+        playEndGameEffects(false, 100);
+    }
+}
+
 // ==============================
 // ゲーム制御
 // ==============================
@@ -3042,159 +3182,33 @@ function endGame(winner) {
 
     // モーメント計算
     const m = calcMoment();
-    const leftMoment = m.left;
-    const rightMoment = m.right;
-
-    // ポイント計算
     const points = calcPlayerPoints();
 
     const icon = document.getElementById(DOM_IDS.RESULT_ICON);
     const title = document.getElementById(DOM_IDS.RESULT_TITLE);
     const detail = document.getElementById(DOM_IDS.RESULT_DETAIL);
-
     if (!icon || !title || !detail) return;
 
-    // てこの状態を生成（学習用）
-    const leverStateHtml = generateLeverStateHtml(game.leverData);
-    const humanPlayers = PLAYER_ORDER.slice(0, game.humanCount);
-    const pointsHtml = generatePointsRankingHtml(points, game.activePlayers);
-    const balanceHtml = generateBalanceInfoHtml(leftMoment, rightMoment);
+    // コンテキスト情報を準備
+    const elements = { icon, title, detail };
+    const ctx = {
+        points,
+        humanPlayers: PLAYER_ORDER.slice(0, game.humanCount),
+        leverStateHtml: generateLeverStateHtml(game.leverData),
+        pointsHtml: generatePointsRankingHtml(points, game.activePlayers),
+        balanceHtml: generateBalanceInfoHtml(m.left, m.right),
+    };
 
-    // てこを元に戻す（傾かせない）
+    // てこを元に戻す
     targetLeverAngle = 0;
 
+    // 結果タイプに応じた処理
     if (winner === 'draw') {
-        // ドロー（引き分け）- ポイントで順位決定
-        // まず、人間プレイヤーがアクティブプレイヤーに残っているかチェック
-        const humanStillActive = humanPlayers.some(p => game.activePlayers.includes(p));
-
-        if (!humanStillActive) {
-            // 人間プレイヤーは全員脱落済み → CPUの勝利
-            icon.textContent = '💀';
-            title.textContent = 'GAME OVER';
-            title.className = 'result-title lose';
-            detail.innerHTML = `
-                <div style="margin-bottom:12px;">脱落してしまった...CPUの勝利！</div>
-                <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
-                    <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 バランスを崩して脱落...</div>
-                </div>
-                ${pointsHtml}
-                ${leverStateHtml}
-            `;
-            playEndGameEffects(false, 100);
-        } else {
-            // 人間プレイヤーが残っている → 通常のポイント勝負
-            const sortedPlayers = [...game.activePlayers].sort((a, b) => points[b] - points[a]);
-            const topPoint = points[sortedPlayers[0]];
-            const topPlayers = sortedPlayers.filter(p => points[p] === topPoint);
-
-            if (topPlayers.length === 1) {
-                // ポイント1位が決定
-                const pointWinner = topPlayers[0];
-                const winnerMeta = PLAYER_META[pointWinner];
-                const isHuman = humanPlayers.includes(pointWinner);
-
-                if (isHuman) {
-                    // プレイヤーがポイント1位で勝利
-                    icon.textContent = '🏆';
-                    title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
-                    title.className = 'result-title win';
-
-                    detail.innerHTML = `
-                        <div style="margin-bottom:12px;">最後までバランスキープ！ポイント勝負で勝ち！</div>
-                        <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
-                            <div style="font-size:0.9rem;color:#00ff88;margin-bottom:4px;">🎯 1位</div>
-                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
-                        </div>
-                        ${pointsHtml}
-                        ${balanceHtml}
-                        ${leverStateHtml}
-                    `;
-                    playEndGameEffects(true, 150);
-                } else {
-                    // CPUがポイント1位で勝利 = プレイヤー負け（でも最後までバランスは保った）
-                    icon.textContent = '💀';
-                    title.textContent = 'GAME OVER';
-                    title.className = 'result-title lose';
-
-                    detail.innerHTML = `
-                        <div style="margin-bottom:12px;">最後までバランスキープ...でもポイント負け！</div>
-                        <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
-                            <div style="font-size:0.9rem;color:#ff5577;margin-bottom:4px;">💀 1位はCPU...</div>
-                            <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;color:${winnerMeta.cssColor};">${winnerMeta.displayName} - ${topPoint} PT</div>
-                    </div>
-                    ${pointsHtml}
-                    ${balanceHtml}
-                    ${leverStateHtml}
-                `;
-                    playEndGameEffects(false, 100);
-                }
-            } else {
-            // ポイントも同点 → 完全引き分け
-            // 引き分けはプレイヤーにとって悪くないので勝利扱い
-                icon.textContent = '🤝';
-                title.textContent = 'DRAW!';
-                title.className = 'result-title win';
-
-                detail.innerHTML = `
-                <div style="margin-bottom:12px;">最後までバランスキープ！ポイントも同点！</div>
-                ${pointsHtml}
-                ${balanceHtml}
-                ${leverStateHtml}
-            `;
-                showScreenFlash('win');
-                playSound('balance');  // 引き分けはバランス音
-                triggerImpactPause(100);
-            }
-        }
+        handleDrawResult(elements, ctx);
     } else if (winner === 'all_out') {
-        // 全員脱落
-        icon.textContent = '💥';
-        title.textContent = 'ALL OUT!';
-        title.className = 'result-title lose';
-        detail.innerHTML = `
-            <div style="margin-bottom:12px;">全員脱落！勝者なし...</div>
-            <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
-                <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 誰もバランスを保てなかった...</div>
-            </div>
-            ${pointsHtml}
-            ${leverStateHtml}
-        `;
-        playEndGameEffects(false, 100);
+        handleAllOutResult(elements, ctx);
     } else {
-        // 勝者あり（他プレイヤー脱落）
-        const winnerMeta = PLAYER_META[winner];
-        const winnerPoint = points[winner];
-        const isWinnerHuman = humanPlayers.includes(winner);
-
-        if (isWinnerHuman) {
-            icon.textContent = '🏆';
-            title.textContent = game.humanCount === 1 ? 'VICTORY!' : `${winnerMeta.displayName} WINS!`;
-            title.className = 'result-title win';
-            detail.innerHTML = `
-                <div style="margin-bottom:12px;">${winnerMeta.icon} <strong>${game.humanCount === 1 ? 'あなた' : winnerMeta.displayName}</strong>が最後まで生き残った！</div>
-                <div style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;border-radius:8px;padding:12px;margin-bottom:8px;">
-                    <div style="font-size:0.85rem;color:#00ff88;margin-bottom:4px;">🏅 獲得ポイント</div>
-                    <div style="font-family:'Orbitron',sans-serif;font-size:1.2rem;">${winnerPoint} PT</div>
-                </div>
-                ${pointsHtml}
-                ${leverStateHtml}
-            `;
-            playEndGameEffects(true, 150);
-        } else {
-            icon.textContent = '💀';
-            title.textContent = 'GAME OVER';
-            title.className = 'result-title lose';
-            detail.innerHTML = `
-                <div style="margin-bottom:12px;">CPUが最後まで生き残った...</div>
-                <div style="background:rgba(255,51,102,0.1);border:1px solid #ff5577;border-radius:8px;padding:12px;margin-bottom:8px;">
-                    <div style="font-size:0.85rem;color:#ff5577;margin-bottom:4px;">💀 脱落してしまった...</div>
-                </div>
-                ${pointsHtml}
-                ${leverStateHtml}
-            `;
-            playEndGameEffects(false, 100);
-        }
+        handleWinnerResult(elements, ctx, winner);
     }
 
     // 1秒後に結果画面を表示
@@ -3620,46 +3634,38 @@ function triggerImpactPause(duration = 60) {
 }
 
 // ==============================
-// アニメーション
+// アニメーション - ヘルパー関数
 // ==============================
-function animate() {
-    requestAnimationFrame(animate);
 
-    // 初期化前はスキップ
-    if (!camera || !renderer || !scene) return;
-
-    // インパクトポーズ中は物理演算をスキップ（描画は継続）
-    const isPaused = Date.now() < impactPauseUntil;
-
-    // 動的カメラ調整: ゲーム状況に応じて最適な画角を計算
-    // おもりの配置範囲とてこの傾きを考慮
+/**
+ * ゲーム状態からスタック情報を計算
+ * @returns {{maxStack: number}} スタック情報
+ */
+function calculateGameState() {
     let maxStack = 0;
-    let minY = 0;  // おもりの最下点
-    let maxAbsX = 0;  // てこの最大X範囲
-
     for (let i = 0; i < allPositions.length; i++) {
         const stack = game.leverData[allPositions[i]];
         if (stack && stack.length > 0) {
             maxStack = Math.max(maxStack, stack.length);
-            // おもりの最下点を計算（スタック数 × おもりサイズ）
-            const stackDepth = stack.length * 0.9;
-            minY = Math.min(minY, -stackDepth - 0.5);
-            // てこの傾きを考慮した横幅
-            const pos = parseInt(allPositions[i], 10);
-            maxAbsX = Math.max(maxAbsX, Math.abs(pos));
         }
     }
+    return { maxStack };
+}
 
+/**
+ * カメラの位置とFOVを更新
+ * @param {number} maxStack - 最大スタック数
+ */
+function updateCameraPosition(maxStack) {
     // カメラ距離: おもりが多いほど引く
     const extraZ = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Z_DISTANCE_PER_STACK;
     const targetZ = cameraBaseZ + extraZ;
 
     // カメラ高さ: おもりの範囲を見やすく
-    // 視点の中心をゲームアクション（Y=-1～-3付近）に合わせる
     const extraY = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Y_OFFSET_PER_STACK;
     const targetY = cameraBaseY - extraY;
 
-    // スムーズなカメラ移動（滑らかに追従）- 補間係数を統一して高めに設定
+    // スムーズなカメラ移動
     camera.position.z += (targetZ - camera.position.z) * CAMERA_DYNAMICS.POSITION_LERP;
     const smoothY = camera.position.y + (targetY - camera.position.y) * CAMERA_DYNAMICS.POSITION_LERP;
 
@@ -3673,72 +3679,37 @@ function animate() {
         cameraShake.y = 0;
     }
 
-    // 最終位置 = スムーズ移動 + シェイク
-    // 操作性重視: 真正面から見下ろす（立体感はライティングで確保）
     camera.position.x = cameraShake.x;
     camera.position.y = smoothY + cameraShake.y;
 
-    // 動的FOV調整: ドラッグ時にズームイン（没入感向上）
-    if (draggedStock) {
-        // ドラッグ中: わずかにズームイン
-        targetFov = cameraBaseFov + CAMERA_DYNAMICS.FOV_ZOOM_IN;
-    } else {
-        // 通常時: 基準FOVに戻る
-        targetFov = cameraBaseFov;
-    }
-
-    // スムーズなFOV遷移（補間）- カメラ位置と統一された補間係数
+    // 動的FOV調整
+    targetFov = draggedStock ? cameraBaseFov + CAMERA_DYNAMICS.FOV_ZOOM_IN : cameraBaseFov;
     const prevFov = currentFov;
     currentFov += (targetFov - currentFov) * CAMERA_DYNAMICS.FOV_LERP;
 
-    // FOVが変化した時のみupdateProjectionMatrixを呼ぶ（重い処理）
     if (Math.abs(currentFov - prevFov) > CAMERA_DYNAMICS.FOV_UPDATE_THRESHOLD) {
         camera.fov = currentFov;
         camera.updateProjectionMatrix();
     }
 
-    // 動的lookAtターゲット: インテリジェントフォーカス
+    // 動的lookAtターゲット
     let lookAtX = 0;
     let lookAtY = maxStack > CAMERA_DYNAMICS.STACK_THRESHOLD
-        ? CAMERA_DYNAMICS.LOOKAT_Y_STACKED
-        : CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
+        ? CAMERA_DYNAMICS.LOOKAT_Y_STACKED : CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
 
-    // ドラッグ中: ドラッグ対象物にフォーカス（没入感向上）
     if (draggedStock && draggedStock.visible) {
         lookAtX = draggedStock.position.x * CAMERA_DYNAMICS.DRAG_FOLLOW_X;
         lookAtY = draggedStock.position.y * CAMERA_DYNAMICS.DRAG_FOLLOW_Y;
     }
-
     camera.lookAt(lookAtX, lookAtY, 0);
+}
 
-    // ストックおもりパルス（キャッシュ配列を使用）
-    const t = Date.now() * 0.003;
-    for (let i = 0; i < stockWeightsArray.length; i++) {
-        const stock = stockWeightsArray[i];
-        if (stock && stock.visible && !draggedStock) {
-            const pulse = 1 + Math.sin(t) * 0.1;
-            stock.scale.set(pulse, pulse, pulse);
-            stock.position.y = 2.5 + Math.sin(t * 1.5) * 0.2;
-        }
-    }
-
-    // ========== てこの傾き（モーメント差による補間） ==========
-    const { G, ROPE_LEN, SPHERE_R, PEND_DAMP, DT, UNIT, MAX_TILT, LEVER_SPEED, PEND_INERTIA_COEF } = PHYSICS;
-
-    // インパクトポーズ中は物理更新をスキップ
-    if (!isPaused) {
-        // targetLeverAngleに向かってスムーズに補間
-        const angleDelta = (targetLeverAngle - leverAngle) * LEVER_SPEED;
-        leverAngularVelocity = angleDelta / DT;  // 振り子の慣性力計算用
-        leverAngle += angleDelta;
-    }
-
-    // 最大傾斜で制限
-    leverAngle = Math.max(-MAX_TILT, Math.min(MAX_TILT, leverAngle));
-    leverGroup.rotation.z = leverAngle;
-
-    // ========== 振り子の物理演算 ==========
-    // cos/sinをループ外で1回だけ計算（全おもり共通）
+/**
+ * 振り子の物理演算を更新
+ * @param {boolean} isPaused - ポーズ中かどうか
+ */
+function updatePendulumPhysics(isPaused) {
+    const { G, ROPE_LEN, SPHERE_R, PEND_DAMP, DT, UNIT, PEND_INERTIA_COEF } = PHYSICS;
     const cosLever = Math.cos(leverAngle);
     const sinLever = Math.sin(leverAngle);
     const cosNeg = Math.cos(-leverAngle);
@@ -3761,42 +3732,83 @@ function animate() {
             const ph = weightPhysics[w.physicsKey];
             if (!ph) continue;
 
-            // インパクトポーズ中は振り子の物理更新をスキップ
             if (!isPaused) {
-                // 単振り子の運動方程式: α = -(g/L) * sin(θ)
                 const gravityAccel = -(G / ROPE_LEN) * Math.sin(ph.angle);
-                // てこの回転による慣性力
                 const inertialAccel = -leverAngularVelocity * armLength * PEND_INERTIA_COEF;
-
                 ph.velocity += (gravityAccel + inertialAccel) * DT;
                 ph.velocity *= PEND_DAMP;
                 ph.angle += ph.velocity * DT;
 
-                // 振れすぎ防止
-                if (ph.angle > 0.6) { ph.angle = 0.6; ph.velocity *= -0.5; } else if (ph.angle < -0.6) { ph.angle = -0.6; ph.velocity *= -0.5; }
+                if (ph.angle > 0.6) {
+                    ph.angle = 0.6;
+                    ph.velocity *= -0.5;
+                } else if (ph.angle < -0.6) {
+                    ph.angle = -0.6;
+                    ph.velocity *= -0.5;
+                }
             }
 
-            // ワールド座標を計算
             const ropeEndX = anchorWorldX + Math.sin(ph.angle) * ROPE_LEN;
             const ropeEndY = anchorWorldY - Math.cos(ph.angle) * ROPE_LEN;
             const sphereX = ropeEndX;
             const sphereY = ropeEndY - SPHERE_R;
 
-            // てこのローカル座標に変換
             const ropeMidX = (anchorWorldX + ropeEndX) / 2;
             const ropeMidY = (anchorWorldY + ropeEndY) / 2;
 
-            w.rope.position.set(ropeMidX * cosNeg - ropeMidY * sinNeg, ropeMidX * sinNeg + ropeMidY * cosNeg, 0);
+            const ropeLocalX = ropeMidX * cosNeg - ropeMidY * sinNeg;
+            const ropeLocalY = ropeMidX * sinNeg + ropeMidY * cosNeg;
+            w.rope.position.set(ropeLocalX, ropeLocalY, 0);
             w.rope.rotation.z = ph.angle - leverAngle;
-            w.sphere.position.set(sphereX * cosNeg - sphereY * sinNeg, sphereX * sinNeg + sphereY * cosNeg, 0);
 
-            // 次のおもりのアンカー
+            const sphereLocalX = sphereX * cosNeg - sphereY * sinNeg;
+            const sphereLocalY = sphereX * sinNeg + sphereY * cosNeg;
+            w.sphere.position.set(sphereLocalX, sphereLocalY, 0);
+
             anchorWorldX = sphereX;
             anchorWorldY = sphereY - SPHERE_R;
         }
     }
+}
 
-    // ゴーストアニメーション（ghostsArrayはキャッシュ済み）
+// ==============================
+// アニメーション - メイン
+// ==============================
+function animate() {
+    requestAnimationFrame(animate);
+    if (!camera || !renderer || !scene) return;
+
+    const isPaused = Date.now() < impactPauseUntil;
+    const { maxStack } = calculateGameState();
+
+    // カメラ更新
+    updateCameraPosition(maxStack);
+
+    // ストックおもりパルス
+    const t = Date.now() * 0.003;
+    for (let i = 0; i < stockWeightsArray.length; i++) {
+        const stock = stockWeightsArray[i];
+        if (stock && stock.visible && !draggedStock) {
+            const pulse = 1 + Math.sin(t) * 0.1;
+            stock.scale.set(pulse, pulse, pulse);
+            stock.position.y = 2.5 + Math.sin(t * 1.5) * 0.2;
+        }
+    }
+
+    // てこの傾き更新
+    const { DT, MAX_TILT, LEVER_SPEED } = PHYSICS;
+    if (!isPaused) {
+        const angleDelta = (targetLeverAngle - leverAngle) * LEVER_SPEED;
+        leverAngularVelocity = angleDelta / DT;
+        leverAngle += angleDelta;
+    }
+    leverAngle = Math.max(-MAX_TILT, Math.min(MAX_TILT, leverAngle));
+    leverGroup.rotation.z = leverAngle;
+
+    // 振り子の物理演算
+    updatePendulumPhysics(isPaused);
+
+    // ゴーストアニメーション
     const gt = Date.now() * 0.003;
     for (let i = 0; i < ghostsArray.length; i++) {
         const ghost = ghostsArray[i];
@@ -4007,21 +4019,19 @@ window.addEventListener('keydown', (e) => {
     if (e.key === '+' || e.key === '=' || e.key === ';') {
         userFovOffset = Math.min(10, userFovOffset + 1);
         saveCameraSettings();
-        updateFovSettings(); // 軽量なFOV更新のみ
+        updateFovSettings();
         showComboText(`${MESSAGES.FOV_LABEL} ${Math.round(cameraBaseFov)}°`, UI_COLORS.INFO, 800);
-    }
-    // -キー: FOVを狭める（ズームイン）
-    else if (e.key === '-') {
+    } else if (e.key === '-') {
+        // -キー: FOVを狭める（ズームイン）
         userFovOffset = Math.max(-10, userFovOffset - 1);
         saveCameraSettings();
-        updateFovSettings(); // 軽量なFOV更新のみ
+        updateFovSettings();
         showComboText(`${MESSAGES.FOV_LABEL} ${Math.round(cameraBaseFov)}°`, UI_COLORS.INFO, 800);
-    }
-    // 0キー: FOVをリセット
-    else if (e.key === '0') {
+    } else if (e.key === '0') {
+        // 0キー: FOVをリセット
         userFovOffset = 0;
         saveCameraSettings();
-        updateFovSettings(); // 軽量なFOV更新のみ
+        updateFovSettings();
         showComboText(MESSAGES.FOV_RESET, UI_COLORS.INFO, 800);
     }
 });

@@ -163,9 +163,9 @@ export default [
             // 複雑度の警告
             'complexity': ['warn', 20],
 
-            // 関数の最大行数
+            // 関数の最大行数（AIロジック関数は複雑なため緩和）
             'max-lines-per-function': ['warn', {
-                max: 100,
+                max: 130,
                 skipBlankLines: true,
                 skipComments: true,
             }],
