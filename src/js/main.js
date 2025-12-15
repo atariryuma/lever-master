@@ -3296,16 +3296,20 @@ function calculateOptimalCamera(effectiveWidth, effectiveHeight, aspect) {
         }
     }
 
-    // カメラY位置（テコが画面中央よりやや上に来るように調整）
+    // カメラY位置の最適化
+    // ゲームの特性: おもりは支点より下（Y < 0）に吊るされる
+    // 視覚範囲: てこの上端（Y≈0.6）からおもりの下部（Y≈-6）まで
+    // 理想的な中心: おもりが見える位置（Y = -1 ～ 0）
     let baseY;
     if (isLandscapeMobile) {
-        // スマホ横画面: カメラを低めにしてテコを上部に配置
-        baseY = isUltraWide ? 3 : 3.5;
+        // スマホ横画面: おもりをしっかり見せるため低めに
+        baseY = isUltraWide ? -0.5 : 0;
     } else if (effectiveHeight < 500) {
-        // 小さい画面: カメラを少し低めに
-        baseY = 3.5;
+        // 小さい画面: おもりが見えるように低めに
+        baseY = 0;
     } else {
-        baseY = 5;
+        // デスクトップ: おもり全体が見える高さ
+        baseY = 1;
     }
 
     return { z: optimalZ, fov, baseY };
