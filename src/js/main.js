@@ -658,6 +658,7 @@ let cameraBaseFov = 65; // 基準FOV（動的調整用）
 let targetFov = 65; // 目標FOV（アクション時に変化）
 let currentFov = 65; // 現在のFOV（補間用）
 let userFovOffset = 0; // ユーザー設定のFOVオフセット（-10〜+10度）
+let currentLookAtY = -0.5; // 現在のlookAtターゲットY座標（補間用）
 const stockWeights = { blue: null, yellow: null, red: null, green: null };
 let draggedStock = null;
 let dragPlane = null;
@@ -704,8 +705,10 @@ const CAMERA_DYNAMICS = {
     STACK_THRESHOLD: 3,      // カメラ調整が開始されるスタック数
     Z_DISTANCE_PER_STACK: 1.2,  // スタック1つあたりのZ軸距離増加量
     Y_OFFSET_PER_STACK: 0.3,    // スタック1つあたりのY軸オフセット
-    POSITION_LERP: 0.15,     // カメラ位置の補間係数（高いほどスムーズ）
-    FOV_LERP: 0.15,          // FOVの補間係数（位置と統一）
+    POSITION_LERP_Z: 0.15,   // カメラZ位置の補間係数（後ろに引く）
+    POSITION_LERP_Y: 0.08,   // カメラY位置の補間係数（下げる：よりゆっくり）
+    LOOKAT_LERP: 0.06,       // lookAtターゲットの補間係数（さらにゆっくり）
+    FOV_LERP: 0.15,          // FOVの補間係数
     FOV_ZOOM_IN: -8,         // ドラッグ時のFOVオフセット（度）
     FOV_UPDATE_THRESHOLD: 0.01,  // updateProjectionMatrixを呼ぶ最小変化量
     LOOKAT_Y_NORMAL: -0.5,   // 通常時のlookAtターゲットY座標
@@ -866,6 +869,7 @@ function setupRenderer(canvas) {
     cameraBaseFov = optFov;
     targetFov = optFov;
     currentFov = optFov;
+    currentLookAtY = -0.5;
 
     // レンダラー設定
     renderer = new THREE.WebGLRenderer({
@@ -3623,13 +3627,14 @@ function onResize() {
     camera.position.z = z + extraZ;
     camera.position.y = baseY - extraY;
 
-    // FOVも同様に設定
+    // FOVとlookAtも同様に設定
     targetFov = fov;
     currentFov = fov;
+    currentLookAtY = -0.5;
     camera.fov = fov;
 
     // てこの原理を理解しやすい視点: 支点付近を見る
-    camera.lookAt(0, -0.5, 0);
+    camera.lookAt(0, currentLookAtY, 0);
 
     camera.updateProjectionMatrix();
 
@@ -3681,9 +3686,9 @@ function updateCameraPosition(maxStack) {
     const extraY = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Y_OFFSET_PER_STACK;
     const targetY = cameraBaseY - extraY;
 
-    // スムーズなカメラ移動
-    camera.position.z += (targetZ - camera.position.z) * CAMERA_DYNAMICS.POSITION_LERP;
-    const smoothY = camera.position.y + (targetY - camera.position.y) * CAMERA_DYNAMICS.POSITION_LERP;
+    // スムーズなカメラ移動（Z軸とY軸で異なる速度）
+    camera.position.z += (targetZ - camera.position.z) * CAMERA_DYNAMICS.POSITION_LERP_Z;
+    const smoothY = camera.position.y + (targetY - camera.position.y) * CAMERA_DYNAMICS.POSITION_LERP_Y;
 
     // カメラシェイク
     if (cameraShake.intensity > 0.01) {
@@ -3708,16 +3713,20 @@ function updateCameraPosition(maxStack) {
         camera.updateProjectionMatrix();
     }
 
-    // 動的lookAtターゲット
+    // 動的lookAtターゲット（滑らかに補間）
     let lookAtX = 0;
-    let lookAtY = maxStack > CAMERA_DYNAMICS.STACK_THRESHOLD
+    let targetLookAtY = maxStack > CAMERA_DYNAMICS.STACK_THRESHOLD
         ? CAMERA_DYNAMICS.LOOKAT_Y_STACKED : CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
 
+    // ドラッグ中の場合は追従
     if (draggedStock && draggedStock.visible) {
         lookAtX = draggedStock.position.x * CAMERA_DYNAMICS.DRAG_FOLLOW_X;
-        lookAtY = draggedStock.position.y * CAMERA_DYNAMICS.DRAG_FOLLOW_Y;
+        targetLookAtY = draggedStock.position.y * CAMERA_DYNAMICS.DRAG_FOLLOW_Y;
     }
-    camera.lookAt(lookAtX, lookAtY, 0);
+
+    // lookAtYを滑らかに補間
+    currentLookAtY += (targetLookAtY - currentLookAtY) * CAMERA_DYNAMICS.LOOKAT_LERP;
+    camera.lookAt(lookAtX, currentLookAtY, 0);
 }
 
 /**
@@ -4026,6 +4035,7 @@ function updateFovSettings() {
     cameraBaseFov = fov;
     targetFov = fov;
     currentFov = fov;
+    currentLookAtY = -0.5;
     camera.fov = fov;
     camera.updateProjectionMatrix();
 }
