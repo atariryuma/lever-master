@@ -1,7 +1,7 @@
 // LEVER MASTER Service Worker
-// Version 1.0.5
+// Version 1.0.6
 
-const CACHE_NAME = 'lever-master-v15';
+const CACHE_NAME = 'lever-master-v16';
 
 // Detect base path dynamically (works for both local and GitHub Pages)
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
