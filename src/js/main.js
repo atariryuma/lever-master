@@ -3603,17 +3603,28 @@ function onResize() {
     // 動的にカメラ設定を計算
     const { z, fov, baseY } = calculateOptimalCamera(w, h, aspect);
 
-    camera.position.x = 0;  // 操作性重視: 真正面から
-    camera.position.z = z;
-    camera.position.y = baseY;  // カメラのY位置も更新
-    camera.fov = fov;
-    // てこの原理を理解しやすい視点: 支点付近を見る
-    camera.lookAt(0, -0.5, 0);
+    // 基準値を更新
     cameraBaseY = baseY;
-    cameraBaseZ = camera.position.z;
+    cameraBaseZ = z;
     cameraBaseFov = fov;
+
+    // 現在のゲーム状態（スタック数）を取得してカメラ位置を調整
+    const { maxStack } = calculateGameState();
+    const extraZ = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Z_DISTANCE_PER_STACK;
+    const extraY = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Y_OFFSET_PER_STACK;
+
+    // カメラ位置をゲーム状態に合わせて設定（ガクつき防止）
+    camera.position.x = 0;  // 操作性重視: 真正面から
+    camera.position.z = z + extraZ;
+    camera.position.y = baseY - extraY;
+
+    // FOVも同様に設定
     targetFov = fov;
     currentFov = fov;
+    camera.fov = fov;
+
+    // てこの原理を理解しやすい視点: 支点付近を見る
+    camera.lookAt(0, -0.5, 0);
 
     camera.updateProjectionMatrix();
 
