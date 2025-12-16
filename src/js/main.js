@@ -1157,6 +1157,7 @@ function initThree() {
 }
 
 function createStockWeights() {
+    console.log('[DEBUG] createStockWeights called');
     // 既存のストックを削除（メモリ解放含む）
     PLAYER_ORDER.forEach(player => {
         if (stockWeights[player]) {
@@ -2720,6 +2721,7 @@ function disposeObject(obj) {
 }
 
 function rebuildWeights() {
+    console.log('[DEBUG] rebuildWeights called');
     weightMeshes.forEach(w => {
         leverGroup.remove(w.group);
         disposeObject(w.group);
@@ -3223,11 +3225,13 @@ function endGame(winner) {
 // ==============================
 
 function startGame(mode) {
+    console.log('[DEBUG] startGame called with mode:', mode);
     playSound('click');
     startGameInternal(mode);
 }
 
 function startGameInternal(mode) {
+    console.log('[DEBUG] startGameInternal called with mode:', mode);
     game.mode = mode;
 
     // モードに応じてプレイヤー数を設定
@@ -3380,6 +3384,7 @@ function backToStart() {
 
 // ゲームリセット（startIndex: 先攻プレイヤーのインデックス、デフォルト0=blue）
 function resetGame(startIndex = 0) {
+    console.log('[DEBUG] resetGame called with startIndex:', startIndex);
     // 前のゲームのCPUタイムアウトをクリア
     clearAllCpuTimeouts();
 
