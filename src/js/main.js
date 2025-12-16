@@ -649,6 +649,8 @@ let ghostsArray = [];  // ghostsの配列キャッシュ（animate用）
 let weightGroups = {};  // 位置ごとにグループ化されたおもり（パフォーマンス最適化用）
 let weightGroupsKeys = [];  // weightGroupsのキーキャッシュ（animate用）
 let stockWeightsArray = [];  // ストックおもりの配列キャッシュ
+let rebuildTimeout = null;  // rebuildWeights debounce用タイマー
+let rebuildCallCount = 0;  // rebuildWeights呼び出し回数カウンター
 let raycaster, mouse;
 let leverAngle = 0, targetLeverAngle = 0;
 const cameraShake = { x: 0, y: 0, intensity: 0 };
@@ -2724,8 +2726,32 @@ function disposeObject(obj) {
     });
 }
 
+/**
+ * rebuildWeights: おもりメッシュの再構築をスケジュール（Debounce方式）
+ * 連続した呼び出しを最適化し、最後の呼び出しから50ms後に1回だけ実行
+ * 短時間に複数回呼び出された場合、最後の1回のみ実行される
+ */
 function rebuildWeights() {
-    console.log('[DEBUG] rebuildWeights called');
+    rebuildCallCount++;
+
+    // 既存のタイマーをキャンセル
+    if (rebuildTimeout !== null) {
+        clearTimeout(rebuildTimeout);
+    }
+
+    // 新しいタイマーをセット（50ms後に実行）
+    rebuildTimeout = setTimeout(() => {
+        rebuildWeightsImmediate();
+        rebuildTimeout = null;
+        rebuildCallCount = 0; // カウンターをリセット
+    }, 50);
+}
+
+/**
+ * rebuildWeightsImmediate: おもりメッシュの即座の再構築
+ * 通常は rebuildWeights() を通じて呼び出される
+ */
+function rebuildWeightsImmediate() {
     weightMeshes.forEach(w => {
         leverGroup.remove(w.group);
         disposeObject(w.group);
