@@ -163,9 +163,9 @@ export default [
             // 複雑度の警告
             'complexity': ['warn', 20],
 
-            // 関数の最大行数
+            // 関数の最大行数（AIロジック関数は複雑なため緩和）
             'max-lines-per-function': ['warn', {
-                max: 100,
+                max: 130,
                 skipBlankLines: true,
                 skipComments: true,
             }],
@@ -190,6 +190,41 @@ export default [
             'no-console': 'off',
             // テストファイルでは長い関数を許可
             'max-lines-per-function': 'off',
+        },
+    },
+
+    // Service Worker 専用の設定
+    {
+        files: ['sw.js'],
+        languageOptions: {
+            globals: {
+                // Service Worker グローバル
+                self: 'readonly',
+                caches: 'readonly',
+                fetch: 'readonly',
+                Response: 'readonly',
+                Request: 'readonly',
+                location: 'readonly',
+                clients: 'readonly',
+            },
+        },
+        rules: {
+            // Service Workerではconsole.logを許可
+            'no-console': 'off',
+        },
+    },
+
+    // パフォーマンスモニター専用の設定
+    {
+        files: ['**/performance-monitor.js'],
+        languageOptions: {
+            globals: {
+                URLSearchParams: 'readonly',
+            },
+        },
+        rules: {
+            // パフォーマンスモニターではconsole.logを許可（デバッグ用ツール）
+            'no-console': 'off',
         },
     },
 ];
