@@ -13,6 +13,7 @@ import {
     cloneLeverData,
     simulateHang,
     simulateMove,
+    momentDiffAfterMove,
 } from '../src/js/game-logic.js';
 
 const ALL_POSITIONS = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
@@ -304,5 +305,55 @@ describe('simulateMove', () => {
         expect(moment.left).toBe(30);
         expect(moment.right).toBe(60);
         expect(moment.diff).toBe(-30);
+    });
+});
+
+describe('momentDiffAfterMove', () => {
+    // 盤面を作り直す simulateMove + calculateMoment と常に一致することが最重要。
+    // CPU探索はこの差分計算に依存しているため、ズレると読みが狂う。
+    const expectMatchesFullSimulation = (leverData, fromPos, fromIndex, toPos) => {
+        const base = calculateMoment(leverData, ALL_POSITIONS, 10);
+        const fast = momentDiffAfterMove(base, fromPos, fromIndex + 1, toPos, 10);
+
+        const after = simulateMove(leverData, fromPos, fromIndex, toPos);
+        const slow = Math.abs(calculateMoment(after, ALL_POSITIONS, 10).diff);
+
+        expect(fast).toBe(slow);
+    };
+
+    it('左から右へ1つ動かした結果が全計算と一致する', () => {
+        expectMatchesFullSimulation(
+            { '-3': [{ owner: 'blue' }], '3': [{ owner: 'red' }] }, -3, 0, 5,
+        );
+    });
+
+    it('複数個をまとめて動かした結果が全計算と一致する', () => {
+        expectMatchesFullSimulation(
+            { '2': [{ owner: 'blue' }, { owner: 'red' }, { owner: 'green' }], '-4': [{ owner: 'blue' }] },
+            2, 2, 6,
+        );
+    });
+
+    it('同じ側の中で動かした結果が全計算と一致する', () => {
+        expectMatchesFullSimulation(
+            { '-2': [{ owner: 'blue' }, { owner: 'red' }], '4': [{ owner: 'green' }] }, -2, 0, -5,
+        );
+    });
+
+    it('つり合いを崩さない移動では差が0のまま', () => {
+        // 左3に1つ、右3に1つ → つり合い。左3→左3は無いので、左右対称に動かす
+        const leverData = { '-2': [{ owner: 'blue' }], '2': [{ owner: 'red' }] };
+        const base = calculateMoment(leverData, ALL_POSITIONS, 10);
+
+        // 左の1つを-2→-5、右の1つを2→5 と動かせばつり合うが、ここでは片方だけ検証
+        expect(momentDiffAfterMove(base, -2, 1, -5, 10)).toBe(30);
+    });
+
+    it('元のモーメントオブジェクトを変更しない', () => {
+        const base = { left: 30, right: 30, diff: 0 };
+
+        momentDiffAfterMove(base, -3, 1, 6, 10);
+
+        expect(base).toEqual({ left: 30, right: 30, diff: 0 });
     });
 });

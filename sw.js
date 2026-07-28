@@ -41,17 +41,17 @@ self.addEventListener('install', (event) => {
     console.log('[SW] Installing new version...');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(async (cache) => {
-                // 自サイトのアセットは全て揃わないと意味がないので addAll（失敗＝インストール失敗）
-                console.log('[SW] Caching core assets');
-                await cache.addAll(CORE_ASSETS);
-
-                // CDNは1つずつ。失敗しても警告のみでインストールは継続する
-                await Promise.all(CDN_ASSETS.map((url) =>
-                    cache.add(url).catch((error) => {
+            .then((cache) => {
+                console.log('[SW] Caching assets');
+                // 自サイトとCDNは互いに独立なので並行して取得する。
+                // 自サイトは全て揃わないと意味がないので addAll（失敗＝インストール失敗）、
+                // CDNは学校ネットワーク等で遮断されうるため個別に失敗を握りつぶす。
+                return Promise.all([
+                    cache.addAll(CORE_ASSETS),
+                    ...CDN_ASSETS.map((url) => cache.add(url).catch((error) => {
                         console.warn('[SW] CDN asset skipped:', url, error);
-                    }),
-                ));
+                    })),
+                ]);
             })
             .then(() => {
                 console.log('[SW] Skip waiting to activate immediately');

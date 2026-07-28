@@ -34,8 +34,9 @@ import { initializeEventListeners } from './event-handlers.js';
 import {
     calculateMoment,
     calculatePlayerPoints,
+    canStackAt,
     simulateHang,
-    simulateMove,
+    momentDiffAfterMove,
 } from './game-logic.js';
 
 import {
@@ -44,7 +45,6 @@ import {
     setRouletteTimeout,
     clearAllRouletteTimeouts,
     setManagedTimeout,
-    clearManagedTimeout,
     clearAllManagedTimeouts,
 } from './timeout-manager.js';
 
@@ -383,30 +383,6 @@ function playWinSound(variation) {
 }
 
 /**
- * D-2: つり合いへ「あと少し」を知らせるベル音
- * BGMのローパスを通さず destination へ直結し、傾いていても必ず聞こえるようにする
- */
-function playNearBalanceSound(variation) {
-    const now = audioCtx.currentTime;
-    const { pitchVar, volVar } = variation;
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = FEEDBACK_CONFIG.NEAR_BALANCE_BELL_FREQUENCY * pitchVar;
-
-    gain.gain.setValueAtTime(0.1 * volVar, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.6);
-}
-
-/**
  * ゲームオーバー音（悲しい下降和音）
  */
 function playGameOverSound(variation) {
@@ -440,6 +416,8 @@ const SOUND_CONFIGS = {
     select: { type: 'sine', frequency: AUDIO_CONFIG.SFX_SELECT_FREQUENCY, volume: 0.1, duration: 0.08 },
     error: { type: 'sawtooth', freqStart: 200, freqEnd: 150, freqDuration: AUDIO_CONFIG.SFX_ERROR_DURATION, volume: 0.12, duration: AUDIO_CONFIG.SFX_ERROR_DURATION },
     phase: { type: 'triangle', freqStart: 440, freqEnd: 880, freqDuration: 0.12, volume: 0.1, duration: AUDIO_CONFIG.SFX_PHASE_DURATION },
+    // D-2: つり合いへ「あと少し」を知らせるベル。SFXはBGMのローパスを通らないので傾いていても必ず聞こえる
+    near: { type: 'sine', frequency: FEEDBACK_CONFIG.NEAR_BALANCE_BELL_FREQUENCY, volume: 0.1, duration: 0.6 },
 };
 
 /**
@@ -467,10 +445,6 @@ function playSound(type) {
     }
     if (type === 'gameover') {
         playGameOverSound(variation);
-        return;
-    }
-    if (type === 'near') {
-        playNearBalanceSound(variation);
         return;
     }
 
@@ -660,17 +634,14 @@ const TENSION_LERP = 0.06;
 
 /** つり合いに「あと少し」の状態か */
 let isNearBalance = false;
-let wasNearBalance = false;
 
-/** 演出用の一時的なFOVオフセット（updateCameraPositionが毎フレーム加算する）*/
-let dramaticFovOffset = 0;
-
-/** 脱落演出で支点に寄っている終了時刻 */
-let eliminationFocusUntil = 0;
-
-/** BGMカットオフ更新の間引き用カウンター */
-let bgmTensionFrameCount = 0;
-const BGM_TENSION_UPDATE_INTERVAL = 10;
+/**
+ * 一時的なカメラ演出。updateCameraPosition が期限を見て適用する。
+ * タイマーではなく期限で持つことで、後から出た演出が前の演出のタイマーに
+ * 打ち消される問題も、クリーンアップ漏れも起きない。
+ */
+const cameraEffect = { fovOffset: 0, dollyZ: 0, lookAtBoost: 1, until: 0 };
+const NO_CAMERA_EFFECT = { fovOffset: 0, dollyZ: 0, lookAtBoost: 1 };
 
 /**
  * ゲームの進行段階を返す（BGMの層とカメラの寄りに使う）
@@ -692,36 +663,37 @@ function getGameStage() {
 }
 
 /**
- * 演出用のFOVオフセットを一定時間かける
- * 毎フレーム targetFov を上書きする updateCameraPosition と競合しないようにするため、
- * 直接 targetFov を書き換えるのではなくオフセットとして保持する
- * @param {number} offset - FOVオフセット(度)
+ * 一時的なカメラ演出をかける
+ * 毎フレーム targetFov を再計算する updateCameraPosition の唯一の入力になる
+ * @param {{fovOffset?: number, dollyZ?: number, lookAtBoost?: number}} effect - 演出内容
  * @param {number} duration - 継続時間(ms)
  */
-function setDramaticFov(offset, duration) {
-    dramaticFovOffset = offset;
-    setManagedTimeout(() => {
-        dramaticFovOffset = 0;
-    }, duration);
+function setCameraEffect(effect, duration) {
+    cameraEffect.fovOffset = effect.fovOffset || 0;
+    cameraEffect.dollyZ = effect.dollyZ || 0;
+    cameraEffect.lookAtBoost = effect.lookAtBoost || 1;
+    cameraEffect.until = Date.now() + duration;
 }
 
 /**
- * D-5: 脱落時に支点へ寄り、どちら側が重かったかを見せる
+ * 現在有効なカメラ演出を返す（期限切れなら無効値）
+ * @returns {{fovOffset: number, dollyZ: number, lookAtBoost: number}} 適用する演出
  */
-function triggerEliminationFocus() {
-    eliminationFocusUntil = Date.now() + FEEDBACK_CONFIG.ELIMINATION_DOLLY_DURATION;
-    setDramaticFov(FEEDBACK_CONFIG.ELIMINATION_DOLLY_FOV, FEEDBACK_CONFIG.ELIMINATION_DOLLY_DURATION);
+function getActiveCameraEffect() {
+    return Date.now() < cameraEffect.until ? cameraEffect : NO_CAMERA_EFFECT;
 }
 
 /**
- * D-1: BGMのローパスカットオフを tension に追従させる
+ * D-1: BGMのローパスカットオフをつり合いのズレに追従させる
  * 傾くほど音がこもる（= 耳でモーメント差がわかる）
+ * モーメントが変わった時だけ呼べばよく、滑らかさは setTargetAtTime が担う
+ * @param {number} tension - つり合いのズレ 0〜1
  */
-function updateBgmTension() {
+function updateBgmTension(tension) {
     if (!bgmFilter || !audioCtx || audioCtx.state !== 'running') return;
 
     const range = AUDIO_CONFIG.BGM_FILTER_FREQUENCY - FEEDBACK_CONFIG.BGM_FILTER_MIN_FREQUENCY;
-    const target = AUDIO_CONFIG.BGM_FILTER_FREQUENCY - currentTension * range;
+    const target = AUDIO_CONFIG.BGM_FILTER_FREQUENCY - tension * range;
 
     // setTargetAtTime で滑らかに追従させる（値の直接代入はノイズの原因になる）
     bgmFilter.frequency.setTargetAtTime(target, audioCtx.currentTime, 0.2);
@@ -795,9 +767,6 @@ let ghostsArray = [];  // ghostsの配列キャッシュ（animate用）
 let weightGroups = {};  // 位置ごとにグループ化されたおもり（パフォーマンス最適化用）
 let weightGroupsKeys = [];  // weightGroupsのキーキャッシュ（animate用）
 let stockWeightsArray = [];  // ストックおもりの配列キャッシュ
-let rebuildTimeout = null;  // rebuildWeights debounce用タイマー
-const rebuildCallbacks = [];  // 再構築完了後に実行する処理のキュー
-const REBUILD_DEBOUNCE_MS = 50;  // 再構築のデバウンス時間
 let raycaster, mouse;
 let leverAngle = 0, targetLeverAngle = 0;
 const cameraShake = { x: 0, y: 0, intensity: 0 };
@@ -897,9 +866,6 @@ function cleanupThree() {
     clearAllCpuTimeouts();
     clearAllRouletteTimeouts();
     clearAllManagedTimeouts();
-    // 保留中の再構築を破棄（破棄済みのleverGroupに触れないようにする）
-    rebuildTimeout = null;
-    rebuildCallbacks.length = 0;
     if (bgmLoopTimeoutId) {
         clearTimeout(bgmLoopTimeoutId);
         bgmLoopTimeoutId = null;
@@ -988,6 +954,20 @@ function showWebGLError() {
 }
 
 /**
+ * カメラの構図パラメータを基準値へ揃える
+ * 補間中の値（FOV・注視点）を一括で初期化する。
+ * 補間対象を増やしたときに初期化漏れが起きないよう、リセットはここ1箇所に集約する。
+ * @param {number} fov - 基準FOV(度)
+ */
+function resetCameraFraming(fov) {
+    cameraBaseFov = fov;
+    targetFov = fov;
+    currentFov = fov;
+    currentLookAtY = CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
+    currentLookAtX = 0;
+}
+
+/**
  * レンダラーとカメラのセットアップ（SRP: レンダリング設定の責任）
  * @param {HTMLElement} canvas - キャンバス要素
  * @returns {{ w: number, h: number, isMobile: boolean }}
@@ -1020,11 +1000,7 @@ function setupRenderer(canvas) {
     camera.lookAt(0, -0.5, 0);
     cameraBaseY = optY;
     cameraBaseZ = optZ;
-    cameraBaseFov = optFov;
-    targetFov = optFov;
-    currentFov = optFov;
-    currentLookAtY = -0.5;
-    currentLookAtX = 0;
+    resetCameraFraming(optFov);
 
     // レンダラー設定
     renderer = new THREE.WebGLRenderer({
@@ -1540,9 +1516,6 @@ function onPointerDown(e) {
     if (game.isOver) return;
     if (isCurrentPlayerCPU()) return;
 
-    // 保留中の再構築を確定させ、古いメッシュを掴ませない
-    flushPendingRebuild();
-
     e.preventDefault();
     updateMouse(e.clientX, e.clientY);
     raycaster.setFromCamera(mouse, camera);
@@ -1840,25 +1813,19 @@ function createParticleExplosion(point, color) {
     // 一括追加
     container.appendChild(fragment);
 
-    // アニメーション開始（DOM追加後）
-    // 経過時間ベースで計算し、120Hz端末でも60Hz端末でも同じ速さ・同じ寿命にする
-    const PARTICLE_LIFETIME_MS = 800;
+    // アニメーションはWeb Animations APIに任せる（紙吹雪と同じ方式）。
+    // 等速移動＋フェードは線形なのでキーフレーム2つで表現でき、
+    // 毎フレームのJS実行とスタイル書き込みが不要になる（合成スレッドで処理される）。
+    const lifetimeSec = CONFIG.PARTICLE_LIFETIME_MS / 1000;
 
     particleData.forEach(({ el, vx, vy }) => {
-        let startTime = null;
-        const animateParticle = (now) => {
-            if (startTime === null) startTime = now;
-            const elapsed = now - startTime;
-            const progress = Math.min(1, elapsed / PARTICLE_LIFETIME_MS);
-
-            const seconds = elapsed / 1000;
-            el.style.transform = `translate(${vx * seconds}px, ${vy * seconds}px)`;
-            el.style.opacity = 1 - progress;
-
-            if (progress < 1) requestAnimationFrame(animateParticle);
-            else el.remove();
-        };
-        requestAnimationFrame(animateParticle);
+        el.animate([
+            { transform: 'translate(0, 0)', opacity: 1 },
+            { transform: `translate(${vx * lifetimeSec}px, ${vy * lifetimeSec}px)`, opacity: 0 },
+        ], {
+            duration: CONFIG.PARTICLE_LIFETIME_MS,
+            easing: 'ease-out',
+        }).onfinish = () => el.remove();
     });
 }
 
@@ -1935,10 +1902,11 @@ function doHang(pos, owner, isRehang = false) {
     playSound('drop');
     triggerImpactPause(PHYSICS_CONFIG.IMPACT_PAUSE_DURATION);  // おもり配置時のインパクトポーズ
 
-    // 揺れは再構築後に与える（新しい weightPhysics のキーに作用させるため）
-    rebuildWeights(() => addSwingImpulse(pos, PHYSICS_CONFIG.SWING_IMPULSE_HANG));
+    rebuildWeights();
     updateMomentDisplay();
     updateUI();
+
+    addSwingImpulse(pos, PHYSICS_CONFIG.SWING_IMPULSE_HANG);
 
     game.phase = 'move';
     playSound('phase');
@@ -2065,9 +2033,10 @@ function doMove(fromPos, fromIndex, toPos) {
 
     playSound('move');
 
-    // 揺れは再構築後に与える（新しい weightPhysics のキーに作用させるため）
-    rebuildWeights(() => addSwingImpulse(toPos, PHYSICS_CONFIG.SWING_IMPULSE_MOVE));
+    rebuildWeights();
     updateMomentDisplay();
+
+    addSwingImpulse(toPos, PHYSICS_CONFIG.SWING_IMPULSE_MOVE);
 
     setCpuTimeout(() => goToJudge(), PHYSICS_CONFIG.MOVE_JUDGE_DELAY);
 }
@@ -2118,7 +2087,11 @@ function goToJudge() {
             // 現在のプレイヤーが脱落
             triggerCameraShake(0.4);
             // D-5: 支点へ寄り、どちら側が重かったかを見せる時間を作る
-            triggerEliminationFocus();
+            setCameraEffect({
+                fovOffset: FEEDBACK_CONFIG.ELIMINATION_DOLLY_FOV,
+                dollyZ: FEEDBACK_CONFIG.ELIMINATION_DOLLY_Z,
+                lookAtBoost: FEEDBACK_CONFIG.ELIMINATION_LOOKAT_BOOST,
+            }, FEEDBACK_CONFIG.ELIMINATION_DOLLY_DURATION);
             playSound('lose');
             showScreenFlash('lose');
             triggerImpactPause(100);  // 脱落時のインパクトポーズ
@@ -2167,7 +2140,7 @@ function goToJudge() {
                 playSound('balance');
                 showComboText(MESSAGES.BALANCED, UI_COLORS.SUCCESS);
                 // 成功時のカメラ演出: 軽くズームイン（達成感）
-                setDramaticFov(-5, 600);
+                setCameraEffect({ fovOffset: FEEDBACK_CONFIG.BALANCE_ZOOM_FOV }, FEEDBACK_CONFIG.BALANCE_ZOOM_DURATION);
                 game.isJudging = false;
                 switchTurn();
             }
@@ -2223,11 +2196,14 @@ function updateMomentDisplay() {
     targetTension = Math.min(1, absDiff / maxDiff);
 
     // D-2: つり合いへの「接近」を検出し、入った瞬間だけベルを鳴らす
-    isNearBalance = absDiff > 0 && absDiff <= FEEDBACK_CONFIG.NEAR_BALANCE_DIFF;
-    if (isNearBalance && !wasNearBalance && !game.isOver) {
+    const nowNearBalance = absDiff > 0 && absDiff <= FEEDBACK_CONFIG.NEAR_BALANCE_DIFF;
+    if (nowNearBalance && !isNearBalance && !game.isOver) {
         playSound('near');
     }
-    wasNearBalance = isNearBalance;
+    isNearBalance = nowNearBalance;
+
+    // BGMのこもり具合はモーメントが変わった時だけ更新すればよい
+    updateBgmTension(targetTension);
 
     // シンプルUI: 数値とアイコンのみ
     const mLeft = document.getElementById('m-left');
@@ -2485,9 +2461,6 @@ function cpuTurn() {
     setCpuTimeout(() => {
         if (game.isOver) return;
 
-        // 保留中の再構築を確定させてから weightMeshes を参照する
-        flushPendingRebuild();
-
         // 現在のバランス状態を確認
         const currentMoment = calcMoment();
         const isBalanced = currentMoment.diff === 0;
@@ -2553,10 +2526,7 @@ function findMistakeStrategy(player, personality) {
         const p = allPositions[i];
 
         // スタック制限チェック（満杯の位置はスキップ）
-        const currentStack = game.leverData[p] || [];
-        if (currentStack.length >= CONFIG.MAX_STACK) {
-            continue;
-        }
+        if (!canStackAt(game.leverData, p, CONFIG.MAX_STACK)) continue;
 
         const m = calcMoment(simulateHang(game.leverData, p, player));
 
@@ -2614,10 +2584,7 @@ function findBestStrategyWithPersonality(player, personality) {
 
     allPositions.forEach(hangPos => {
         // スタック制限チェック（満杯の位置はスキップ）
-        const currentStack = game.leverData[hangPos] || [];
-        if (currentStack.length >= CONFIG.MAX_STACK) {
-            return; // forEach内なのでcontinue相当
-        }
+        if (!canStackAt(game.leverData, hangPos, CONFIG.MAX_STACK)) return;
 
         // 非破壊シミュレーション：吊るした後の盤面をコピー上で作る
         const afterHang = simulateHang(game.leverData, hangPos, player);
@@ -2808,6 +2775,8 @@ function findBestMoveWithSabotage(sabotageAggression) {
 function findAllPossibleMoves(leverData = game.leverData, hungPos = game.currentTurnHungPos) {
     const moves = [];
     const leader = findLeader();
+    // 移動後のモーメント差は基準モーメントからの差分で求まるので、盤面ごとに1回だけ計算する
+    const baseMoment = calcMoment(leverData);
 
     allPositions.forEach(fromPos => {
         const stack = leverData[fromPos] || [];
@@ -2815,7 +2784,7 @@ function findAllPossibleMoves(leverData = game.leverData, hungPos = game.current
             const movingCount = idx + 1;  // 選択したおもりとその下全て
             allPositions.forEach(toPos => {
                 if (isValidMove(fromPos, toPos, movingCount, leverData, hungPos)) {
-                    const diff = simulateMoveInternal(fromPos, idx, toPos, leverData);
+                    const diff = momentDiffAfterMove(baseMoment, fromPos, movingCount, toPos, CONFIG.WEIGHT_VALUE);
                     const sabotageValue = evaluateSabotageValue(fromPos, toPos);
                     const isLeaderWeight = (w.owner === leader.player);
 
@@ -2845,8 +2814,7 @@ function findAllPossibleMoves(leverData = game.leverData, hungPos = game.current
  * @returns {number} 移動後のモーメント差の絶対値
  */
 function simulateMoveInternal(fromPos, fromIndex, toPos, leverData = game.leverData) {
-    const after = simulateMove(leverData, fromPos, fromIndex, toPos);
-    return Math.abs(calcMoment(after).diff);
+    return momentDiffAfterMove(calcMoment(leverData), fromPos, fromIndex + 1, toPos, CONFIG.WEIGHT_VALUE);
 }
 
 // ==============================
@@ -2876,55 +2844,13 @@ function disposeObject(obj) {
 }
 
 /**
- * rebuildWeights: おもりメッシュの再構築をスケジュール（Debounce方式）
- * 連続した呼び出しを最適化し、最後の呼び出しから REBUILD_DEBOUNCE_MS 後に1回だけ実行する。
+ * おもりメッシュを再構築する
  *
- * ⚠️ 重要: 再構築で weightPhysics のキーが作り直されるため、
- * 「再構築後のおもり」に対する処理（addSwingImpulse など）は必ず onComplete で渡すこと。
- * 呼び出し直後に実行すると、まだ古いキーに対して作用してしまう。
- *
- * @param {Function|null} [onComplete=null] - 再構築完了後に実行するコールバック
+ * 呼び出しはプレイヤー/CPUの1アクションにつき1回だけ（doHang / undoHang / doMove / resetGame）で、
+ * 対象は最大16個。以前はDebounceでまとめていたが、まとめる連続呼び出しが存在せず、
+ * weightMeshes と game.leverData が食い違う時間帯を作るだけだったため同期実行に戻した。
  */
-function rebuildWeights(onComplete = null) {
-    if (onComplete) rebuildCallbacks.push(onComplete);
-
-    // 既存のタイマーをキャンセル
-    if (rebuildTimeout !== null) {
-        clearManagedTimeout(rebuildTimeout);
-    }
-
-    // 新しいタイマーをセット（タイムアウトマネージャー管理下に置く）
-    rebuildTimeout = setManagedTimeout(() => {
-        rebuildTimeout = null;
-        runPendingRebuild();
-    }, REBUILD_DEBOUNCE_MS);
-}
-
-/**
- * 保留中の再構築を即座に実行し、溜まったコールバックを消化する
- */
-function runPendingRebuild() {
-    rebuildWeightsImmediate();
-    // splice で取り出してから実行（コールバック内で再登録されても取りこぼさない）
-    rebuildCallbacks.splice(0).forEach(callback => callback());
-}
-
-/**
- * 保留中の再構築があれば即座に確定させる
- * プレイヤー操作の直前に呼び、古い weightMeshes を掴ませないようにする
- */
-function flushPendingRebuild() {
-    if (rebuildTimeout === null) return;
-    clearManagedTimeout(rebuildTimeout);
-    rebuildTimeout = null;
-    runPendingRebuild();
-}
-
-/**
- * rebuildWeightsImmediate: おもりメッシュの即座の再構築
- * 通常は rebuildWeights() を通じて呼び出される
- */
-function rebuildWeightsImmediate() {
+function rebuildWeights() {
     weightMeshes.forEach(w => {
         leverGroup.remove(w.group);
         disposeObject(w.group);
@@ -3625,9 +3551,7 @@ function resetGame(startIndex = 0) {
     targetTension = 0;
     currentTension = 0;
     isNearBalance = false;
-    wasNearBalance = false;
-    dramaticFovOffset = 0;
-    eliminationFocusUntil = 0;
+    cameraEffect.until = 0;
     currentLookAtX = 0;
 
     Object.keys(weightPhysics).forEach((key) => {
@@ -3820,7 +3744,7 @@ function onResize() {
     // 基準値を更新
     cameraBaseY = baseY;
     cameraBaseZ = z;
-    cameraBaseFov = fov;
+    resetCameraFraming(fov);
 
     // 現在のゲーム状態（スタック数）を取得してカメラ位置を調整
     const { maxStack } = calculateGameState();
@@ -3832,11 +3756,6 @@ function onResize() {
     camera.position.z = z + extraZ;
     camera.position.y = baseY - extraY;
 
-    // FOVとlookAtも同様に設定
-    targetFov = fov;
-    currentFov = fov;
-    currentLookAtY = -0.5;
-    currentLookAtX = 0;
     camera.fov = fov;
 
     // てこの原理を理解しやすい視点: 支点付近を見る
@@ -3884,13 +3803,11 @@ function calculateGameState() {
  * @param {number} maxStack - 最大スタック数
  */
 function updateCameraPosition(maxStack) {
-    // D-5: 脱落直後は支点へ寄って「なぜ倒れたか」を見せる
-    const isEliminationFocus = Date.now() < eliminationFocusUntil;
+    const effect = getActiveCameraEffect();
 
     // カメラ距離: おもりが多いほど引く
     const extraZ = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Z_DISTANCE_PER_STACK;
-    const dollyZ = isEliminationFocus ? FEEDBACK_CONFIG.ELIMINATION_DOLLY_Z : 0;
-    const targetZ = cameraBaseZ + extraZ - dollyZ;
+    const targetZ = cameraBaseZ + extraZ - effect.dollyZ;
 
     // カメラ高さ: おもりの範囲を見やすく
     const extraY = Math.max(0, maxStack - CAMERA_DYNAMICS.STACK_THRESHOLD) * CAMERA_DYNAMICS.Y_OFFSET_PER_STACK;
@@ -3925,7 +3842,7 @@ function updateCameraPosition(maxStack) {
         fovBase -= FEEDBACK_CONFIG.ENDGAME_FOV_TIGHTEN;
     }
     // 演出用オフセット（勝敗・脱落時）を加算する
-    targetFov = fovBase + dramaticFovOffset;
+    targetFov = fovBase + effect.fovOffset;
 
     const prevFov = currentFov;
     currentFov += (targetFov - currentFov) * CAMERA_DYNAMICS.FOV_LERP;
@@ -3939,8 +3856,7 @@ function updateCameraPosition(maxStack) {
     // D-3: 重い側（下がっている側）へ視線を寄せる。
     // leverAngle > 0 は左が下がっている状態なので、lookAtX は負（左）へ向ける。
     const tiltRatio = PHYSICS.MAX_TILT === 0 ? 0 : leverAngle / PHYSICS.MAX_TILT;
-    const lookAtBoost = isEliminationFocus ? FEEDBACK_CONFIG.ELIMINATION_LOOKAT_BOOST : 1;
-    let lookAtX = -tiltRatio * FEEDBACK_CONFIG.LOOKAT_X_MAX * lookAtBoost;
+    let lookAtX = -tiltRatio * FEEDBACK_CONFIG.LOOKAT_X_MAX * effect.lookAtBoost;
     let targetLookAtY = maxStack > CAMERA_DYNAMICS.STACK_THRESHOLD
         ? CAMERA_DYNAMICS.LOOKAT_Y_STACKED : CAMERA_DYNAMICS.LOOKAT_Y_NORMAL;
 
@@ -4063,13 +3979,6 @@ function animate() {
 
     // D-1: tension を滑らかに追従させる（音・カメラ・光の共通駆動値）
     currentTension += (targetTension - currentTension) * TENSION_LERP;
-
-    // BGMのカットオフ更新は毎フレーム不要なので間引く
-    bgmTensionFrameCount++;
-    if (bgmTensionFrameCount >= BGM_TENSION_UPDATE_INTERVAL) {
-        bgmTensionFrameCount = 0;
-        updateBgmTension();
-    }
 
     // カメラ更新
     updateCameraPosition(maxStack);
@@ -4300,11 +4209,7 @@ function updateFovSettings() {
     const aspect = w / h;
     const { fov } = calculateOptimalCamera(w, h, aspect);
 
-    cameraBaseFov = fov;
-    targetFov = fov;
-    currentFov = fov;
-    currentLookAtY = -0.5;
-    currentLookAtX = 0;
+    resetCameraFraming(fov);
     camera.fov = fov;
     camera.updateProjectionMatrix();
 }

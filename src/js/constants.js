@@ -27,6 +27,7 @@ export const GAME_CONFIG = {
  */
 export const VISUAL_CONFIG = {
     PARTICLE_COUNT: 20,                // パーティクル爆発エフェクトの数
+    PARTICLE_LIFETIME_MS: 800,         // パーティクルが消えるまでの時間(ms)
     CONFETTI_COUNT: 50,                // 紙吹雪の数
     BACKGROUND_PARTICLE_COUNT: 80,     // 背景パーティクルの数
     BACKGROUND_PARTICLE_X_RANGE: 60,   // 背景パーティクルのX範囲
@@ -136,6 +137,10 @@ export const FEEDBACK_CONFIG = {
     MIDGAME_STOCK_THRESHOLD: 6,      // 残りストック合計がこれ以下で中盤
     ENDGAME_FOV_TIGHTEN: 3,          // 終盤のFOV寄せ(度)
 
+    // --- つり合い成功時の寄り ---
+    BALANCE_ZOOM_FOV: -5,            // つり合い成功時のFOVオフセット(度)
+    BALANCE_ZOOM_DURATION: 600,      // つり合い成功時の寄り時間(ms)
+
     // --- 脱落演出（原因を見せる） ---
     ELIMINATION_DOLLY_DURATION: 900, // 支点へ寄って傾きを見せる時間(ms)
     ELIMINATION_DOLLY_FOV: -10,      // ドリーイン時のFOVオフセット(度)
@@ -145,8 +150,11 @@ export const FEEDBACK_CONFIG = {
 };
 
 /**
- * 後方互換性のため CONFIG も維持（非推奨 - 個別の設定を使うことを推奨）
- * @deprecated 代わりに GAME_CONFIG, VISUAL_CONFIG 等を使用してください
+ * 全設定を平坦化した集約オブジェクト
+ *
+ * main.js は設定を横断的に参照するためこの形を使う。
+ * 個別のモジュール（game-logic.js など）は用途が限定されるので、
+ * GAME_CONFIG / VISUAL_CONFIG など粒度の細かい方を直接importすること。
  */
 export const CONFIG = {
     ...GAME_CONFIG,

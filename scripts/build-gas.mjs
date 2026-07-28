@@ -14,56 +14,39 @@
  * 元HTMLの構造が変わって黙って壊れることを防ぐ。
  */
 
-import { build } from 'esbuild';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { ROOT, bundleToIife } from './bundle.mjs';
+
 const GAS_DIR = resolve(ROOT, 'gas');
 
 /** GAS から配信できない静的アセットの参照先（GitHub Pages） */
 const PAGES_BASE = 'https://atariryuma.github.io/lever-master';
 
 /**
- * 必ずマッチする前提の置換。マッチしなければビルドを失敗させる。
+ * 必ず1件以上マッチする前提の置換。マッチしなければビルドを失敗させる。
  * @param {string} source 対象文字列
  * @param {RegExp} pattern 検索パターン
- * @param {string} replacement 置換後の文字列
+ * @param {string|Function} replacement 置換後の文字列または置換関数
  * @param {string} label エラーメッセージ用のラベル
  * @returns {string} 置換後の文字列
  */
 function mustReplace(source, pattern, replacement, label) {
-    if (!pattern.test(source)) {
+    let hits = 0;
+    const result = source.replace(pattern, (...args) => {
+        hits++;
+        return typeof replacement === 'function' ? replacement(...args) : replacement;
+    });
+
+    if (hits === 0) {
         throw new Error(
             `[build-gas] 置換対象が見つかりません: ${label}\n` +
             `  パターン: ${pattern}\n` +
-            '  index.html の構造が変わった可能性があります。scripts/build-gas.mjs を更新してください。',
+            '  index.html のマーカーが消えた可能性があります。',
         );
     }
-    // test() で lastIndex が進むためリセットする
-    pattern.lastIndex = 0;
-    return source.replace(pattern, replacement);
-}
-
-/**
- * エントリポイントを IIFE 形式の単一スクリプトへバンドルする。
- * @param {string} entry ROOT からの相対パス
- * @returns {Promise<string>} バンドル済みJS
- */
-async function bundleToIife(entry) {
-    const result = await build({
-        entryPoints: [resolve(ROOT, entry)],
-        bundle: true,
-        format: 'iife',
-        target: 'es2020',
-        platform: 'browser',
-        write: false,
-        legalComments: 'none',
-        // THREE は CDN から global として読み込むためバンドルしない
-        external: ['three'],
-    });
-    return result.outputFiles[0].text;
+    return result;
 }
 
 /**
@@ -74,12 +57,22 @@ async function bundleToIife(entry) {
 function toGasTemplate(html) {
     let out = html;
 
-    // PWA manifest: GAS では manifest.json を配信できない
+    // <!-- gas:strip 理由 --> ... <!-- /gas:strip -->
+    // GASで動作しない領域（PWA manifest / Service Worker登録）を丸ごと除去する
     out = mustReplace(
         out,
-        /\s*<!-- PWA Manifest -->\s*<link rel="manifest"[^>]*>\n/,
-        '\n',
-        'PWA manifest link の除去',
+        /[ \t]*<!-- gas:strip([^>]*)-->[\s\S]*?<!-- \/gas:strip -->\n?/g,
+        (_match, reason) => `    <!-- GAS版では除去:${reason.trim()} -->\n`,
+        'gas:strip 領域の除去',
+    );
+
+    // <!-- gas:inline ファイル名 --> ... <!-- /gas:inline -->
+    // 外部参照の領域を GAS のテンプレート取り込みに置き換える
+    out = mustReplace(
+        out,
+        /[ \t]*<!-- gas:inline\s+(\S+)\s*-->[\s\S]*?<!-- \/gas:inline -->/g,
+        (_match, filename) => `    <?!= include('${filename}'); ?>`,
+        'gas:inline 領域の取り込み化',
     );
 
     // アイコン類: GAS から配信できないため GitHub Pages を参照する
@@ -88,36 +81,6 @@ function toGasTemplate(html) {
         /href="public\//g,
         `href="${PAGES_BASE}/public/`,
         'アイコン参照の絶対URL化',
-    );
-
-    // CSS: 外部参照 → インライン化
-    out = mustReplace(
-        out,
-        /<link rel="stylesheet" href="src\/css\/styles\.css">/,
-        "<?!= include('styles.css'); ?>",
-        'styles.css のインライン化',
-    );
-
-    // ES module スクリプト → インライン化した IIFE へ差し替え
-    out = mustReplace(
-        out,
-        /<script type="module" src="src\/js\/performance-monitor\.js"><\/script>/,
-        "<?!= include('perfmon.js'); ?>",
-        'performance-monitor.js のインライン化',
-    );
-    out = mustReplace(
-        out,
-        /<script type="module" src="src\/js\/main\.js"><\/script>/,
-        "<?!= include('app.js'); ?>",
-        'main.js のインライン化',
-    );
-
-    // Service Worker 登録ブロック: GAS の iframe 内では動作しないため除去
-    out = mustReplace(
-        out,
-        /<!-- Service Worker Registration with Auto-Update -->[\s\S]*?<\/script>/,
-        '<!-- Service Worker: GAS版では利用不可のためビルド時に除去 -->',
-        'Service Worker 登録ブロックの除去',
     );
 
     return out;

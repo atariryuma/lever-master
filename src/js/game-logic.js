@@ -140,6 +140,43 @@ export function simulateMove(leverData, fromPos, fromIndex, toPos) {
 }
 
 /**
+ * 移動後のモーメント差の絶対値を求める（純粋関数版・O(1)）
+ *
+ * 盤面を作り直さずに差分だけで計算する。
+ * n個のおもりを fromPos から toPos へ移すと、
+ * 各うでのモーメントは |位置| × n × おもりの重さ だけ増減する。
+ * CPUの先読みは1ターンに千回以上この計算をするため、盤面コピーを避ける。
+ *
+ * @param {{left: number, right: number}} baseMoment - 移動前のモーメント
+ * @param {number} fromPos - 移動元の位置
+ * @param {number} movingCount - 一緒に動くおもりの数
+ * @param {number} toPos - 移動先の位置
+ * @param {number} weightValue - おもりの重さ
+ * @returns {number} 移動後のモーメント差の絶対値
+ */
+export function momentDiffAfterMove(baseMoment, fromPos, movingCount, toPos,
+    weightValue = GAME_CONFIG.WEIGHT_VALUE) {
+    const delta = movingCount * weightValue;
+    let { left, right } = baseMoment;
+
+    // 移動元から取り除く
+    if (fromPos < 0) {
+        left -= Math.abs(fromPos) * delta;
+    } else {
+        right -= Math.abs(fromPos) * delta;
+    }
+
+    // 移動先へ加える
+    if (toPos < 0) {
+        left += Math.abs(toPos) * delta;
+    } else {
+        right += Math.abs(toPos) * delta;
+    }
+
+    return Math.abs(left - right);
+}
+
+/**
  * プレイヤーの残りストック数を計算（純粋関数版）
  * @param {Object.<number, Array>} leverData - てこのデータ
  * @param {number[]} positions - 全ての位置配列

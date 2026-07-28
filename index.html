@@ -10,8 +10,9 @@
     <meta name="theme-color" content="#00f5ff">
     <meta name="description" content="てこの原理を学ぶ物理学習ゲーム - LEVER MASTER">
 
-    <!-- PWA Manifest -->
+    <!-- gas:strip PWA manifest — GASは静的ファイルを配信できない -->
     <link rel="manifest" href="public/manifest.json">
+    <!-- /gas:strip -->
 
     <!-- Icons -->
     <link rel="apple-touch-icon" href="public/icons/apple-touch-icon.png">
@@ -26,8 +27,9 @@
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap"
         rel="stylesheet">
 
-    <!-- App Styles -->
+    <!-- gas:inline styles.css -->
     <link rel="stylesheet" href="src/css/styles.css">
+    <!-- /gas:inline -->
 </head>
 
 
@@ -350,12 +352,16 @@
     </div>
 
     <!-- Performance Monitor (optional, enable with ?perfmon=1 or window.enablePerfMon()) -->
+    <!-- gas:inline perfmon.js -->
     <script type="module" src="src/js/performance-monitor.js"></script>
+    <!-- /gas:inline -->
 
     <!-- App Script -->
+    <!-- gas:inline app.js -->
     <script type="module" src="src/js/main.js"></script>
+    <!-- /gas:inline -->
 
-    <!-- Service Worker Registration with Auto-Update -->
+    <!-- gas:strip Service Worker — GASはサンドボックスiframe配信のため登録できない -->
     <script>
         if ('serviceWorker' in navigator) {
             // リロードループ防止フラグ
@@ -411,6 +417,7 @@
             });
         }
     </script>
+    <!-- /gas:strip -->
 </body>
 
 </html>

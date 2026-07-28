@@ -246,14 +246,17 @@ LEVER MASTER/
 │   │   └── performance-monitor.js   # パフォーマンス監視
 │   └── css/
 │       └── styles.css               # スタイルシート
-├── __tests__/
-│   └── game-logic.test.js           # ユニットテスト
+├── __tests__/                       # 全テスト（vitest）
+│   ├── game-logic.test.js           # ゲームロジックの純粋関数
+│   ├── utils.test.js                # カラー変換
+│   ├── smoke.test.js                # 読み込み・初期化のスモークテスト
+│   └── service-worker.test.js       # SWプリキャッシュのズレ検出
 ├── gas/                             # GAS版（Code.js以外は自動生成）
 │   ├── Code.js                      # doGet / include（手書き）
 │   └── appsscript.json              # GASプロジェクト設定
 ├── scripts/
-│   ├── build-gas.mjs                # src/ → gas/ 変換ビルド
-│   └── smoke-test.mjs               # jsdomでの読み込みスモークテスト
+│   ├── bundle.mjs                   # esbuildバンドル（build/testで共有）
+│   └── build-gas.mjs                # src/ → gas/ 変換ビルド
 ├── index.html                       # エントリーポイント
 ├── package.json                     # 依存関係管理
 ├── vitest.config.js                 # テスト設定
@@ -264,20 +267,28 @@ LEVER MASTER/
 ## 検証
 
 ```bash
-npm run verify   # lint → ユニットテスト → GASビルド → スモークテスト
+npm run verify   # lint → 全テスト
 ```
 
-| コマンド | 内容 |
+| テスト | 内容 |
 | --- | --- |
-| `npm run lint` | ESLint |
-| `npx vitest run` | ゲームロジックのユニットテスト |
-| `npm run smoke` | バンドルをjsdomで読み込み、ロード時・onload時のエラーを検出 |
+| `game-logic.test.js` | モーメント計算・移動シミュレーションの純粋関数 |
+| `utils.test.js` | カラー変換 |
+| `smoke.test.js` | バンドルをjsdomで読み込み、ロード時・初期化時のエラーを検出 |
+| `service-worker.test.js` | `sw.js` のプリキャッシュ一覧と実ファイル構成のズレを検出 |
+
+`smoke.test.js` だけは `@vitest-environment node` で動く。vitest既定のjsdom環境では
+esbuild が必要とする `TextEncoder` の不変条件が壊れるため、JSDOMを手動で組んでいる。
 
 ### ロジックは必ず game-logic.js に置く
 
 `src/js/game-logic.js` は副作用のない純粋関数のみを持ち、**ここだけがユニットテストの対象**。
 `main.js` の `calcMoment()` / `calcPlayerPoints()` はこの純粋関数への薄いラッパーで、
-CPU AI のシミュレーションも `simulateHang()` / `simulateMove()` を使う。
+CPU AI の先読みも `simulateHang()` / `momentDiffAfterMove()` を使う。
+
+CPUは1ターンに千回以上の移動候補を評価するため、移動後のモーメント差は盤面を作り直さず
+`momentDiffAfterMove()` の差分計算で求める。この関数は `simulateMove()` + `calculateMoment()`
+の全計算と一致することをテストで保証している（ズレると読みが狂うため）。
 
 ⚠️ **モーメント計算やポイント計算を main.js 側に書き足さないこと。**
 以前は main.js に同じロジックの二重実装があり、テストが本番コードを一切守っていない状態だった。
@@ -306,8 +317,10 @@ CPU の先読みは `simulateHang` / `simulateMove` がコピーを返すため�
 
 チューニング値は `constants.js` の `FEEDBACK_CONFIG` に集約している。
 
-⚠️ カメラのFOVは `updateCameraPosition()` が毎フレーム `targetFov` を再計算するため、
-一時的な演出は `targetFov` を直接書き換えず **`setDramaticFov(offset, duration)`** を使うこと。
+⚠️ カメラは `updateCameraPosition()` が毎フレーム全パラメータを再計算するため、
+一時的な演出は変数を直接書き換えず **`setCameraEffect({fovOffset, dollyZ, lookAtBoost}, duration)`** を使うこと。
+演出はタイマーではなく期限で保持しているので、後から出た演出が前の演出のタイマーに
+打ち消されることも、クリーンアップ漏れも起きない。
 
 ## GAS版のビルド
 
@@ -321,11 +334,20 @@ npm run deploy      # GAS版へ反映 + git push
 
 1. `src/js/main.js` と `src/js/performance-monitor.js` を esbuild で IIFE にバンドル
 2. バンドル結果と `styles.css` を `<script>` / `<style>` として HTML 化
-3. `index.html` の外部参照を `<?!= include(...) ?>` に差し替え
-4. Service Worker 登録ブロックと PWA manifest を除去（GASのiframe内では動作しないため）
-5. アイコン参照を GitHub Pages の絶対URLへ書き換え
+3. `index.html` のマーカー領域を変換
+4. アイコン参照を GitHub Pages の絶対URLへ書き換え
 
-`index.html` の構造を変えた場合、対応する置換パターンが一致しなくなるとビルドは**エラーで停止する**（黙って壊れた出力を出さない）。その場合は `scripts/build-gas.mjs` の該当パターンを更新する。
+### index.html のマーカー
+
+変換対象は `index.html` 側のHTMLコメントで指定する。ビルドスクリプトが
+属性の並びや整形に依存しないので、`index.html` は自由に整形してよい。
+
+| マーカー | 動作 |
+| --- | --- |
+| `<!-- gas:strip 理由 -->` … `<!-- /gas:strip -->` | 領域を除去（GASで動かないPWA manifest・SW登録） |
+| `<!-- gas:inline ファイル名 -->` … `<!-- /gas:inline -->` | 領域を `<?!= include('ファイル名') ?>` に置換 |
+
+マーカーが1つも見つからない場合、ビルドは**エラーで停止する**（黙って壊れた出力を出さない）。
 
 ### デプロイ先の変更
 
