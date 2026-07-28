@@ -227,4 +227,40 @@ export default [
             'no-console': 'off',
         },
     },
+
+    // GAS版 サーバーサイドコード専用の設定
+    {
+        files: ['gas/**/*.js'],
+        languageOptions: {
+            // Apps Script はモジュールではなくスクリプトとして評価される
+            sourceType: 'script',
+            globals: {
+                // Apps Script グローバル
+                HtmlService: 'readonly',
+                Logger: 'readonly',
+                PropertiesService: 'readonly',
+                Session: 'readonly',
+                Utilities: 'readonly',
+            },
+        },
+        rules: {
+            // doGet/include は GAS ランタイムから呼ばれるため未使用に見える
+            'no-unused-vars': 'off',
+        },
+    },
+
+    // ビルドスクリプト（Node.js）専用の設定
+    {
+        files: ['scripts/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                console: 'readonly',
+                process: 'readonly',
+                Buffer: 'readonly',
+            },
+        },
+        rules: {
+            'no-console': 'off',
+        },
+    },
 ];

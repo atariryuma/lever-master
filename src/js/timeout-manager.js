@@ -121,6 +121,14 @@ export function setManagedTimeout(callback, delay) {
 }
 
 /**
+ * 特定の汎用タイムアウトをクリア
+ * @param {number} id - setManagedTimeout が返したID
+ */
+export function clearManagedTimeout(id) {
+    generalTimeoutManager.clearTimeout(id);
+}
+
+/**
  * 全ての汎用タイムアウトをクリア
  */
 export function clearAllManagedTimeouts() {

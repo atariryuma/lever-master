@@ -18,11 +18,8 @@ let eventListenersController = null;
  * @param {Object} handlers - ハンドラー関数のオブジェクト
  */
 export function initializeEventListeners(handlers) {
-    console.log('[DEBUG] initializeEventListeners called');
-
     // 既存のイベントリスナーをクリーンアップ（重複防止）
     if (eventListenersController) {
-        console.warn('[DEBUG] Removing duplicate event listeners');
         eventListenersController.abort();
     }
     eventListenersController = new AbortController();

@@ -71,7 +71,9 @@ export const ROULETTE_CONFIG = {
 export const AUDIO_CONFIG = {
     BGM_VOLUME: 0.04,                    // BGM音量
     BGM_PAD_VOLUME: 0.15,                // BGMパッド音量
-    BGM_FILTER_FREQUENCY: 800,           // BGMローパスフィルター周波数
+    BGM_BASS_VOLUME: 0.10,               // BGMベース音量（中盤以降）
+    BGM_ARP_VOLUME: 0.045,               // BGMアルペジオ音量（終盤）
+    BGM_FILTER_FREQUENCY: 800,           // BGMローパスフィルター周波数（つり合い時）
     SFX_DROP_DURATION: 0.15,             // ドロップSFX持続時間
     SFX_ERROR_DURATION: 0.15,            // エラーSFX持続時間
     SFX_PHASE_DURATION: 0.15,            // フェーズSFX持続時間
@@ -107,6 +109,39 @@ export const CAMERA_CONFIG = {
  */
 export const RENDER_CONFIG = {
     AMBIENT_LIGHT_INTENSITY: 0.8,        // アンビエントライト強度
+};
+
+/**
+ * 演出フィードバック設定
+ *
+ * 設計方針: 演出は「物理量の可視化・可聴化」であって装飾ではない。
+ * すべての強度は tension（つり合いのズレ）か残り手数から導出し、
+ * 学習内容と無関係な派手さを持ち込まない。
+ * @const {Object}
+ */
+export const FEEDBACK_CONFIG = {
+    // --- tension（モーメント差の正規化値 0〜1）に連動 ---
+    BGM_FILTER_MIN_FREQUENCY: 320,   // tension=1 のローパス周波数（傾くほど音がこもる）
+    TENSION_FOV_MAX: 4,              // tension由来のFOV拡大上限(度)
+    LOOKAT_X_MAX: 1.2,               // 重い側へのlookAtオフセット上限
+
+    // --- つり合いへの接近フィードバック ---
+    NEAR_BALANCE_DIFF: 20,           // 「あと1手」とみなすモーメント差
+    NEAR_BALANCE_BELL_FREQUENCY: 1318.51,  // 接近を知らせるベル音(E6)
+    NEAR_BALANCE_PULSE_SPEED: 8,     // 支点リングの脈動速度
+    NEAR_BALANCE_PULSE_AMOUNT: 0.25, // 支点リングの脈動幅
+
+    // --- 終盤の盛り上げ ---
+    ENDGAME_STOCK_THRESHOLD: 2,      // 残りストック合計がこれ以下で終盤
+    MIDGAME_STOCK_THRESHOLD: 6,      // 残りストック合計がこれ以下で中盤
+    ENDGAME_FOV_TIGHTEN: 3,          // 終盤のFOV寄せ(度)
+
+    // --- 脱落演出（原因を見せる） ---
+    ELIMINATION_DOLLY_DURATION: 900, // 支点へ寄って傾きを見せる時間(ms)
+    ELIMINATION_DOLLY_FOV: -10,      // ドリーイン時のFOVオフセット(度)
+    ELIMINATION_DOLLY_Z: 2.5,        // ドリーイン時にカメラを前に出す量
+    ELIMINATION_LOOKAT_BOOST: 1.6,   // ドリーイン時に重い側へ視線を寄せる倍率
+    RESULT_OVERLAY_DELAY: 1000,      // 結果画面を出すまでの遅延(ms)
 };
 
 /**

@@ -8,7 +8,16 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "smoke": "npm run build:gas && node scripts/smoke-test.mjs",
+    "verify": "npm run lint && vitest run && npm run smoke",
+    "build:gas": "node scripts/build-gas.mjs",
+    "push:gas": "npm run build:gas && clasp push -f",
+    "deploy:gas": "npm run push:gas && clasp redeploy $npm_package_config_gasDeploymentId --description \"sync from src\"",
+    "deploy": "npm run deploy:gas && git push"
+  },
+  "config": {
+    "gasDeploymentId": "AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w"
   },
   "keywords": [
     "game",
@@ -21,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@vitest/ui": "^4.0.15",
+    "esbuild": "^0.28.1",
     "eslint": "^9.17.0",
     "jsdom": "^25.0.1",
     "vitest": "^4.0.15"

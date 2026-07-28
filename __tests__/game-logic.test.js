@@ -10,7 +10,12 @@ import {
     isBalanced,
     canStackAt,
     getRemainingStock,
+    cloneLeverData,
+    simulateHang,
+    simulateMove,
 } from '../src/js/game-logic.js';
+
+const ALL_POSITIONS = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
 
 describe('calculateMoment', () => {
     it('左右のモーメントを正しく計算する', () => {
@@ -190,5 +195,114 @@ describe('getRemainingStock', () => {
         const positions = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
 
         expect(getRemainingStock(leverData, positions, 'blue', 10)).toBe(0);
+    });
+});
+
+describe('cloneLeverData', () => {
+    it('元データと独立したコピーを返す', () => {
+        const original = { '-3': [{ owner: 'blue' }] };
+        const copy = cloneLeverData(original);
+
+        copy['-3'][0].owner = 'red';
+        copy['2'] = [{ owner: 'green' }];
+
+        expect(original['-3'][0].owner).toBe('blue');
+        expect(original['2']).toBeUndefined();
+    });
+});
+
+describe('simulateHang', () => {
+    it('元のデータを変更しない', () => {
+        const original = { '-3': [{ owner: 'neutral' }] };
+
+        simulateHang(original, 5, 'blue');
+
+        expect(original['5']).toBeUndefined();
+        expect(original['-3']).toHaveLength(1);
+    });
+
+    it('スタックの先頭に追加される（先頭＝てこから遠い側）', () => {
+        const original = { '2': [{ owner: 'red' }] };
+
+        const result = simulateHang(original, 2, 'blue');
+
+        expect(result['2']).toHaveLength(2);
+        expect(result['2'][0].owner).toBe('blue');
+        expect(result['2'][1].owner).toBe('red');
+    });
+
+    it('吊るした後のモーメントが正しく増える', () => {
+        // 左右つり合い状態から、右の位置4に1つ吊るす
+        const original = { '-3': [{ owner: 'neutral' }], '3': [{ owner: 'neutral' }] };
+        expect(calculateMoment(original, ALL_POSITIONS, 10).diff).toBe(0);
+
+        const result = simulateHang(original, 4, 'blue');
+        const moment = calculateMoment(result, ALL_POSITIONS, 10);
+
+        // 右に |4| × 1 × 10 = 40 が加わる → diff = 30 - 70 = -40
+        expect(moment.right).toBe(70);
+        expect(moment.diff).toBe(-40);
+    });
+});
+
+describe('simulateMove', () => {
+    it('元のデータを変更しない', () => {
+        const original = { '-3': [{ owner: 'blue' }] };
+
+        simulateMove(original, -3, 0, 5);
+
+        expect(original['-3']).toHaveLength(1);
+        expect(original['5']).toBeUndefined();
+    });
+
+    it('移動元が空になったらキーごと削除される', () => {
+        const original = { '-3': [{ owner: 'blue' }] };
+
+        const result = simulateMove(original, -3, 0, 5);
+
+        expect(result['-3']).toBeUndefined();
+        expect(result['5']).toHaveLength(1);
+    });
+
+    it('選択したおもりとその下すべてが一緒に移動する', () => {
+        const original = {
+            '2': [{ owner: 'blue' }, { owner: 'red' }, { owner: 'green' }],
+        };
+
+        // index=1 を掴む → index 0,1 の2つが動き、index 2 が残る
+        const result = simulateMove(original, 2, 1, 5);
+
+        expect(result['2']).toHaveLength(1);
+        expect(result['2'][0].owner).toBe('green');
+        expect(result['5']).toHaveLength(2);
+        expect(result['5'][0].owner).toBe('blue');
+        expect(result['5'][1].owner).toBe('red');
+    });
+
+    it('移動先に既存のおもりがある場合は先頭に積まれる', () => {
+        const original = {
+            '2': [{ owner: 'blue' }],
+            '5': [{ owner: 'red' }],
+        };
+
+        const result = simulateMove(original, 2, 0, 5);
+
+        expect(result['5']).toHaveLength(2);
+        expect(result['5'][0].owner).toBe('blue');
+        expect(result['5'][1].owner).toBe('red');
+    });
+
+    it('移動によってモーメントが正しく変化する', () => {
+        // 左-3に1つ、右3に1つ → つり合い
+        const original = { '-3': [{ owner: 'blue' }], '3': [{ owner: 'red' }] };
+        expect(calculateMoment(original, ALL_POSITIONS, 10).diff).toBe(0);
+
+        // 右のおもりを 3 → 6 へ移動（隣接でないので合法）
+        const result = simulateMove(original, 3, 0, 6);
+        const moment = calculateMoment(result, ALL_POSITIONS, 10);
+
+        expect(moment.left).toBe(30);
+        expect(moment.right).toBe(60);
+        expect(moment.diff).toBe(-30);
     });
 });

@@ -238,7 +238,7 @@ function processData(data) {
 
 ## プロジェクト構造
 
-```
+```text
 LEVER MASTER/
 ├── src/
 │   ├── js/
@@ -248,12 +248,88 @@ LEVER MASTER/
 │       └── styles.css               # スタイルシート
 ├── __tests__/
 │   └── game-logic.test.js           # ユニットテスト
+├── gas/                             # GAS版（Code.js以外は自動生成）
+│   ├── Code.js                      # doGet / include（手書き）
+│   └── appsscript.json              # GASプロジェクト設定
+├── scripts/
+│   ├── build-gas.mjs                # src/ → gas/ 変換ビルド
+│   └── smoke-test.mjs               # jsdomでの読み込みスモークテスト
 ├── index.html                       # エントリーポイント
 ├── package.json                     # 依存関係管理
 ├── vitest.config.js                 # テスト設定
 ├── eslint.config.js                 # リント設定
 └── DEVELOPMENT.md                   # このファイル
 ```
+
+## 検証
+
+```bash
+npm run verify   # lint → ユニットテスト → GASビルド → スモークテスト
+```
+
+| コマンド | 内容 |
+| --- | --- |
+| `npm run lint` | ESLint |
+| `npx vitest run` | ゲームロジックのユニットテスト |
+| `npm run smoke` | バンドルをjsdomで読み込み、ロード時・onload時のエラーを検出 |
+
+### ロジックは必ず game-logic.js に置く
+
+`src/js/game-logic.js` は副作用のない純粋関数のみを持ち、**ここだけがユニットテストの対象**。
+`main.js` の `calcMoment()` / `calcPlayerPoints()` はこの純粋関数への薄いラッパーで、
+CPU AI のシミュレーションも `simulateHang()` / `simulateMove()` を使う。
+
+⚠️ **モーメント計算やポイント計算を main.js 側に書き足さないこと。**
+以前は main.js に同じロジックの二重実装があり、テストが本番コードを一切守っていない状態だった。
+
+### CPU AI は状態を破壊しない
+
+CPU の先読みは `simulateHang` / `simulateMove` がコピーを返すため、
+`game.leverData` を書き換えてから復元する必要がない。
+評価中に例外が出てもゲーム状態は壊れない。
+
+## 演出フィードバックの設計方針
+
+**演出は物理量の可視化・可聴化であって装飾ではない。**
+
+すべての強度は `tension`（モーメント差を0〜1に正規化した値）か
+残り手数（`getGameStage()`）から導出し、学習内容と無関係な派手さを持ち込まない。
+
+| 演出 | 駆動する値 | 教育的な意味 |
+| --- | --- | --- |
+| BGMのローパスが閉じる | tension | 音のこもり = つり合いのズレ |
+| FOVが広がる | tension | 広角 = 不安定さ |
+| 視線が片側へ寄る | てこの傾き | 視線が引かれる側 = モーメントが大きい側 |
+| 支点リングの脈動 | あと少しでつり合う | つり合いへの接近を報酬化 |
+| ベース/アルペジオが増える | 残りストック数 | 盛り上がりの根拠は残り手数の切迫 |
+| 脱落時に支点へ寄る | 脱落イベント | 「なぜ倒れたか」を必ず見せる |
+
+チューニング値は `constants.js` の `FEEDBACK_CONFIG` に集約している。
+
+⚠️ カメラのFOVは `updateCameraPosition()` が毎フレーム `targetFov` を再計算するため、
+一時的な演出は `targetFov` を直接書き換えず **`setDramaticFov(offset, duration)`** を使うこと。
+
+## GAS版のビルド
+
+GitHub Pages版とGAS版は同じ `src/` から生成される。**`gas/` 配下の生成物を直接編集しないこと**（次回ビルドで上書きされる）。
+
+```bash
+npm run deploy      # GAS版へ反映 + git push
+```
+
+`scripts/build-gas.mjs` が行う変換:
+
+1. `src/js/main.js` と `src/js/performance-monitor.js` を esbuild で IIFE にバンドル
+2. バンドル結果と `styles.css` を `<script>` / `<style>` として HTML 化
+3. `index.html` の外部参照を `<?!= include(...) ?>` に差し替え
+4. Service Worker 登録ブロックと PWA manifest を除去（GASのiframe内では動作しないため）
+5. アイコン参照を GitHub Pages の絶対URLへ書き換え
+
+`index.html` の構造を変えた場合、対応する置換パターンが一致しなくなるとビルドは**エラーで停止する**（黙って壊れた出力を出さない）。その場合は `scripts/build-gas.mjs` の該当パターンを更新する。
+
+### デプロイ先の変更
+
+デプロイIDは `package.json` の `config.gasDeploymentId` に保持している。同じIDへ再デプロイするためURLは変わらない。
 
 ## 主要な設計原則
 

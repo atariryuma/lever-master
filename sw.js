@@ -1,20 +1,37 @@
 // LEVER MASTER Service Worker
 // Version 1.0.7
 
-const CACHE_NAME = 'lever-master-v17';
+const CACHE_NAME = 'lever-master-v18';
 
 // Detect base path dynamically (works for both local and GitHub Pages)
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 
-const ASSETS_TO_CACHE = [
+// 自サイトの必須アセット
+// ⚠️ main.js は ES module であり、import する全モジュールを列挙する必要がある。
+//    1つでも漏れると、オフライン初回起動時に module の解決に失敗してゲームが起動しない。
+const CORE_ASSETS = [
     `${BASE_PATH}/`,
     `${BASE_PATH}/index.html`,
-    `${BASE_PATH}/src/js/main.js`,
     `${BASE_PATH}/src/css/styles.css`,
+    // ES module 一式
+    `${BASE_PATH}/src/js/main.js`,
+    `${BASE_PATH}/src/js/constants.js`,
+    `${BASE_PATH}/src/js/utils.js`,
+    `${BASE_PATH}/src/js/game-logic.js`,
+    `${BASE_PATH}/src/js/ui-generator.js`,
+    `${BASE_PATH}/src/js/event-handlers.js`,
+    `${BASE_PATH}/src/js/timeout-manager.js`,
+    `${BASE_PATH}/src/js/error-handler.js`,
+    `${BASE_PATH}/src/js/performance-monitor.js`,
+    // PWA
     `${BASE_PATH}/public/manifest.json`,
     `${BASE_PATH}/public/icons/icon.svg`,
     `${BASE_PATH}/public/icons/icon-192.png`,
     `${BASE_PATH}/public/icons/icon-512.png`,
+];
+
+// 外部CDN（学校ネットワーク等で遮断されうるため、失敗してもインストールを止めない）
+const CDN_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
     'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap',
 ];
@@ -24,9 +41,17 @@ self.addEventListener('install', (event) => {
     console.log('[SW] Installing new version...');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[SW] Caching assets');
-                return cache.addAll(ASSETS_TO_CACHE);
+            .then(async (cache) => {
+                // 自サイトのアセットは全て揃わないと意味がないので addAll（失敗＝インストール失敗）
+                console.log('[SW] Caching core assets');
+                await cache.addAll(CORE_ASSETS);
+
+                // CDNは1つずつ。失敗しても警告のみでインストールは継続する
+                await Promise.all(CDN_ASSETS.map((url) =>
+                    cache.add(url).catch((error) => {
+                        console.warn('[SW] CDN asset skipped:', url, error);
+                    }),
+                ));
             })
             .then(() => {
                 console.log('[SW] Skip waiting to activate immediately');

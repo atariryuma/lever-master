@@ -88,6 +88,58 @@ export function canStackAt(leverData, position, maxStack = GAME_CONFIG.MAX_STACK
 }
 
 /**
+ * てこのデータをディープコピーする（純粋関数版）
+ * @param {Object.<number, Array>} leverData - てこのデータ
+ * @returns {Object.<number, Array>} コピーされたてこのデータ
+ */
+export function cloneLeverData(leverData) {
+    const clone = {};
+    Object.keys(leverData).forEach(key => {
+        clone[key] = leverData[key].map(weight => ({ ...weight }));
+    });
+    return clone;
+}
+
+/**
+ * おもりを吊るした後のてこのデータを返す（純粋関数版・元データは変更しない）
+ * スタックの先頭に追加する（先頭 = 視覚的に一番下 = てこから遠い）
+ * @param {Object.<number, Array>} leverData - てこのデータ
+ * @param {number} pos - 吊るす位置
+ * @param {string} owner - おもりの所有者
+ * @returns {Object.<number, Array>} 吊るした後のてこのデータ
+ */
+export function simulateHang(leverData, pos, owner) {
+    const next = cloneLeverData(leverData);
+    next[pos] = [{ owner }, ...(next[pos] || [])];
+    return next;
+}
+
+/**
+ * おもりを移動した後のてこのデータを返す（純粋関数版・元データは変更しない）
+ * 指定したおもりとその下（先頭側）すべてが一緒に移動する
+ * @param {Object.<number, Array>} leverData - てこのデータ
+ * @param {number} fromPos - 移動元の位置
+ * @param {number} fromIndex - 移動するおもりのスタックインデックス
+ * @param {number} toPos - 移動先の位置
+ * @returns {Object.<number, Array>} 移動した後のてこのデータ
+ */
+export function simulateMove(leverData, fromPos, fromIndex, toPos) {
+    const next = cloneLeverData(leverData);
+    const stack = next[fromPos] || [];
+    const moving = stack.slice(0, fromIndex + 1);
+    const remaining = stack.slice(fromIndex + 1);
+
+    if (remaining.length === 0) {
+        delete next[fromPos];
+    } else {
+        next[fromPos] = remaining;
+    }
+
+    next[toPos] = [...moving, ...(next[toPos] || [])];
+    return next;
+}
+
+/**
  * プレイヤーの残りストック数を計算（純粋関数版）
  * @param {Object.<number, Array>} leverData - てこのデータ
  * @param {number[]} positions - 全ての位置配列
