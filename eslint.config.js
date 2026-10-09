@@ -4,10 +4,11 @@ const browserGlobals = Object.fromEntries([
     'window', 'document', 'navigator', 'location', 'console', 'localStorage', 'CSS',
     'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
     'requestAnimationFrame', 'cancelAnimationFrame', 'structuredClone',
+    'URLSearchParams', 'getComputedStyle', 'performance', 'ResizeObserver',
 ].map(name => [name, 'readonly']));
 
 export default [
-    { ignores: ['node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**'] },
+    { ignores: ['node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**', 'src/vendor/**'] },
 
     js.configs.recommended,
 
@@ -51,7 +52,7 @@ export default [
     },
 
     {
-        files: ['*.config.js', 'scripts/**/*.js'],
-        languageOptions: { globals: { process: 'readonly' } },
+        files: ['*.config.js', 'scripts/**/*.mjs'],
+        languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
     },
 ];

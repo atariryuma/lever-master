@@ -4,6 +4,7 @@
  */
 
 import { LeverView } from './view/lever-view.js';
+import { createBoard, hang } from './engine/lever.js';
 import { $, $$, showScreen } from './ui.js';
 import { play, startBgm, stopBgm, unlockAudio } from './audio.js';
 import { save, saveSettings, settings } from './storage.js';
@@ -12,8 +13,44 @@ import * as lab from './screens/lab.js';
 import * as puzzles from './screens/puzzles.js';
 import * as battle from './screens/battle.js';
 
-const view = new LeverView($('#lever'));
+const view = await createView();
 let active = null; // いまプレイ画面を使っているモード
+
+/** WebGL が使えれば 3D、使えなければ SVG（2D）で表示する */
+async function createView() {
+    try {
+        const { LeverView3D, webglAvailable } = await import('./view/lever-view-3d.js');
+        if (webglAvailable() && !new URLSearchParams(location.search).has('2d')) {
+            const canvas = $('#lever3d');
+            canvas.hidden = false;
+            document.documentElement.classList.add('is-3d');
+            startHero(LeverView3D);
+            return new LeverView3D(canvas, {}, { a11yRoot: $('#lever-a11y') });
+        }
+    } catch (err) {
+        console.warn('3D view unavailable, falling back to 2D:', err);
+    }
+    $('#lever').removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
+    $('#lever-a11y').hidden = true;
+    return new LeverView($('#lever'));
+}
+
+/** ホーム画面の 3D デモ（つり合う例を順番に見せる） */
+function startHero(LeverView3D) {
+    const demo = [
+        [[-3, 20], [2, 30]],
+        [[-6, 10], [-1, 20], [4, 20]],
+        [[-4, 30], [5, 10], [3, 10]],
+        [[-4, 30], [6, 20]],
+        [[-2, 10], [-5, 20], [3, 20], [6, 10]],
+    ].map((items, i) => items.reduce((b, [pos, mass], k) => hang(b, pos, { id: `d${i}-${k}`, mass }), createBoard()));
+    try {
+        const hero = new LeverView3D($('#hero3d'), {}, { showcase: true });
+        hero.setShowcase(demo);
+    } catch (err) {
+        console.warn('hero disabled:', err);
+    }
+}
 
 const app = {
     view,
@@ -172,9 +209,10 @@ function setupInstallTip() {
 
 function registerServiceWorker() {
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
-    });
+    const register = () => navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+    // 3D の読み込みを待つあいだに load が終わっていることがある
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register, { once: true });
 }
 
 bindSettings();

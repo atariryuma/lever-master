@@ -76,7 +76,7 @@ export class LeverView {
                     <stop offset="0" stop-color="#e2b578"/><stop offset=".55" stop-color="#c98f4c"/><stop offset="1" stop-color="#a86f34"/>
                 </linearGradient>
                 <linearGradient id="g-floor" gradientUnits="userSpaceOnUse" x1="0" y1="${H - 22}" x2="0" y2="${H + 400}">
-                    <stop offset="0" stop-color="#e6dcc3"/><stop offset=".08" stop-color="#efe7d3"/><stop offset="1" stop-color="#efe7d3" stop-opacity="0"/>
+                    <stop offset="0" stop-color="#22305a"/><stop offset=".08" stop-color="#151f3d"/><stop offset="1" stop-color="#151f3d" stop-opacity="0"/>
                 </linearGradient>
                 <linearGradient id="g-metal" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0" stop-color="#8794a6"/><stop offset=".45" stop-color="#cfd6df"/><stop offset="1" stop-color="#7a8698"/>

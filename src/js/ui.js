@@ -113,7 +113,7 @@ export function renderReadout(root, board, { hidden = false, reveal = 'all', ver
         const expr = terms.length
             ? terms.map(t => `<span class="term">${t.distance}<i>×</i>${t.mass}</span>`).join('<i class="plus">+</i>')
             : '<span class="term empty">なし</span>';
-        formula.innerHTML = `${expr}<i class="eq">=</i><b class="total">${total}</b>`;
+        formula.innerHTML = `${expr}<span class="sum"><i class="eq">=</i><b class="total">${total}</b></span>`;
         bar.style.width = `${(total / max) * 100}%`;
         box.setAttribute('aria-label', `${side === 'left' ? '左' : '右'}うで：${terms.map(t => `${t.distance}かける${t.mass}`).join('たす') || 'なし'}、合計 ${total}`);
     }

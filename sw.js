@@ -4,7 +4,7 @@
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -22,6 +22,8 @@ const ASSETS = [
     'src/js/engine/ai.js',
     'src/js/engine/puzzles.js',
     'src/js/view/lever-view.js',
+    'src/js/view/lever-view-3d.js',
+    'src/vendor/three.js',
     'src/js/view/weight-art.js',
     'src/js/screens/lab.js',
     'src/js/screens/puzzles.js',
@@ -31,6 +33,8 @@ const ASSETS = [
     'public/icons/icon-192.png',
     'public/icons/icon-512.png',
     'public/icons/apple-touch-icon.png',
+    'public/fonts/orbitron-700.woff2',
+    'public/fonts/orbitron-900.woff2',
 ];
 
 self.addEventListener('install', event => {

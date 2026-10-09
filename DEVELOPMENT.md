@@ -17,12 +17,16 @@ src/js/
     ai.js               CPU（やさしい/ふつう/つよい）
     puzzles.js          もんだいデータとソルバー
   view/
-    lever-view.js       SVG のてこ（バネで傾く・ささえ・タップ/ドラッグ/キーボード）
-    weight-art.js       おもりの絵
+    lever-view-3d.js    3D のてこ（Three.js）。ふだんはこちら
+    lever-view.js       SVG のてこ（WebGL が使えないときの代わり。?2d で強制）
+    weight-art.js       おもりの絵（2D・ドラッグ中の表示）
   screens/              モードごとの画面ロジック（lab / puzzles / battle）
   ui.js widgets.js      共通 UI 部品（計算式パネル・バナー・トースト・セグメント等）
   audio.js storage.js   効果音・BGM／localStorage
 __tests__/              Vitest
+src/vendor/three.js     同梱した Three.js（使う部品だけ。`npm run vendor` で作り直す）
+public/fonts/           同梱フォント（Orbitron, SIL OFL）
+scripts/vendor.mjs      Three.js とフォントを同梱するスクリプト
 ```
 
 ## 設計のポイント
@@ -31,7 +35,10 @@ __tests__/              Vitest
 - **てこの傾き**：左右の差 `diff` から `-tanh(diff / 50) × 10°` を目標角にしてバネで追従（実験用てこのように差が大きいほど大きく傾く）。
 - **「ささえる → はなす」**：もんだい・たいせんでは、手でささえた状態（傾かない）でおもりを置き、「はなす」で判定。予想してから確かめる理科の実験の流れを再現。
 - **アウトの扱い**：かたむけたプレイヤーはアウトになり、てこはそのターンの前の状態にもどる（次の人が不利にならない）。
-- **モード共通のプレイ画面**：`main.js` が `enter / leave / back` を持つモードモジュールを切りかえる。`LeverView` は1つを使い回し、`handlers` を差しかえる。
+- **モード共通のプレイ画面**：`main.js` が `enter / leave / back` を持つモードモジュールを切りかえる。てこのビューは1つを使い回し、`handlers` を差しかえる。
+- **3D と 2D は同じ使い方**：`LeverView3D` と `LeverView` はどちらも `render / settle / startDrag / positionAt / handlers` を持つので、画面側は区別しない。3D ではキーボード・読み上げ用に透明なボタンを 3D の位置に重ねている。
+- **色は CSS が正**：プレイヤーやおもりの色は `styles.css` の CSS 変数で定義し、3D 側もそれを読む。
+- **Three.js の更新**：`package.json` の three を上げて `npm run vendor` → `src/vendor/three.js` をコミット。新しい部品を import したときも `npm run vendor` を実行する。
 
 ## テスト
 

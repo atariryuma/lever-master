@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f6f1e4">
+    <meta name="theme-color" content="#070b18">
     <meta name="description" content="きょり × 重さ で、てこをつり合わせよう。小学6年 理科「てこのはたらき」を遊びながら学べる教材ゲーム。">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="てこマスター">
     <title>てこマスター – LEVER MASTER</title>
     <link rel="manifest" href="public/manifest.json">
@@ -21,19 +21,11 @@
 
     <!-- ホーム -->
     <section id="screen-home" class="screen home">
+        <div class="home-hero" aria-hidden="true">
+            <canvas id="hero3d" class="hero-canvas"></canvas>
+        </div>
         <header class="home-head">
-            <svg class="home-logo" viewBox="0 0 120 70" aria-hidden="true">
-                <rect x="6" y="20" width="108" height="8" rx="4" class="logo-beam"/>
-                <path d="M60 28 L48 62 H72 Z" class="logo-stand"/>
-                <circle cx="60" cy="24" r="4" class="logo-pivot"/>
-                <line x1="20" y1="28" x2="20" y2="38" class="logo-string"/>
-                <rect x="12" y="38" width="16" height="16" rx="3" class="logo-w1"/>
-                <line x1="96" y1="28" x2="96" y2="36" class="logo-string"/>
-                <rect x="90" y="36" width="12" height="12" rx="3" class="logo-w2"/>
-                <line x1="84" y1="28" x2="84" y2="36" class="logo-string"/>
-                <rect x="78" y="36" width="12" height="12" rx="3" class="logo-w2"/>
-            </svg>
-            <h1 tabindex="-1">てこマスター</h1>
+            <h1 tabindex="-1"><span class="logo-en">LEVER MASTER</span><span class="logo-ja">てこマスター</span></h1>
             <p class="tagline">きょり <b>×</b> 重さ で、てこをつり合わせよう</p>
             <span class="pill">小6 理科「てこのはたらき」</span>
         </header>
@@ -116,7 +108,9 @@
         </header>
         <div class="players" id="players" hidden></div>
         <div class="stage" id="stage">
-            <svg id="lever" class="lever" role="group" aria-label="実験用てこ"></svg>
+            <canvas id="lever3d" class="lever lever-3d" hidden></canvas>
+            <div class="lever-a11y" id="lever-a11y" role="group" aria-label="実験用てこ"></div>
+            <svg id="lever" class="lever" role="group" aria-label="実験用てこ" hidden></svg>
             <p class="stage-note" id="stage-note"></p>
             <div class="banner" id="banner" aria-hidden="true"></div>
         </div>
