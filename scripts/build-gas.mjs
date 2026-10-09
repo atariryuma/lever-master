@@ -1,24 +1,28 @@
 /**
  * GAS版ビルドスクリプト
  *
- * src/ を単一の真実源として、Google Apps Script の HtmlService で
- * 配信できる形（gas/）へ変換する。
+ * index.html を Google Apps Script の HtmlService で配信できる形（gas/index.html）へ変換する。
  *
- * GitHub Pages版との差分:
- *   - ES modules → esbuild で IIFE に束ねて HTML へインライン化
- *   - CSS → <style> としてインライン化
- *   - Service Worker → GAS はサンドボックス iframe 配信のため登録不可。除去
- *   - PWA manifest → 除去。アイコン・フォント → GAS から静的配信できないため GitHub Pages を参照
- *   - window.LEVER_GAS = true を先に置き、アプリ側で SW 登録などを止める
+ * GAS 版はアプリ本体（JS・CSS・Three.js・フォント・アイコン）を GitHub Pages から読み込む。
+ *   - 以前は JS を1ファイルにまとめて HTML にインライン化していたが、Three.js を同梱して
+ *     600KB を超えると GAS の配信ラッパー内で SyntaxError になったため、この方式にした
+ *   - GitHub Pages は Access-Control-Allow-Origin: * で配信するので、GAS の iframe から
+ *     ES modules をそのまま読み込める
+ *   - PWA manifest は除去。window.LEVER_GAS = true でアプリ側の SW 登録などを止める
+ *   - キャッシュ対策として、エントリ（main.js / styles.css）に ?v=<コミット> を付ける
+ *
+ * ⚠️ GitHub Pages に同じコミットがデプロイされてから GAS を更新すること（npm run deploy は
+ *    GAS 更新 → git push の順なので、Pages の反映まで数分は古い本体が表示されることがある）。
  *
  * 置換は全て「必ず1件以上マッチする」ことを検証し、
  * 元HTMLの構造が変わって黙って壊れることを防ぐ。
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-import { ROOT, bundleToIife } from './bundle.mjs';
+import { ROOT } from './bundle.mjs';
 
 const GAS_DIR = resolve(ROOT, 'gas');
 
@@ -51,15 +55,16 @@ function mustReplace(source, pattern, replacement, label) {
 }
 
 /**
- * index.html を GAS テンプレート用に変換する。
+ * index.html を GAS 用に変換する。
  * @param {string} html 元の index.html
+ * @param {string} version キャッシュ対策のクエリ
  * @returns {string} GAS用HTML
  */
-function toGasTemplate(html) {
+function toGasHtml(html, version) {
     let out = html;
 
     // <!-- gas:strip 理由 --> ... <!-- /gas:strip -->
-    // GASで動作しない領域（PWA manifest / Service Worker登録）を丸ごと除去する
+    // GASで動作しない領域（PWA manifest）を丸ごと除去する
     out = mustReplace(
         out,
         /[ \t]*<!-- gas:strip([^>]*)-->[\s\S]*?<!-- \/gas:strip -->\n?/g,
@@ -67,21 +72,23 @@ function toGasTemplate(html) {
         'gas:strip 領域の除去',
     );
 
-    // <!-- gas:inline ファイル名 --> ... <!-- /gas:inline -->
-    // 外部参照の領域を GAS のテンプレート取り込みに置き換える
+    // アプリ本体（CSS・JS）は GitHub Pages から読み込む
     out = mustReplace(
         out,
-        /[ \t]*<!-- gas:inline\s+(\S+)\s*-->[\s\S]*?<!-- \/gas:inline -->/g,
-        (_match, filename) => `    <?!= include('${filename}'); ?>`,
-        'gas:inline 領域の取り込み化',
+        /(href|src)="src\/(css\/styles\.css|js\/main\.js)"/g,
+        (_match, attr, path) => `${attr}="${PAGES_BASE}/src/${path}?v=${version}" crossorigin`,
+        'アプリ本体の参照を GitHub Pages へ',
     );
 
-    // アイコン類: GAS から配信できないため GitHub Pages を参照する
+    // アイコン類も GitHub Pages を参照する
+    out = mustReplace(out, /href="public\//g, `href="${PAGES_BASE}/public/`, 'アイコン参照の絶対URL化');
+
+    // アプリより先に GAS 版の目印を置く
     out = mustReplace(
         out,
-        /href="public\//g,
-        `href="${PAGES_BASE}/public/`,
-        'アイコン参照の絶対URL化',
+        /<\/head>/,
+        '    <script>window.LEVER_GAS = true;</script>\n</head>',
+        'GAS 版フラグの挿入',
     );
 
     return out;
@@ -89,29 +96,18 @@ function toGasTemplate(html) {
 
 async function main() {
     await mkdir(GAS_DIR, { recursive: true });
+    // 以前のインライン方式の生成物を消す（clasp push で GAS 側からも消える）
+    await Promise.all(['styles.css.html', 'app.js.html', 'perfmon.js.html']
+        .map(f => rm(resolve(GAS_DIR, f), { force: true })));
 
-    const [indexHtml, rawCss, appJs] = await Promise.all([
-        readFile(resolve(ROOT, 'index.html'), 'utf8'),
-        readFile(resolve(ROOT, 'src/css/styles.css'), 'utf8'),
-        bundleToIife('src/js/main.js'),
-    ]);
-
-    // CSS 内の相対URL（フォント）を GitHub Pages の絶対URLへ
-    const css = mustReplace(rawCss, /url\("\.\.\/\.\.\/public\//g, `url("${PAGES_BASE}/public/`, 'フォント参照の絶対URL化');
-
+    const version = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim();
+    const indexHtml = await readFile(resolve(ROOT, 'index.html'), 'utf8');
     const banner = '<!-- このファイルは scripts/build-gas.mjs による自動生成です。直接編集しないでください。 -->\n';
+    const out = banner + toGasHtml(indexHtml, version);
+    await writeFile(resolve(GAS_DIR, 'index.html'), out);
 
-    await Promise.all([
-        writeFile(resolve(GAS_DIR, 'index.html'), banner + toGasTemplate(indexHtml)),
-        writeFile(resolve(GAS_DIR, 'styles.css.html'), `${banner}<style>\n${css}\n</style>\n`),
-        writeFile(resolve(GAS_DIR, 'app.js.html'), `${banner}<script>\nwindow.LEVER_GAS = true;\n${appJs}\n</script>\n`),
-    ]);
-
-    const kb = (s) => `${(Buffer.byteLength(s) / 1024).toFixed(1)}KB`;
-    console.log('[build-gas] gas/ を生成しました');
-    console.log(`  index.html      ${kb(indexHtml)}`);
-    console.log(`  styles.css.html ${kb(css)}`);
-    console.log(`  app.js.html     ${kb(appJs)}`);
+    console.log(`[build-gas] gas/index.html を生成しました（${(Buffer.byteLength(out) / 1024).toFixed(1)}KB, v=${version}）`);
+    console.log(`  アプリ本体: ${PAGES_BASE}/`);
 }
 
 main().catch((err) => {

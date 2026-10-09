@@ -1,9 +1,7 @@
 /**
  * ES modules を単一のIIFEへ束ねる共通処理
  *
- * GAS版のビルド（build-gas.mjs）とスモークテストの両方が同じバンドルを必要とするため、
- * （同梱の src/vendor/three.js も含めて1ファイルになる）
- * ここ1箇所に置いて共有する。
+ * スモークテストで jsdom に読み込むために使う（同梱の src/vendor/three.js も含めて1ファイルになる）。
  */
 
 import { build } from 'esbuild';

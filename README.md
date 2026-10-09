@@ -51,14 +51,16 @@ python3 -m http.server 8080   # http://localhost:8080 で確認
 | `npm run build:gas` | `src/` から `gas/` を生成するだけ |
 | `npm run push:gas` | 生成して Apps Script プロジェクトへ push |
 | `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない） |
-| `npm run deploy` | `deploy:gas` + `git push`（GitHub Pages は Actions で自動デプロイ） |
+| `npm run deploy` | `git push`（GitHub Pages は Actions で自動デプロイ。反映後に `deploy:gas`） |
 
 | 機能 | GitHub Pages | GAS |
 | --- | --- | --- |
-| ゲーム本体（3D / 2D） | ✅ | ✅（JS・CSS をインライン化） |
+| ゲーム本体（3D / 2D） | ✅ | ✅（JS・CSS は GitHub Pages から読み込む） |
 | Service Worker・オフライン | ✅ | ❌ 登録しない |
 | PWA インストール | ✅ | ❌ |
 | アイコン・フォント | ✅ | GitHub Pages を参照 |
+
+GAS 版は GitHub Pages の本体を読み込むので、先に Pages を更新してから GAS をデプロイします。
 リリース時は `sw.js` の `VERSION` を上げてください。
 
 ---

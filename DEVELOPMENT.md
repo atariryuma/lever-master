@@ -27,9 +27,9 @@ __tests__/              Vitest
 src/vendor/three.js     同梱した Three.js（使う部品だけ。`npm run vendor` で作り直す）
 public/fonts/           同梱フォント（Orbitron, SIL OFL）
 scripts/vendor.mjs      Three.js とフォントを同梱するスクリプト
-scripts/bundle.mjs      esbuild で main.js を1ファイル（IIFE）にまとめる（GAS 版・スモークテストで共有）
-scripts/build-gas.mjs   src/ → gas/ 変換ビルド
-gas/Code.js             GAS の doGet / include（手書き。ほかの gas/ ファイルは自動生成で git 管理外）
+scripts/bundle.mjs      esbuild で main.js を1ファイル（IIFE）にまとめる（スモークテスト用）
+scripts/build-gas.mjs   index.html → gas/index.html 変換ビルド
+gas/Code.js             GAS の doGet（手書き。gas/index.html は自動生成で git 管理外）
 ```
 
 ## 設計のポイント
@@ -56,7 +56,7 @@ npm run check   # 両方
 - `ai.test.js` CPU 同士で最後まで対戦できる
 - `puzzles.test.js` すべてのもんだいに解があることをソルバーで検証
 - `offline.test.js` `src/` と `public/` の全ファイルが `sw.js` のキャッシュ一覧にあるか
-- `smoke.test.js` バンドル（GAS 版と同じ）を jsdom で起動し、各画面へ移動してもエラーが出ないか・WebGL が無いとき 2D になるか
+- `smoke.test.js` バンドルを jsdom で起動し、各画面へ移動してもエラーが出ないか・WebGL が無いとき 2D になるか
 
 ## もんだいを追加するとき
 
@@ -64,18 +64,20 @@ npm run check   # 両方
 
 ## GAS 版のビルド
 
-`npm run build:gas` が `scripts/build-gas.mjs` で次の変換をする。`gas/` の生成物は直接編集しないこと。
+`npm run build:gas` が `scripts/build-gas.mjs` で `gas/index.html` を作る。`gas/index.html` は直接編集しないこと。
 
-1. `src/js/main.js` を esbuild で IIFE にまとめ、`<script>` として HTML 化（先頭で `window.LEVER_GAS = true` を設定し、アプリ側で Service Worker 登録などを止める）
-2. `styles.css` を `<style>` 化。フォントの相対 URL は GitHub Pages の絶対 URL に書きかえ
-3. `index.html` のマーカーを変換：`<!-- gas:strip 理由 -->…<!-- /gas:strip -->` は除去、`<!-- gas:inline ファイル名 -->…<!-- /gas:inline -->` は `<?!= include('ファイル名') ?>` に置換
-4. アイコン参照を GitHub Pages の絶対 URL に書きかえ
+- アプリ本体（JS・CSS・Three.js・フォント・アイコン）は **GitHub Pages から読み込む**。GitHub Pages は CORS を許可しているので、GAS の iframe からそのまま ES modules を読める
+  - 以前は JS を1ファイルにまとめてインライン化していたが、Three.js を含めて 600KB を超えると GAS の配信ラッパー内で `SyntaxError: Invalid or unexpected token` になったためやめた
+- エントリ（`main.js` / `styles.css`）には `?v=<コミット>` を付けてキャッシュを避ける
+- `<!-- gas:strip 理由 -->…<!-- /gas:strip -->` は除去（PWA manifest）
+- `<head>` の最後に `window.LEVER_GAS = true` を入れ、アプリ側で Service Worker 登録とインストール案内を止める
 
-マーカーが見つからないとビルドはエラーで止まる（黙って壊れた出力を作らない）。
-アプリのスクリプトは `<body>` の最後で読み込む（GAS ではふつうの `<script>` としてインライン化されるため）。
+置換対象が見つからないとビルドはエラーで止まる（黙って壊れた出力を作らない）。
 デプロイ ID は `package.json` の `config.gasDeploymentId` にあり、同じ ID へ再デプロイするので URL は変わらない。
+**GitHub Pages に同じコミットが反映されてから GAS をデプロイすること。**
 
 ## リリース
 
 1. `sw.js` の `VERSION` を上げる（キャッシュ更新のため）
-2. `npm run deploy`（GAS 版を更新 → `git push`。`main` への push で GitHub Actions が Pages にデプロイ）
+2. `main` に push → GitHub Actions が Pages にデプロイ
+3. Pages の反映を確認してから `npm run deploy:gas`

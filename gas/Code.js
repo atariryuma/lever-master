@@ -1,8 +1,8 @@
 /**
  * LEVER MASTER — GAS Web アプリ エントリポイント
  *
- * index.html / styles.css.html / app.js.html は
- * scripts/build-gas.mjs が src/ から自動生成する。
+ * index.html は scripts/build-gas.mjs が自動生成する
+ * （アプリ本体の JS・CSS は GitHub Pages から読み込む）。
  * このファイルだけは手書きで管理する。
  */
 
@@ -11,8 +11,7 @@
  * @returns {GoogleAppsScript.HTML.HtmlOutput} 描画するページ
  */
 function doGet() {
-    return HtmlService.createTemplateFromFile('index')
-        .evaluate()
+    return HtmlService.createHtmlOutputFromFile('index')
         .setTitle('てこマスター – LEVER MASTER')
         // GAS は <head> 内の meta を除去するため、ここで再指定する。
         // addMetaTag が許可するのは viewport / apple-mobile-web-app-capable /
@@ -25,14 +24,4 @@ function doGet() {
         .addMetaTag('mobile-web-app-capable', 'yes')
         // Google サイトや Classroom への埋め込みを許可する
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-/**
- * HTML テンプレートから他ファイルを取り込むためのヘルパー。
- * index.html 内で <?!= include('app.js'); ?> のように使う。
- * @param {string} filename 拡張子 .html を除いたファイル名
- * @returns {string} ファイルの中身
- */
-function include(filename) {
-    return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
