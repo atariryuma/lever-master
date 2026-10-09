@@ -1,34 +1,19 @@
 {
-    "name": "LEVER MASTER",
-    "short_name": "LEVER",
-    "description": "てこの原理を学ぶ物理学習ゲーム",
-    "start_url": "/lever-master/",
-    "scope": "/lever-master/",
-    "display": "fullscreen",
-    "orientation": "landscape",
-    "background_color": "#0a0a1a",
-    "theme_color": "#00f5ff",
-    "categories": [
-        "games",
-        "education"
-    ],
+    "name": "てこマスター – LEVER MASTER",
+    "short_name": "てこマスター",
+    "description": "きょり × 重さ で、てこをつり合わせよう。小学6年 理科「てこのはたらき」の教材ゲーム",
+    "lang": "ja",
+    "start_url": "../",
+    "scope": "../",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#f6f1e4",
+    "theme_color": "#f6f1e4",
+    "categories": ["education", "games"],
     "icons": [
-        {
-            "src": "icons/icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "icons/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "icons/icon.svg",
-            "sizes": "any",
-            "type": "image/svg+xml"
-        }
+        { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+        { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
     ]
 }

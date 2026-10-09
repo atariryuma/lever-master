@@ -1,400 +1,57 @@
 # 開発者ガイド
 
-## 開発環境のセットアップ
+ビルド不要の静的サイト（ES Modules）です。`index.html` をそのまま配信すれば動きます。
 
-### 必要な環境
-- Node.js 18以降
-- npm 9以降
+## ディレクトリ構成
 
-### 依存関係のインストール
-```bash
-npm install
+```
+index.html              画面の骨組み（ホーム・一覧・準備・プレイ・ダイアログ）
+sw.js                   Service Worker（全ファイルを事前キャッシュ）
+public/                 manifest とアイコン
+src/css/styles.css      デザイン（CSS変数でトークン管理）
+src/js/
+  main.js               画面遷移・ダイアログ・設定・PWA
+  engine/               ★ DOM に依存しない純粋なゲームロジック（テスト対象）
+    lever.js            盤面モデル・はたらきの計算・つるす/動かす
+    battle.js           たいせんのルール（状態は毎回コピーして返す）
+    ai.js               CPU（やさしい/ふつう/つよい）
+    puzzles.js          もんだいデータとソルバー
+  view/
+    lever-view.js       SVG のてこ（バネで傾く・ささえ・タップ/ドラッグ/キーボード）
+    weight-art.js       おもりの絵
+  screens/              モードごとの画面ロジック（lab / puzzles / battle）
+  ui.js widgets.js      共通 UI 部品（計算式パネル・バナー・トースト・セグメント等）
+  audio.js storage.js   効果音・BGM／localStorage
+__tests__/              Vitest
 ```
 
-## コード品質ツール
+## 設計のポイント
 
-### ESLint（静的解析）
-コード品質を自動チェックします。
+- **ロジックと表示を分離**：`engine/` は純粋関数のみ。画面側は「状態 → `render()`」で描き直すだけ。
+- **てこの傾き**：左右の差 `diff` から `-tanh(diff / 50) × 10°` を目標角にしてバネで追従（実験用てこのように差が大きいほど大きく傾く）。
+- **「ささえる → はなす」**：もんだい・たいせんでは、手でささえた状態（傾かない）でおもりを置き、「はなす」で判定。予想してから確かめる理科の実験の流れを再現。
+- **アウトの扱い**：かたむけたプレイヤーはアウトになり、てこはそのターンの前の状態にもどる（次の人が不利にならない）。
+- **モード共通のプレイ画面**：`main.js` が `enter / leave / back` を持つモードモジュールを切りかえる。`LeverView` は1つを使い回し、`handlers` を差しかえる。
+
+## テスト
 
 ```bash
-# リンティング実行
+npm test        # 1回実行
 npm run lint
-
-# 自動修正可能な問題を修正
-npm run lint:fix
+npm run check   # 両方
 ```
 
-**主要なルール:**
-- 未使用変数の禁止
-- `let`/`const` の推奨
-- テンプレートリテラルの推奨
-- 一貫したコードスタイル
+- `lever.test.js` 盤面・計算
+- `battle.test.js` ルール（となりNG、今つるした場所NG、アウト時の巻きもどし、順位）
+- `ai.test.js` CPU 同士で最後まで対戦できる
+- `puzzles.test.js` すべてのもんだいに解があることをソルバーで検証
+- `offline.test.js` `src/` と `public/` の全ファイルが `sw.js` のキャッシュ一覧にあるか
 
-**設定ファイル:** `eslint.config.js`
+## もんだいを追加するとき
 
-### Vitest（ユニットテスト）
-ゲームロジックの正確性をテストします。
+`src/js/engine/puzzles.js` の `PUZZLES` に追加します。テストが自動で「解けるか」「最初からつり合っていないか」を確認します。
 
-```bash
-# テスト実行（ウォッチモード）
-npm test
+## リリース
 
-# テストUI（ブラウザで実行）
-npm run test:ui
-
-# カバレッジレポート生成
-npm run test:coverage
-```
-
-**テストファイル:** `__tests__/**/*.test.js`
-
-**設定ファイル:** `vitest.config.js`
-
-## パフォーマンスモニタリング
-
-### Performance Monitor の使用方法
-
-**パフォーマンスモニター**は、ゲームの処理速度やメモリ使用量を追跡するツールです。
-
-#### 📊 有効化の方法
-
-パフォーマンスモニターはデフォルトで**無効**です。以下の方法で有効化できます：
-
-**方法1: URLパラメータ（一時的）**
-```
-http://localhost:8080?perfmon=1
-```
-
-**方法2: ブラウザコンソール（永続的）**
-```javascript
-// 有効化（localStorageに保存）
-window.enablePerfMon()
-
-// 無効化
-window.disablePerfMon()
-```
-
-有効化すると、コンソールに以下のメッセージが表示されます：
-```
-📊 Performance monitoring is ACTIVE
-   Use window.perfMonitor.logStats() to view stats
-   Use window.disablePerfMon() to disable
-```
-
-#### 📈 統計情報の表示
-
-ゲームをプレイ後、ブラウザコンソールで以下を実行：
-
-```javascript
-// 統計情報を表示
-window.perfMonitor.logStats();
-
-// 統計をリセット
-window.perfMonitor.reset();
-```
-
-**出力例:**
-```
-===== Performance Statistics =====
-
-[Frame Performance]
-  Frames:         1234
-  Avg Frame Time: 16.67ms
-  Avg FPS:        60.0
-  Worst Frame:    45.23ms
-
-[Memory Usage]
-  Used:  45.32 MB
-  Total: 78.91 MB
-  Limit: 2048.00 MB
-
-==================================
-```
-
-#### 🔧 main.js への統合（開発者向け）
-
-main.jsに以下のようなコードを追加することで、特定の処理を測定できます：
-
-```javascript
-// 処理の開始をマーク
-if (window.perfMonitor) {
-    window.perfMonitor.mark('ai-think-start');
-}
-
-// ... AI処理 ...
-
-// 処理時間を測定
-if (window.perfMonitor) {
-    const duration = window.perfMonitor.measure('ai-thinking', 'ai-think-start');
-    console.log(`AI thought for ${duration}ms`);
-}
-
-// アニメーションループ内でフレーム時間を記録
-function animate() {
-    if (window.perfMonitor) {
-        window.perfMonitor.recordFrame();
-    }
-
-    // ... レンダリング処理 ...
-
-    requestAnimationFrame(animate);
-}
-
-// 定期的にメモリ使用量を記録
-setInterval(() => {
-    if (window.perfMonitor) {
-        window.perfMonitor.recordMemory();
-    }
-}, 5000); // 5秒ごと
-```
-
-#### 統計情報の表示
-
-ブラウザのコンソールで以下を実行:
-
-```javascript
-// 統計情報を表示
-window.perfMonitor.logStats();
-
-// 統計をリセット
-window.perfMonitor.reset();
-
-// モニタリングを無効化（パフォーマンスへの影響を減らす）
-window.perfMonitor.setEnabled(false);
-```
-
-#### 測定すべき重要な処理
-
-1. **物理演算:** `calcMoment()`, `checkBalance()`
-2. **AI計算:** `cpuTurn()`, `findBestStrategyWithPersonality()`
-3. **レンダリング:** THREE.js のレンダーループ
-4. **DOM操作:** `updateUI()`, `endGame()`
-
-### 推奨される測定ポイント
-
-```javascript
-// 例: AI思考時間の測定
-function cpuTurn() {
-    perfMonitor.mark('ai-think-start');
-
-    // AI処理
-    const move = findBestStrategyWithPersonality(...);
-
-    const duration = perfMonitor.measure('ai-thinking', 'ai-think-start');
-    console.log(`AI thought for ${duration}ms`);
-
-    // ...
-}
-```
-
-## コードスタイルガイド
-
-### 命名規則
-
-- **定数:** `UPPER_SNAKE_CASE`
-  ```javascript
-  const GAME_CONFIG = { ... };
-  const MAX_TURNS_PER_PLAYER = 10;
-  ```
-
-- **関数/変数:** `camelCase`
-  ```javascript
-  function calculateMoment() { ... }
-  let playerScore = 0;
-  ```
-
-- **クラス:** `PascalCase`
-  ```javascript
-  class PerformanceMonitor { ... }
-  ```
-
-### JSDocドキュメント
-
-重要な関数には必ず JSDoc を追加してください:
-
-```javascript
-/**
- * モーメントを計算する
- * @param {Array<Object>} weights - おもりの配列
- * @returns {Object} 左右のモーメント {left: number, right: number}
- */
-function calcMoment(weights) {
-    // ...
-}
-```
-
-### エラーハンドリング
-
-Null/undefined チェックを一貫して実施:
-
-```javascript
-function processData(data) {
-    // == null で null と undefined の両方をチェック
-    if (data == null) return defaultValue;
-
-    // ...
-}
-```
-
-## プロジェクト構造
-
-```
-LEVER MASTER/
-├── src/
-│   ├── js/
-│   │   ├── main.js                  # メインゲームロジック
-│   │   └── performance-monitor.js   # パフォーマンス監視
-│   └── css/
-│       └── styles.css               # スタイルシート
-├── __tests__/
-│   └── game-logic.test.js           # ユニットテスト
-├── index.html                       # エントリーポイント
-├── package.json                     # 依存関係管理
-├── vitest.config.js                 # テスト設定
-├── eslint.config.js                 # リント設定
-└── DEVELOPMENT.md                   # このファイル
-```
-
-## 主要な設計原則
-
-### 1. 単一責任の原則 (SRP)
-各関数は1つの明確な目的を持つべきです。
-
-**良い例:**
-```javascript
-function generatePointsRankingHtml(points, activePlayers) {
-    // ランキングHTMLの生成のみに専念
-}
-
-function playEndGameEffects(isWin, impactIntensity) {
-    // エフェクト再生のみに専念
-}
-```
-
-### 2. DRY (Don't Repeat Yourself)
-重複したコードは関数に抽出します。
-
-**改善前:**
-```javascript
-// 同じHTML構造が3箇所に重複
-detail.innerHTML = `<div>モーメント: ${left} = ${right}</div>`;
-```
-
-**改善後:**
-```javascript
-const balanceHtml = generateBalanceInfoHtml(left, right);
-detail.innerHTML = `${balanceHtml}`;
-```
-
-### 3. 定数の集約
-マジックナンバーや文字列は定数として定義します。
-
-```javascript
-// main.js
-const GAME_CONFIG = {
-    MAX_TURNS_PER_PLAYER: 10,
-    CPU_DELAY: 800,
-    // ...
-};
-
-const UI_COLORS = {
-    WARNING: '#ff9500',
-    SUCCESS: '#00ff88',
-    // ...
-};
-```
-
-## Git ワークフロー
-
-### コミットメッセージの規約
-
-```bash
-# 機能追加
-git commit -m "Add performance monitoring utility"
-
-# バグ修正
-git commit -m "Fix memory leak in BGM loop"
-
-# リファクタリング
-git commit -m "Refactor endGame function following SRP"
-
-# ドキュメント
-git commit -m "Update development guide with testing instructions"
-```
-
-## デバッグのヒント
-
-### Chrome DevTools でのパフォーマンス分析
-
-1. **Performance タブ:**
-   - ゲームを開始
-   - 録画開始
-   - 数秒プレイ
-   - 録画停止
-   - フレームレートの低下を確認
-
-2. **Memory タブ:**
-   - ヒープスナップショットを撮影
-   - ゲームを進行
-   - 再度スナップショット
-   - メモリリークを検出
-
-3. **Console でのパフォーマンス測定:**
-   ```javascript
-   window.perfMonitor.logStats();
-   ```
-
-## トラブルシューティング
-
-### ESLint エラー: "X is not defined"
-→ `eslint.config.js` の `globals` にグローバル変数を追加
-
-### Vitest エラー: "Cannot find module"
-→ `package.json` の `"type": "module"` が設定されているか確認
-
-### パフォーマンス低下
-→ `window.perfMonitor.logStats()` で遅い処理を特定
-
-## 📋 最適化状況（2025-12-15更新）
-
-### ✅ 完了した改善
-
-- [x] ESLint設定ファイルのインデント修正
-- [x] グローバル関数エクスポートの削減（event-handlers.jsモジュール化）
-- [x] HTMLからonclick属性を完全削除
-- [x] マジックナンバーの定数化（AUDIO_CONFIG, PHYSICS_CONFIG等）
-- [x] タイムアウト管理の一元化（timeout-manager.js）
-- [x] エラーハンドリングの改善（error-handler.js）
-- [x] performanceグローバル変数の追加
-
-**詳細**: [OPTIMIZATION_REPORT.md](OPTIMIZATION_REPORT.md) 参照
-
-### 優先度: 高（次の目標）
-
-- [ ] **main.js をモジュールに分割（最優先）** - 4000行を以下に分割:
-  - `game/game-state.js` - ゲーム状態管理
-  - `game/turn-manager.js` - ターン制御
-  - `rendering/scene.js` - THREE.jsシーン
-  - `rendering/weights.js` - おもりレンダリング
-  - `ai/cpu-player.js` - CPU戦略
-- [ ] 複雑な関数の分割（findBestStrategyWithPersonality, endGame, animate）
-- [ ] CPU AIロジックのユニットテスト作成
-
-### 優先度: 中
-
-- [ ] TypeScript への移行検討
-- [ ] console.logのロガー化（開発/本番で切り替え）
-- [ ] THREE.jsのローカルバンドル化（CDN依存削除）
-
-### 優先度: 低
-
-- [ ] E2Eテスト（Playwright）の追加
-- [ ] CI/CDパイプラインの構築
-- [ ] 国際化（i18n）対応
-
-## 参考リンク
-
-- [ESLint Rules](https://eslint.org/docs/latest/rules/)
-- [Vitest Documentation](https://vitest.dev/)
-- [Performance API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
-- [Chrome DevTools Performance](https://developer.chrome.com/docs/devtools/performance/)
+1. `sw.js` の `VERSION` を上げる（キャッシュ更新のため）
+2. `main` に push → GitHub Actions が Pages にデプロイ

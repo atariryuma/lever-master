@@ -1,416 +1,253 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f6f1e4">
+    <meta name="description" content="きょり × 重さ で、てこをつり合わせよう。小学6年 理科「てこのはたらき」を遊びながら学べる教材ゲーム。">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="LEVER MASTER">
-    <meta name="theme-color" content="#00f5ff">
-    <meta name="description" content="てこの原理を学ぶ物理学習ゲーム - LEVER MASTER">
-
-    <!-- PWA Manifest -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="てこマスター">
+    <title>てこマスター – LEVER MASTER</title>
     <link rel="manifest" href="public/manifest.json">
-
-    <!-- Icons -->
-    <link rel="apple-touch-icon" href="public/icons/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="public/icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="public/icons/icon-192.png">
-
-    <title>LEVER MASTER</title>
-
-    <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap"
-        rel="stylesheet">
-
-    <!-- App Styles -->
+    <link rel="apple-touch-icon" href="public/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="src/css/styles.css">
-</head>
-
-
-<body>
-    <!-- タップして開始スプラッシュ画面 -->
-    <div class="splash-screen" id="splash-screen">
-        <div class="splash-content">
-            <div class="splash-title">LEVER MASTER</div>
-            <div class="splash-subtitle">てこマスター</div>
-            <div class="splash-tap">
-                <div class="splash-tap-icon">👆</div>
-                <div class="splash-tap-text">TAP TO START</div>
-            </div>
-            <div class="splash-hint">タップして始めよう</div>
-        </div>
-    </div>
-
-    <!-- スマホ縦画面ブロック -->
-    <div class="device-overlay" id="device-overlay">📱↻ 横向きにしてね</div>
-
-    <div class="cyber-bg"></div>
-    <div class="grid-overlay"></div>
-    <div class="particle-container" id="particles"></div>
-    <div class="screen-flash" id="screen-flash"></div>
-    <div class="combo-text" id="combo-text"></div>
-
-    <div class="drag-indicator" id="drag-indicator">
-        <div class="drag-text" id="drag-text">DRAGGING...</div>
-        <div class="drag-circle"></div>
-    </div>
-
-    <!-- スタートプレイヤー選択ルーレット -->
-    <div class="start-roulette-overlay hidden" id="roulette-overlay">
-        <div class="roulette-title">🎲 先攻決定！</div>
-        <div class="roulette-wheel" id="roulette-wheel">
-            <div class="roulette-player blue" data-player="blue">
-                <span>⚡</span>
-                <span class="roulette-player-name">P1</span>
-            </div>
-            <div class="roulette-player yellow" data-player="yellow">
-                <span>⭐</span>
-                <span class="roulette-player-name">P2</span>
-            </div>
-            <div class="roulette-player red" data-player="red">
-                <span>🔥</span>
-                <span class="roulette-player-name">P3</span>
-            </div>
-            <div class="roulette-player green" data-player="green">
-                <span>🍀</span>
-                <span class="roulette-player-name">P4</span>
-            </div>
-        </div>
-        <div class="roulette-result" id="roulette-result">先攻が決まりました！</div>
-        <div class="roulette-order" id="roulette-order">順番: P1 → P2 → P3 → P4</div>
-    </div>
-
-    <!-- スタート画面 -->
-    <div class="overlay" id="start-overlay">
-        <div class="start-wrapper">
-            <div class="start-left">
-                <div class="start-title">LEVER MASTER</div>
-                <div class="start-subtitle">てこマスター</div>
-                <div class="learning-badge">📚 小6理科「てこ」</div>
-
-                <!-- サウンドトグルボタン -->
-                <button type="button" class="start-sound-btn" id="start-sound-btn">
-                    <span class="sound-icon" id="start-sound-icon">🔇</span>
-                    <span class="sound-label" id="start-sound-label">BGM OFF</span>
-                </button>
-
-                <div class="mode-select">
-                    <button type="button" class="mode-btn mode1">
-                        <span class="mode-icon">🤖</span>
-                        <span class="mode-label">1人</span>
-                        <span class="mode-desc">vs CPU×3</span>
-                    </button>
-                    <button type="button" class="mode-btn mode2">
-                        <span class="mode-icon">⚔️</span>
-                        <span class="mode-label">2人</span>
-                        <span class="mode-desc">vs CPU×2</span>
-                    </button>
-                    <button type="button" class="mode-btn mode3">
-                        <span class="mode-icon">👥</span>
-                        <span class="mode-label">3人</span>
-                        <span class="mode-desc">vs CPU×1</span>
-                    </button>
-                    <button type="button" class="mode-btn mode4">
-                        <span class="mode-icon">🎮</span>
-                        <span class="mode-label">4人</span>
-                        <span class="mode-desc">全員対戦</span>
-                    </button>
-                </div>
-
-                <!-- インストールガイド（iOS/Android対応） -->
-                <div class="install-guide" id="install-guide">
-                    <div class="install-icon">📲</div>
-                    <div class="install-text" id="install-text"></div>
-                    <button type="button" class="install-close" aria-label="Close">✕</button>
-                </div>
-            </div>
-
-            <div class="rules-box">
-                <h4>📋 ルール</h4>
-                <ul>
-                    <li><span class="hl">つるす</span> → <span class="hl">動かす</span>(任意) → <span class="hl">傾いたらOUT!</span>
-                    </li>
-                </ul>
-                <div class="rules-section">
-                    <h5>⚖️ つり合い</h5>
-                    <ul>
-                        <li>働き ＝ <span class="hl">きょり × 重さ</span></li>
-                        <li><span class="hl">左</span> ＝ <span class="hl">右</span> でバランス</li>
-                    </ul>
-                </div>
-                <div class="rules-section">
-                    <h5>🚫 制限</h5>
-                    <ul>
-                        <li><span class="red">隣はNG</span>（-1⇔+1も）</li>
-                        <li><span class="red">今つるした場所×</span></li>
-                        <li>1箇所に<span class="yellow">最大6個</span>まで</li>
-                    </ul>
-                </div>
-                <div class="rules-section">
-                    <h5>🏆 勝利条件</h5>
-                    <ul>
-                        <li>他が全員OUT or 生存時<span class="yellow">ポイント1位</span></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 結果画面 -->
-    <div class="overlay hidden" id="result-overlay">
-        <div class="result-container">
-            <div class="result-icon" id="result-icon">🏆</div>
-            <div class="result-title win" id="result-title">VICTORY!</div>
-            <div class="result-detail" id="result-detail"></div>
-            <button type="button" class="result-btn">RETRY</button>
-        </div>
-    </div>
-
-    <!-- ルールモーダル -->
-    <div class="help-modal hidden" id="help-modal">
-        <div class="help-content">
-            <div class="help-title">📖 くわしいルール</div>
-            <div class="help-section">
-                <h5>🎮 ターンの流れ</h5>
-                <p>① つるす（必須）：ストックから配置<br>
-                    ② うごかす（任意）：おもりを移動<br>
-                    ③ はんてい：つり合いチェック→傾いたら脱落！</p>
-            </div>
-            <div class="help-section">
-                <h5>🎯 得点計算（全員生存時）</h5>
-                <p>得点＝支点からのきょり × おもりの数 × 10<br>
-                    外側はハイリスク・ハイリターン！</p>
-            </div>
-            <div class="help-section">
-                <h5>🔗 つながり移動</h5>
-                <p>つかんだおもりとその下のおもり全部が一緒に動く！<br>
-                    例：3個積みの真ん中をつかむ→計2個が移動</p>
-            </div>
-            <div class="help-section">
-                <h5>🚫 制限</h5>
-                <p>・隣のマスには移動できない（-1⇔+1も隣）<br>
-                    ・今吊るした位置からは動かせない<br>
-                    ・1箇所に最大6個まで（×マークで表示）</p>
-            </div>
-            <button type="button" class="help-close">閉じる</button>
-        </div>
-    </div>
-
-    <!-- 終了確認モーダル -->
-    <div class="help-modal hidden" id="exit-modal">
-        <div class="help-content" style="text-align:center;">
-            <div class="help-title">🚪 ゲーム終了？</div>
-            <div class="help-section">
-                <p style="margin-bottom:20px;">タイトルに戻る？</p>
-                <div style="display:flex;gap:12px;justify-content:center;">
-                    <button type="button" class="result-btn"
-                        style="padding:12px 24px;background:var(--neon-red);border-color:var(--neon-red);color:#fff;">EXIT</button>
-                    <button type="button" class="help-close" style="margin:0;padding:12px 24px;">BACK</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 学習モーダル -->
-    <div class="learn-modal hidden" id="learn-modal">
-        <div class="learn-content">
-            <div class="learn-title">📚 てこのつり合いを学ぼう</div>
-
-            <div class="learn-section">
-                <h5>🔬 てこの3つの点</h5>
-                <div class="diagram">
-                    <div class="diagram-item">
-                        <div class="icon">📍</div>
-                        <div class="label">支点</div>
-                        <div class="desc">てこを支える点</div>
-                    </div>
-                    <div class="diagram-item">
-                        <div class="icon">✋</div>
-                        <div class="label">力点</div>
-                        <div class="desc">力を加える点</div>
-                    </div>
-                    <div class="diagram-item">
-                        <div class="icon">📦</div>
-                        <div class="label">作用点</div>
-                        <div class="desc">力が働く点</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="learn-section">
-                <h5>⚖️ てこがつり合うとき</h5>
-                <p>てこがつり合うとき、左右で「てこをかたむけるはたらき」が等しくなります：</p>
-                <div class="big-formula">
-                    <div class="main">左うで×おもり = 右うで×おもり</div>
-                    <div class="sub">（支点からのきょり × おもりの重さ）</div>
-                </div>
-                <p>例：<br>
-                    左うで：きょり3に20gのおもり → 3×20 = 60<br>
-                    右うで：きょり2に30gのおもり → 2×30 = 60<br>
-                    → 60＝60で、つり合う！</p>
-            </div>
-
-            <div class="learn-section">
-                <h5>🔧 身の回りのてこ</h5>
-                <p>てこの原理は日常生活のいろんな道具に使われています：</p>
-                <div class="examples">
-                    <span class="example-item">✂️ はさみ</span>
-                    <span class="example-item">🔨 くぎ抜き</span>
-                    <span class="example-item">🥢 ピンセット</span>
-                    <span class="example-item">🔧 ペンチ</span>
-                    <span class="example-item">📎 ホチキス</span>
-                    <span class="example-item">🧹 ほうき</span>
-                </div>
-            </div>
-
-            <div class="learn-section">
-                <h5>🎯 学習のめあて</h5>
-                <p>・てこがつり合う条件を理解する<br>
-                    ・「てこをかたむけるはたらき」を計算できる<br>
-                    ・身の回りのてこの例を見つけられる</p>
-            </div>
-
-            <button type="button" class="help-close">閉じる</button>
-        </div>
-    </div>
-
-    <!-- ヘッダー -->
-    <div class="header">
-        <div class="game-title">LEVER MASTER</div>
-        <div class="header-icons">
-            <button type="button" class="header-icon sound" id="sound-btn" title="Sound"
-                aria-label="Toggle sound">🔊</button>
-            <button type="button" class="header-icon learn" title="Learn"
-                aria-label="Learning guide">📚</button>
-            <button type="button" class="header-icon help" title="Rules"
-                aria-label="Game rules">❓</button>
-            <button type="button" class="header-icon exit" id="exit-btn" title="Exit"
-                aria-label="Exit game">🚪</button>
-        </div>
-    </div>
-
-    <!-- プレイヤーパネル: 横並び -->
-    <div class="players-row">
-        <div class="player-panel blue active" id="panel-blue">
-            <span class="p-icon">⚡</span>
-            <span class="p-name" id="name-blue">YOU</span>
-            <span class="p-stock"><span class="dot blue"></span><span id="stock-blue">0</span></span>
-            <span class="p-pts"><span id="points-blue">0</span>pt</span>
-        </div>
-        <div class="player-panel yellow" id="panel-yellow">
-            <span class="p-icon">⭐</span>
-            <span class="p-name" id="name-yellow">CPU</span>
-            <span class="p-stock"><span class="dot yellow"></span><span id="stock-yellow">0</span></span>
-            <span class="p-pts"><span id="points-yellow">0</span>pt</span>
-        </div>
-        <div class="player-panel red" id="panel-red">
-            <span class="p-icon">🔥</span>
-            <span class="p-name" id="name-red">CPU</span>
-            <span class="p-stock"><span class="dot red"></span><span id="stock-red">0</span></span>
-            <span class="p-pts"><span id="points-red">0</span>pt</span>
-        </div>
-        <div class="player-panel green" id="panel-green">
-            <span class="p-icon">🍀</span>
-            <span class="p-name" id="name-green">CPU</span>
-            <span class="p-stock"><span class="dot green"></span><span id="stock-green">0</span></span>
-            <span class="p-pts"><span id="points-green">0</span>pt</span>
-        </div>
-    </div>
-
-    <canvas id="game-canvas"></canvas>
-
-    <div class="game-hint" id="game-hint" role="status" aria-live="polite">
-        <button type="button" class="hint-close" aria-label="Close hint">✕</button>
-        <div class="hint-text" id="hint-text">ドラッグして置こう！</div>
-        <div class="hint-sub" id="hint-sub">光っている場所へ</div>
-    </div>
-
-    <div class="bottom-panel">
-        <div class="game-bar">
-            <span class="moment-group">
-                <span class="moment-label">L</span>
-                <span class="moment left" id="m-left">30</span>
-            </span>
-            <span class="balance-icon balanced" id="balance-icon">⚖️</span>
-            <span class="moment-group">
-                <span class="moment right" id="m-right">30</span>
-                <span class="moment-label">R</span>
-            </span>
-            <span class="divider">│</span>
-            <span class="phase-badge hang" id="phase-badge" role="status" aria-live="assertive">🎯 HANG</span>
-            <button type="button" class="action-btn hidden" id="btn-redo"
-                aria-label="Redo placement">🔄</button>
-            <button type="button" class="action-btn hidden" id="btn-pass"
-                aria-label="Skip turn">SKIP</button>
-        </div>
-    </div>
-
-    <!-- Performance Monitor (optional, enable with ?perfmon=1 or window.enablePerfMon()) -->
-    <script type="module" src="src/js/performance-monitor.js"></script>
-
-    <!-- App Script -->
     <script type="module" src="src/js/main.js"></script>
+</head>
+<body>
+<div id="app">
 
-    <!-- Service Worker Registration with Auto-Update -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            // リロードループ防止フラグ
-            let isReloading = false;
+    <!-- ホーム -->
+    <section id="screen-home" class="screen home">
+        <header class="home-head">
+            <svg class="home-logo" viewBox="0 0 120 70" aria-hidden="true">
+                <rect x="6" y="20" width="108" height="8" rx="4" class="logo-beam"/>
+                <path d="M60 28 L48 62 H72 Z" class="logo-stand"/>
+                <circle cx="60" cy="24" r="4" class="logo-pivot"/>
+                <line x1="20" y1="28" x2="20" y2="38" class="logo-string"/>
+                <rect x="12" y="38" width="16" height="16" rx="3" class="logo-w1"/>
+                <line x1="96" y1="28" x2="96" y2="36" class="logo-string"/>
+                <rect x="90" y="36" width="12" height="12" rx="3" class="logo-w2"/>
+                <line x1="84" y1="28" x2="84" y2="36" class="logo-string"/>
+                <rect x="78" y="36" width="12" height="12" rx="3" class="logo-w2"/>
+            </svg>
+            <h1 tabindex="-1">てこマスター</h1>
+            <p class="tagline">きょり <b>×</b> 重さ で、てこをつり合わせよう</p>
+            <span class="pill">小6 理科「てこのはたらき」</span>
+        </header>
 
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => {
-                        console.log('SW registered:', reg.scope);
+        <nav class="modes" aria-label="あそびかたをえらぶ">
+            <button type="button" class="mode-card mode-lab" data-go="lab">
+                <span class="mode-step">STEP 1</span>
+                <span class="mode-icon" aria-hidden="true">🧪</span>
+                <span class="mode-name">じっけん</span>
+                <span class="mode-desc">おもりを自由につるして、つり合うしくみを調べよう</span>
+            </button>
+            <button type="button" class="mode-card mode-puzzle" data-go="puzzles">
+                <span class="mode-step">STEP 2</span>
+                <span class="mode-icon" aria-hidden="true">🧩</span>
+                <span class="mode-name">もんだい</span>
+                <span class="mode-desc">予想してから手をはなそう。全<span data-puzzle-count></span>問</span>
+                <span class="mode-progress" data-puzzle-progress></span>
+            </button>
+            <button type="button" class="mode-card mode-battle" data-go="setup">
+                <span class="mode-step">STEP 3</span>
+                <span class="mode-icon" aria-hidden="true">⚖️</span>
+                <span class="mode-name">たいせん</span>
+                <span class="mode-desc">2〜4人・CPUとも。かたむけたらアウト！</span>
+            </button>
+        </nav>
 
-                        // 定期的に更新をチェック（30分ごと）
-                        setInterval(() => {
-                            reg.update().catch(err => console.warn('SW update check failed:', err));
-                        }, 30 * 60 * 1000);
+        <footer class="home-foot">
+            <button type="button" class="chip-btn" data-open="dlg-learn">📖 てこのきほん</button>
+            <button type="button" class="chip-btn" data-open="dlg-rules">❓ たいせんのルール</button>
+            <button type="button" class="chip-btn" data-open="dlg-settings">⚙️ せってい</button>
+        </footer>
+        <p class="install-tip" id="install-tip" hidden></p>
+    </section>
 
-                        // 新しいService Workerがインストールされた時
-                        reg.addEventListener('updatefound', () => {
-                            const newWorker = reg.installing;
-                            if (!newWorker) return;
-                            console.log('SW update found, installing...');
+    <!-- もんだい一覧 -->
+    <section id="screen-puzzles" class="screen list" hidden>
+        <header class="topbar">
+            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる">←</button>
+            <div class="topbar-title"><h2 tabindex="-1">もんだい</h2><p class="topbar-sub" id="puzzle-total"></p></div>
+        </header>
+        <div class="list-body" id="puzzle-list"></div>
+    </section>
 
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // 新バージョンがインストールされ、既存のコントローラーがある場合
-                                    console.log('New SW installed, requesting activation...');
-                                    // skipWaitingを要求して即座にアクティベート
-                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                }
-                            });
-                        });
-                    })
-                    .catch(err => console.warn('SW registration failed:', err));
+    <!-- たいせんの準備 -->
+    <section id="screen-setup" class="screen list" hidden>
+        <header class="topbar">
+            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる">←</button>
+            <div class="topbar-title"><h2 tabindex="-1">たいせんの準備</h2><p class="topbar-sub">だれが参加する？</p></div>
+            <button type="button" class="icon-btn" data-open="dlg-rules" aria-label="たいせんのルール">❓</button>
+        </header>
+        <div class="list-body">
+            <div class="seats" id="seats"></div>
+            <div class="setup-options">
+                <fieldset class="option">
+                    <legend>1人のおもりの数</legend>
+                    <div class="seg" id="opt-stock" role="radiogroup"></div>
+                </fieldset>
+                <fieldset class="option">
+                    <legend>つり合うヒント</legend>
+                    <div class="seg" id="opt-hints" role="radiogroup"></div>
+                </fieldset>
+            </div>
+            <div class="setup-start">
+                <p class="setup-note" id="setup-note"></p>
+                <button type="button" class="btn btn-primary btn-xl" id="btn-start">はじめる</button>
+            </div>
+        </div>
+    </section>
 
-                // コントローラーが変わった時（新SWがアクティブになった時）のみリロード
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    console.log('SW controller changed');
-                    // リロードループ防止
-                    if (isReloading) return;
-                    isReloading = true;
+    <!-- プレイ画面（じっけん・もんだい・たいせん共通） -->
+    <section id="screen-play" class="screen play" hidden>
+        <header class="topbar">
+            <button type="button" class="icon-btn" data-action="back" aria-label="もどる">←</button>
+            <div class="topbar-title">
+                <h2 id="play-title" tabindex="-1"></h2>
+                <p class="topbar-sub" id="play-sub"></p>
+            </div>
+            <button type="button" class="icon-btn" id="play-help" data-open="dlg-learn" aria-label="てこのきほん">📖</button>
+            <button type="button" class="icon-btn" data-open="dlg-settings" aria-label="せってい">⚙️</button>
+        </header>
+        <div class="players" id="players" hidden></div>
+        <div class="stage" id="stage">
+            <svg id="lever" class="lever" role="group" aria-label="実験用てこ"></svg>
+            <p class="stage-note" id="stage-note"></p>
+            <div class="banner" id="banner" aria-hidden="true"></div>
+        </div>
+        <div class="readout" id="readout">
+            <div class="side side-left" role="status">
+                <div class="side-name">左うで <small>のはたらき</small></div>
+                <div class="formula"></div>
+                <div class="bar"><span></span></div>
+            </div>
+            <div class="verdict" data-state="equal"></div>
+            <div class="side side-right" role="status">
+                <div class="side-name">右うで <small>のはたらき</small></div>
+                <div class="formula"></div>
+                <div class="bar"><span></span></div>
+            </div>
+        </div>
+        <div class="dock" id="dock"></div>
+    </section>
+</div>
 
-                    // スタート画面またはスプラッシュ画面なら即リロード
-                    const startOverlay = document.getElementById('start-overlay');
-                    const splashScreen = document.getElementById('splash-screen');
-                    if ((startOverlay && !startOverlay.classList.contains('hidden')) ||
-                        (splashScreen && !splashScreen.classList.contains('hidden'))) {
-                        console.log('Reloading to apply update...');
-                        window.location.reload();
-                    } else {
-                        console.log('Update will be applied on next app start');
-                        isReloading = false;
-                    }
-                });
-            });
-        }
-    </script>
+<!-- てこのきほん -->
+<dialog id="dlg-learn" class="sheet" aria-labelledby="learn-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="learn-title">📖 てこのきほん</h2>
+        <button class="icon-btn" aria-label="とじる">✕</button>
+    </form>
+    <div class="sheet-body learn">
+        <section>
+            <h3>てこの3つの点</h3>
+            <svg class="learn-fig" viewBox="0 0 360 160" role="img" aria-label="棒を支点でささえ、力点を手でおし下げると、作用点のおもりが持ち上がる図">
+                <defs>
+                    <marker id="arr-force" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fig-head-force"/></marker>
+                    <marker id="arr-lift" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fig-head-lift"/></marker>
+                </defs>
+                <rect x="20" y="70" width="320" height="10" rx="5" class="fig-bar"/>
+                <path d="M150 80 L132 114 H168 Z" class="fig-fulcrum"/>
+                <rect x="42" y="42" width="36" height="28" rx="5" class="fig-load"/>
+                <line x1="60" y1="36" x2="60" y2="10" class="fig-lift" marker-end="url(#arr-lift)"/>
+                <line x1="310" y1="22" x2="310" y2="60" class="fig-force" marker-end="url(#arr-force)"/>
+                <text x="60" y="134" class="fig-label">作用点</text>
+                <text x="60" y="150" class="fig-note">ものに力がはたらく</text>
+                <text x="150" y="134" class="fig-label">支点</text>
+                <text x="150" y="150" class="fig-note">てこをささえる</text>
+                <text x="310" y="134" class="fig-label">力点</text>
+                <text x="310" y="150" class="fig-note">力を加える</text>
+            </svg>
+        </section>
+        <section>
+            <h3>てこをかたむけるはたらき</h3>
+            <p class="formula-card"><b>おもりの重さ</b> × <b>支点からのきょり</b></p>
+            <p>左うでと右うでで、この「はたらき」が<b>等しいとき</b>、てこは水平につり合います。</p>
+            <div class="example">
+                <div><span class="ex-side">左</span> 3 × 20g = <b>60</b></div>
+                <div class="ex-eq">＝</div>
+                <div><span class="ex-side">右</span> 2 × 30g = <b>60</b></div>
+            </div>
+            <p class="muted">いくつかつるしたときは、それぞれの「はたらき」をたし算します。</p>
+        </section>
+        <section>
+            <h3>身の回りのてこ</h3>
+            <ul class="tools">
+                <li><span class="tool-type">支点が<b>まん中</b></span>はさみ・くぎぬき・ペンチ</li>
+                <li><span class="tool-type">作用点が<b>まん中</b></span>せんぬき・空きかんつぶし</li>
+                <li><span class="tool-type">力点が<b>まん中</b></span>ピンセット・和ばさみ・トング</li>
+            </ul>
+            <p class="muted">支点から力点が遠いほど、小さな力で大きな力を出せます。</p>
+        </section>
+    </div>
+</dialog>
+
+<!-- たいせんのルール -->
+<dialog id="dlg-rules" class="sheet" aria-labelledby="rules-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="rules-title">❓ たいせんのルール</h2>
+        <button class="icon-btn" aria-label="とじる">✕</button>
+    </form>
+    <div class="sheet-body rules">
+        <ol class="steps">
+            <li><b>つるす</b><span>自分のおもり（10g）を1つ、好きな場所につるす。</span></li>
+            <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
+            <li><b>はなす</b><span>手をはなして判定！ かたむいたら<em>アウト</em>（てこは元にもどる）。</span></li>
+        </ol>
+        <p class="rule-goal">🏆 全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
+        <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。</p>
+    </div>
+</dialog>
+
+<!-- せってい -->
+<dialog id="dlg-settings" class="sheet sheet-sm" aria-labelledby="settings-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="settings-title">⚙️ せってい</h2>
+        <button class="icon-btn" aria-label="とじる">✕</button>
+    </form>
+    <div class="sheet-body settings">
+        <label class="switch"><span>こうかおん</span><input type="checkbox" id="set-sfx"><i aria-hidden="true"></i></label>
+        <label class="switch"><span>BGM</span><input type="checkbox" id="set-bgm"><i aria-hidden="true"></i></label>
+        <fieldset class="option">
+            <legend>CPUのはやさ</legend>
+            <div class="seg" id="set-speed" role="radiogroup"></div>
+        </fieldset>
+        <button type="button" class="btn btn-ghost" id="btn-reset-progress">もんだいの記録をリセット</button>
+    </div>
+</dialog>
+
+<!-- 結果 -->
+<dialog id="dlg-result" class="sheet sheet-sm result" aria-labelledby="result-title">
+    <div class="result-head">
+        <div class="result-emoji" id="result-emoji" aria-hidden="true">🏆</div>
+        <h2 id="result-title"></h2>
+        <p id="result-sub" class="muted"></p>
+    </div>
+    <ol class="ranking" id="result-ranking"></ol>
+    <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="btn-result-home">ホームへ</button>
+        <button type="button" class="btn btn-primary" id="btn-result-again">もういちど</button>
+    </div>
+</dialog>
+
+<!-- かくにん -->
+<dialog id="dlg-confirm" class="sheet sheet-sm" aria-labelledby="confirm-title">
+    <div class="sheet-body">
+        <h2 id="confirm-title" class="confirm-title"></h2>
+    </div>
+    <form method="dialog" class="sheet-actions">
+        <button class="btn btn-ghost" value="no">つづける</button>
+        <button class="btn btn-danger" value="yes">やめる</button>
+    </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="visually-hidden" id="live" aria-live="polite"></div>
+<noscript><p class="noscript">このゲームを遊ぶには JavaScript を有効にしてください。</p></noscript>
 </body>
-
 </html>

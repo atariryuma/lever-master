@@ -1,0 +1,453 @@
+/**
+ * 実験用てこの SVG ビュー
+ *
+ * - うでの傾きはバネのアニメーション（左右のはたらきの差に応じて傾く）
+ * - 「ささえ」で手でおさえている状態を表現（はなすと結果がわかる）
+ * - タップ／ドラッグ／キーボードで、位置やおもりを選べる
+ */
+
+import { POSITIONS, findWeight, momentOf, positionLabel } from '../engine/lever.js';
+import { PLAYER_META } from '../players.js';
+import { heightOf, toneOf, weightIcon, weightShape } from './weight-art.js';
+
+const NS = 'http://www.w3.org/2000/svg';
+const W = 1000;
+const H = 560;
+const PX = 500; // 支点
+const PY = 130;
+const UNIT = 72; // 目盛り1つ分のきょり
+const BEAM_HALF = 462;
+const ATTACH_Y = PY + 22; // フックの下端（うでのローカル座標）
+const STRING = 16;
+const GAP = 2;
+const MAX_TILT = 10; // 度
+const TILT_SCALE = 50;
+
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+const el = (tag, attrs = {}, parent) => {
+    const node = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    parent?.appendChild(node);
+    return node;
+};
+
+export function tiltFor(diff) {
+    return -Math.tanh(diff / TILT_SCALE) * MAX_TILT;
+}
+
+function weightAria(weight, pos) {
+    const owner = weight.owner && PLAYER_META[weight.owner]
+        ? `${PLAYER_META[weight.owner].name}の`
+        : weight.owner === 'neutral' ? 'はじめからある' : '';
+    return `${owner}${weight.mass}gのおもり（${positionLabel(pos)}）`;
+}
+
+export class LeverView {
+    /**
+     * @param {SVGSVGElement} svg
+     * @param {{ onHookTap?:(pos:number)=>void, onWeightTap?:(id:string,pos:number)=>void,
+     *           onDrop?:(source:object,pos:number|null)=>void, onHover?:(pos:number|null)=>void,
+     *           canDrag?:(id:string)=>boolean }} handlers
+     */
+    constructor(svg, handlers = {}) {
+        this.svg = svg;
+        this.handlers = handlers;
+        this.angle = 0;
+        this.velocity = 0;
+        this.target = 0;
+        this.held = null;
+        this.weightNodes = new Map();
+        this.settleResolvers = [];
+        this.drag = null;
+        this.build();
+        this.bind();
+        this.loop = this.loop.bind(this);
+        this.frame = requestAnimationFrame(this.loop);
+    }
+
+    build() {
+        const svg = this.svg;
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="g-wood" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#e2b578"/><stop offset=".55" stop-color="#c98f4c"/><stop offset="1" stop-color="#a86f34"/>
+                </linearGradient>
+                <linearGradient id="g-floor" gradientUnits="userSpaceOnUse" x1="0" y1="${H - 22}" x2="0" y2="${H + 400}">
+                    <stop offset="0" stop-color="#e6dcc3"/><stop offset=".08" stop-color="#efe7d3"/><stop offset="1" stop-color="#efe7d3" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="g-metal" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#8794a6"/><stop offset=".45" stop-color="#cfd6df"/><stop offset="1" stop-color="#7a8698"/>
+                </linearGradient>
+            </defs>`;
+        // 床は画面のはしまでのばす（svg は overflow: visible）
+        el('rect', { class: 'stage-floor', x: -3000, y: H - 22, width: W + 6000, height: 3000 }, svg);
+
+        this.columns = el('g', { class: 'columns' }, svg);
+        this.columnNodes = new Map();
+        for (const pos of POSITIONS) {
+            const x = PX + pos * UNIT;
+            const col = el('g', { class: 'column' }, this.columns);
+            el('rect', { class: 'column-rect', x: x - UNIT / 2 + 3, y: 24, width: UNIT - 6, height: H - 50, rx: 14 }, col);
+            el('text', { class: 'column-mark', x, y: H - 40 }, col).textContent = '✓';
+            this.columnNodes.set(pos, col);
+        }
+
+        // 台
+        const stand = el('g', { class: 'stand' }, svg);
+        el('rect', { class: 'stand-post', x: PX - 9, y: PY, width: 18, height: H - 40 - PY }, stand);
+        el('path', { class: 'stand-base', d: `M${PX - 90} ${H - 22} L${PX - 60} ${H - 44} H${PX + 60} L${PX + 90} ${H - 22} Z` }, stand);
+        el('text', { class: 'stand-label', x: PX, y: H - 54 }, stand).textContent = '支点';
+
+        // 目盛り板（うでといっしょに動く針がさす）
+        const gauge = el('g', { class: 'gauge' }, svg);
+        const polar = (deg, r) => {
+            const a = (deg - 90) * Math.PI / 180;
+            return [PX + r * Math.cos(a), PY + r * Math.sin(a)];
+        };
+        const R = 76;
+        const SPAN = 24;
+        const [ax, ay] = polar(-SPAN, R);
+        const [bx, by] = polar(SPAN, R);
+        el('path', { class: 'gauge-plate', d: `M${PX} ${PY} L${ax} ${ay} A${R} ${R} 0 0 1 ${bx} ${by} Z` }, gauge);
+        for (let d = -20; d <= 20; d += 5) {
+            const [x1, y1] = polar(d, R - 4);
+            const [x2, y2] = polar(d, d === 0 ? R - 22 : R - 12);
+            el('line', { class: d === 0 ? 'gauge-zero' : 'gauge-tick', x1, y1, x2, y2 }, gauge);
+        }
+
+        // ささえ（手でおさえている）
+        this.stoppers = el('g', { class: 'stoppers' }, svg);
+        for (const sx of [PX - BEAM_HALF + 12, PX + BEAM_HALF - 12]) {
+            el('rect', { class: 'stopper', x: sx - 9, y: PY + 11, width: 18, height: H - 33 - PY - 11, rx: 4 }, this.stoppers);
+            el('rect', { class: 'stopper-cap', x: sx - 16, y: PY + 11, width: 32, height: 10, rx: 3 }, this.stoppers);
+        }
+
+        // うで
+        this.beam = el('g', { class: 'beam' }, svg);
+        el('rect', { class: 'beam-bar', x: PX - BEAM_HALF, y: PY - 11, width: BEAM_HALF * 2, height: 22, rx: 11 }, this.beam);
+        el('line', { class: 'needle', x1: PX, y1: PY, x2: PX, y2: PY - 66 }, this.beam);
+        for (const pos of POSITIONS) {
+            const x = PX + pos * UNIT;
+            el('rect', { class: 'beam-mark', x: x - 1.5, y: PY - 11, width: 3, height: 22 }, this.beam);
+            el('path', { class: 'hook', 'data-pos': pos, d: `M${x} ${PY + 11} v5 a5 5 0 1 0 5 5` }, this.beam);
+            el('text', { class: 'beam-num', x, y: PY - 20 }, this.beam).textContent = Math.abs(pos);
+        }
+        el('circle', { class: 'pivot', cx: PX, cy: PY, r: 9 }, this.beam);
+
+        // キーボード・スクリーンリーダー用の位置ボタン（透明・ポインターは素通し）
+        this.targets = el('g', { class: 'targets' }, svg);
+        this.targetNodes = new Map();
+        for (const pos of POSITIONS) {
+            const t = el('rect', {
+                class: 'target', x: PX + pos * UNIT - UNIT / 2, y: 0, width: UNIT, height: H,
+                tabindex: 0, role: 'button', 'data-pos': pos, 'aria-label': `${positionLabel(pos)}（支点からのきょり ${Math.abs(pos)}）`,
+            }, this.targets);
+            this.targetNodes.set(pos, t);
+        }
+
+        this.strings = el('g', { class: 'strings' }, svg);
+        this.weights = el('g', { class: 'weights' }, svg);
+    }
+
+    bind() {
+        this.onPointerDown = this.onPointerDown.bind(this);
+        this.onPointerMove = this.onPointerMove.bind(this);
+        this.onPointerUp = this.onPointerUp.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
+        this.svg.addEventListener('pointerdown', this.onPointerDown);
+        this.svg.addEventListener('keydown', this.onKeyDown);
+    }
+
+    destroy() {
+        cancelAnimationFrame(this.frame);
+        this.endDrag(null);
+        this.svg.removeEventListener('pointerdown', this.onPointerDown);
+        this.svg.removeEventListener('keydown', this.onKeyDown);
+    }
+
+    /**
+     * @param {{ board: object, held?: boolean, selectedId?: string|null,
+     *           targets?: Map<number,string>, newIds?: Set<string>, hover?: number|null,
+     *           interactive?: boolean }} view
+     */
+    render(view) {
+        this.board = view.board;
+        this.interactive = view.interactive !== false;
+        this.svg.classList.toggle('is-interactive', this.interactive);
+        this.setHeld(Boolean(view.held));
+        this.selectedId = view.selectedId ?? null;
+        this.targetStates = view.targets ?? new Map();
+        this.renderColumns(view.hover ?? null);
+        this.renderWeights(view.newIds ?? new Set());
+        this.updateTarget();
+        this.place();
+    }
+
+    renderColumns(hover) {
+        this.hover = hover;
+        for (const pos of POSITIONS) {
+            const state = this.targetStates.get(pos);
+            const col = this.columnNodes.get(pos);
+            col.setAttribute('class', `column${state ? ` is-${state}` : ''}${hover === pos ? ' is-hover' : ''}`);
+            const t = this.targetNodes.get(pos);
+            t.setAttribute('aria-disabled', String(!this.interactive || state === 'blocked'));
+        }
+    }
+
+    setHover(pos) {
+        if (pos === this.hover) return;
+        this.renderColumns(pos);
+        this.handlers.onHover?.(pos);
+    }
+
+    renderWeights(newIds) {
+        const seen = new Set();
+        for (const pos of POSITIONS) {
+            for (const weight of this.board[pos]) {
+                seen.add(weight.id);
+                let node = this.weightNodes.get(weight.id);
+                if (!node) {
+                    node = el('g', { 'data-id': weight.id }, this.weights);
+                    node.inner = el('g', {}, node);
+                    this.weightNodes.set(weight.id, node);
+                }
+                const key = `${weight.mass}|${weight.owner}|${weight.locked}`;
+                if (node.key !== key) {
+                    node.inner.innerHTML = weightShape(weight);
+                    el('rect', { class: 'w-hit', x: -30, y: -6, width: 60, height: heightOf(weight.mass) + 12 }, node.inner);
+                    node.key = key;
+                }
+                const movable = this.interactive && !weight.locked && (this.handlers.canDrag?.(weight.id) ?? false);
+                node.setAttribute('class', [
+                    'weight', toneOf(weight),
+                    weight.id === this.selectedId ? 'is-selected' : '',
+                    movable ? 'is-movable' : '',
+                    this.drag?.source.id === weight.id ? 'is-dragging' : '',
+                ].join(' '));
+                node.setAttribute('aria-label', weightAria(weight, pos));
+                if (movable) {
+                    node.setAttribute('tabindex', '0');
+                    node.setAttribute('role', 'button');
+                } else {
+                    node.removeAttribute('tabindex');
+                    node.removeAttribute('role');
+                }
+                if (newIds.has(weight.id) && !reduceMotion()) {
+                    node.inner.classList.remove('drop-in');
+                    void node.inner.getBBox?.();
+                    node.inner.classList.add('drop-in');
+                }
+            }
+        }
+        for (const [id, node] of this.weightNodes) {
+            if (!seen.has(id)) {
+                node.remove();
+                this.weightNodes.delete(id);
+            }
+        }
+    }
+
+    setHeld(held) {
+        if (held === this.held) return;
+        this.held = held;
+        this.stoppers.classList.toggle('is-released', !held);
+        this.updateTarget();
+    }
+
+    updateTarget() {
+        if (!this.board) return;
+        this.target = this.held ? 0 : tiltFor(momentOf(this.board).diff);
+        if (reduceMotion()) {
+            this.angle = this.target;
+            this.velocity = 0;
+        }
+    }
+
+    /** 傾きが落ち着くまで待つ */
+    settle() {
+        return new Promise(resolve => this.settleResolvers.push(resolve));
+    }
+
+    loop() {
+        this.frame = requestAnimationFrame(this.loop);
+        const delta = this.target - this.angle;
+        if (Math.abs(delta) > 0.01 || Math.abs(this.velocity) > 0.01) {
+            this.velocity = (this.velocity + delta * 0.06) * 0.84;
+            this.angle += this.velocity;
+            this.place();
+        } else if (this.settleResolvers.length) {
+            this.angle = this.target;
+            this.place();
+            this.settleResolvers.splice(0).forEach(r => r());
+        }
+    }
+
+    attachPoint(pos) {
+        const rad = this.angle * Math.PI / 180;
+        const lx = pos * UNIT;
+        const ly = ATTACH_Y - PY;
+        return {
+            x: PX + lx * Math.cos(rad) - ly * Math.sin(rad),
+            y: PY + lx * Math.sin(rad) + ly * Math.cos(rad),
+        };
+    }
+
+    /** うでの角度にあわせて、おもりとひもを配置 */
+    place() {
+        this.beam.setAttribute('transform', `rotate(${this.angle.toFixed(3)} ${PX} ${PY})`);
+        if (!this.board) return;
+        let strings = '';
+        for (const pos of POSITIONS) {
+            const stack = this.board[pos];
+            if (!stack.length) continue;
+            const { x, y } = this.attachPoint(pos);
+            let top = y + STRING;
+            let lastTop = top;
+            for (const weight of stack) {
+                const node = this.weightNodes.get(weight.id);
+                node?.setAttribute('transform', `translate(${x.toFixed(2)} ${top.toFixed(2)})`);
+                lastTop = top;
+                top += heightOf(weight.mass) + GAP;
+            }
+            strings += `M${x.toFixed(2)} ${y.toFixed(2)} V${(lastTop + 4).toFixed(2)} `;
+        }
+        if (!this.stringPath) this.stringPath = el('path', { class: 'string' }, this.strings);
+        this.stringPath.setAttribute('d', strings);
+    }
+
+    /* ---------- 入力 ---------- */
+
+    toSvgPoint(clientX, clientY) {
+        const pt = this.svg.createSVGPoint();
+        pt.x = clientX;
+        pt.y = clientY;
+        const ctm = this.svg.getScreenCTM();
+        return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+    }
+
+    /** 画面座標から一番近い位置（範囲外なら null） */
+    positionAt(clientX, clientY) {
+        const rect = this.svg.getBoundingClientRect();
+        const pad = 24;
+        if (clientX < rect.left - pad || clientX > rect.right + pad
+            || clientY < rect.top - pad || clientY > rect.bottom + pad) return null;
+        const { x } = this.toSvgPoint(clientX, clientY);
+        const n = Math.round((x - PX) / UNIT);
+        if (n === 0) return x < PX ? -1 : 1;
+        return POSITIONS.includes(n) ? n : null;
+    }
+
+    onPointerDown(e) {
+        if (!this.interactive || e.button > 0 || this.drag) return;
+        const weightNode = e.target.closest?.('.weight');
+        const id = weightNode?.dataset.id ?? null;
+        this.press = { x: e.clientX, y: e.clientY, id, pointerId: e.pointerId };
+        window.addEventListener('pointermove', this.onPointerMove);
+        window.addEventListener('pointerup', this.onPointerUp);
+        window.addEventListener('pointercancel', this.onPointerUp);
+    }
+
+    onPointerMove(e) {
+        if (this.drag) {
+            this.moveGhost(e.clientX, e.clientY);
+            this.setHover(this.positionAt(e.clientX, e.clientY));
+            return;
+        }
+        const p = this.press;
+        if (!p || !p.id) return;
+        if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return;
+        if (!(this.handlers.canDrag?.(p.id))) return;
+        const found = findWeight(this.board, p.id);
+        if (!found || found.weight.locked) return;
+        this.startDrag({ kind: 'weight', id: p.id, weight: found.weight }, e);
+    }
+
+    onPointerUp(e) {
+        window.removeEventListener('pointermove', this.onPointerMove);
+        window.removeEventListener('pointerup', this.onPointerUp);
+        window.removeEventListener('pointercancel', this.onPointerUp);
+        if (this.drag) {
+            const pos = e.type === 'pointercancel' ? null : this.positionAt(e.clientX, e.clientY);
+            this.endDrag(pos);
+            return;
+        }
+        const p = this.press;
+        this.press = null;
+        if (!p || e.type === 'pointercancel') return;
+        if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) return;
+        if (p.id) {
+            const found = findWeight(this.board, p.id);
+            if (found) {
+                this.handlers.onWeightTap?.(p.id, found.pos);
+                return;
+            }
+        }
+        const pos = this.positionAt(e.clientX, e.clientY);
+        if (pos !== null) this.handlers.onHookTap?.(pos);
+    }
+
+    onKeyDown(e) {
+        const target = e.target;
+        if (target.classList?.contains('target')) {
+            const pos = Number(target.dataset.pos);
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.handlers.onHookTap?.(pos);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const i = POSITIONS.indexOf(pos) + (e.key === 'ArrowLeft' ? -1 : 1);
+                this.targetNodes.get(POSITIONS[Math.max(0, Math.min(POSITIONS.length - 1, i))])?.focus();
+            }
+        } else if (target.classList?.contains('weight') && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            const found = findWeight(this.board, target.dataset.id);
+            if (found) this.handlers.onWeightTap?.(target.dataset.id, found.pos);
+        }
+    }
+
+    focusPosition(pos) {
+        this.targetNodes.get(pos)?.focus();
+    }
+
+    /**
+     * ドラッグ開始（トレイからの新しいおもりにも使う）
+     * @param {{kind:'weight'|'new', id?:string, weight:object}} source
+     */
+    startDrag(source, e) {
+        if (this.drag) return;
+        const scale = this.svg.getBoundingClientRect().width / W;
+        const ghost = document.createElement('div');
+        ghost.className = 'drag-ghost';
+        ghost.innerHTML = weightIcon(source.weight, Math.max(0.6, scale) * 1.08);
+        document.body.appendChild(ghost);
+        this.drag = { source, ghost };
+        if (source.kind === 'weight') this.weightNodes.get(source.id)?.classList.add('is-dragging');
+        if (source.kind === 'new') {
+            window.addEventListener('pointermove', this.onPointerMove);
+            window.addEventListener('pointerup', this.onPointerUp);
+            window.addEventListener('pointercancel', this.onPointerUp);
+        }
+        this.moveGhost(e.clientX, e.clientY);
+        this.setHover(this.positionAt(e.clientX, e.clientY));
+    }
+
+    moveGhost(x, y) {
+        const g = this.drag?.ghost;
+        if (!g) return;
+        g.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    endDrag(pos) {
+        if (!this.drag) return;
+        const { source, ghost } = this.drag;
+        ghost.remove();
+        this.drag = null;
+        this.press = null;
+        if (source.kind === 'weight') this.weightNodes.get(source.id)?.classList.remove('is-dragging');
+        this.setHover(null);
+        this.handlers.onDrop?.(source, pos);
+    }
+}

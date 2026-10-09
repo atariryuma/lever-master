@@ -1,0 +1,564 @@
+/**
+ * たいせんモード：準備画面とプレイ
+ */
+
+import {
+    alivePlayers, canMoveTo, createBattle, currentPlayer, hang, hangablePositions, legalMoves,
+    move, moveDestinations, moveRuleFor, playerById, pointsOf, release, undoHang, undoMove,
+} from '../engine/battle.js';
+import { CPU_LEVELS, planTurn } from '../engine/ai.js';
+import {
+    POSITIONS, canHang, distanceOf, findWeight, isAdjacent, isBalanced, moveWeight, positionLabel,
+} from '../engine/lever.js';
+import { PLAYER_META, SEAT_IDS } from '../players.js';
+import {
+    $, SessionEnded, announce, banner, createSession, escapeHtml, hideBanner, renderReadout, toast,
+} from '../ui.js';
+import { play } from '../audio.js';
+import { load, save, settings } from '../storage.js';
+import { bindTrayDrag, segmented } from '../widgets.js';
+import { weightIcon } from '../view/weight-art.js';
+
+export const MODE = 'battle';
+
+const SETUP_DEFAULT = {
+    seats: [
+        { kind: 'human', level: 'normal' },
+        { kind: 'cpu', level: 'normal' },
+        { kind: 'cpu', level: 'normal' },
+        { kind: 'cpu', level: 'normal' },
+    ],
+    stock: '4',
+    hints: 'off',
+};
+
+const SPEED = { slow: 1.6, normal: 1, fast: 0.45 };
+
+let app;
+const setup = load('battleSetup', structuredClone(SETUP_DEFAULT));
+let session;
+let config;
+let state;
+let ui;
+
+/* ======================== 準備画面 ======================== */
+
+export function renderSetup(appCtx) {
+    app = appCtx;
+    const root = $('#seats');
+    root.innerHTML = SEAT_IDS.map((id, i) => `
+        <div class="seat c-${id}" data-seat="${i}">
+            <div class="seat-head">
+                <span class="seat-chip" aria-hidden="true">${PLAYER_META[id].symbol}</span>
+                <b>${PLAYER_META[id].name}</b><span class="seat-color">${PLAYER_META[id].color}</span>
+            </div>
+            <div class="seg seat-kind" role="radiogroup" aria-label="${PLAYER_META[id].name} の参加"></div>
+            <div class="seg seg-sm seat-level" role="radiogroup" aria-label="${PLAYER_META[id].name} のCPUのつよさ"></div>
+        </div>`).join('');
+
+    SEAT_IDS.forEach((_id, i) => {
+        const seatEl = root.querySelector(`[data-seat="${i}"]`);
+        const seat = setup.seats[i] ?? { kind: 'none', level: 'normal' };
+        setup.seats[i] = seat;
+        const levelBox = seatEl.querySelector('.seat-level');
+        const syncSeat = () => {
+            levelBox.hidden = seat.kind !== 'cpu';
+            seatEl.classList.toggle('is-off', seat.kind === 'none');
+            validateSetup();
+            save('battleSetup', setup);
+        };
+        segmented(seatEl.querySelector('.seat-kind'), {
+            options: [['human', '🙂 ひと'], ['cpu', '🤖 CPU'], ['none', 'なし']],
+            value: seat.kind,
+            onChange: v => {
+                seat.kind = v;
+                syncSeat();
+            },
+        });
+        segmented(levelBox, {
+            options: Object.entries(CPU_LEVELS).map(([k, v]) => [k, v.label]),
+            value: seat.level ?? 'normal',
+            onChange: v => {
+                seat.level = v;
+                save('battleSetup', setup);
+            },
+        });
+        syncSeat();
+    });
+
+    segmented($('#opt-stock'), {
+        options: [['3', '3こ'], ['4', '4こ'], ['5', '5こ']],
+        value: String(setup.stock),
+        onChange: v => {
+            setup.stock = v;
+            save('battleSetup', setup);
+        },
+    });
+    segmented($('#opt-hints'), {
+        options: [['off', 'なし'], ['on', 'あり（✓で教える）']],
+        value: setup.hints,
+        onChange: v => {
+            setup.hints = v;
+            save('battleSetup', setup);
+        },
+    });
+    $('#btn-start').onclick = () => {
+        play('tap');
+        app.go('battle', { config: structuredClone(setup) });
+    };
+    validateSetup();
+}
+
+function validateSetup() {
+    const joined = setup.seats.filter(s => s.kind !== 'none');
+    const ok = joined.length >= 2;
+    $('#btn-start').disabled = !ok;
+    const humans = joined.filter(s => s.kind === 'human').length;
+    $('#setup-note').textContent = !ok
+        ? '2人以上えらんでね'
+        : humans === 0 ? 'CPUどうしの対戦を見るよ' : `${joined.length}人で対戦（ひと ${humans}人）`;
+}
+
+/* ======================== プレイ ======================== */
+
+const humanCount = () => state.players.filter(p => p.kind === 'human').length;
+
+function nameOf(id) {
+    const p = playerById(state, id);
+    const base = PLAYER_META[id].name;
+    if (p.kind === 'cpu') return `${base}（CPU）`;
+    return humanCount() === 1 ? 'あなた' : base;
+}
+
+const isHumanTurn = () => state.phase !== 'over' && currentPlayer(state).kind === 'human' && !ui.busy;
+
+export function enter(appCtx, params) {
+    app = appCtx;
+    config = params.config ?? structuredClone(setup);
+    session = createSession();
+    const seats = config.seats.map(s => (s.kind === 'none' ? null : { kind: s.kind, level: s.level }));
+    const joined = seats.map((s, i) => (s ? i : -1)).filter(i => i >= 0);
+    const firstSeat = joined[Math.floor(Math.random() * joined.length)];
+    state = createBattle({ seats, stock: Number(config.stock), firstSeat });
+    ui = { selected: null, newIds: new Set(), busy: false, releasing: false, fast: false };
+
+    $('#play-title').textContent = '⚖️ たいせん';
+    $('#players').hidden = false;
+    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag };
+    render();
+    run(async () => {
+        ui.busy = true;
+        render();
+        const order = state.order.map(id => PLAYER_META[id].name).join(' → ');
+        setStatus(`じゅんばん：${order}`);
+        await session.wrap(banner('たいせん スタート！', { sub: `じゅんばん ${order}`, duration: 1600 }));
+        ui.busy = false;
+        await startTurn();
+    });
+}
+
+export function leave() {
+    session?.end();
+    hideBanner();
+    app.view.handlers = {};
+}
+
+export async function back() {
+    if (state.phase === 'over' || await app.confirm('たいせんをやめて、準備画面にもどりますか？')) {
+        app.go('setup');
+    }
+}
+
+/** 画面を離れたときの中断エラーは無視する */
+function run(fn) {
+    fn().catch(err => {
+        if (!(err instanceof SessionEnded)) throw err;
+    });
+}
+
+const wait = ms => session.sleep(ms * (SPEED[settings.cpuSpeed] ?? 1) * (ui.fast ? 0.3 : 1));
+
+function setStatus(text) {
+    $('#play-sub').textContent = text;
+    announce(text);
+}
+
+async function startTurn() {
+    if (state.phase === 'over') {
+        await showResult();
+        return;
+    }
+    const p = currentPlayer(state);
+    ui.selected = null;
+    ui.fast = false;
+    play('turn');
+    if (p.kind === 'cpu') {
+        await runCpu();
+        return;
+    }
+    setStatus(p.stock > 0
+        ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
+        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「はなす」`);
+    render();
+    banner(`${nameOf(p.id)}のばん`, { tone: p.id, duration: 800 });
+}
+
+async function runCpu() {
+    ui.busy = true;
+    const p = currentPlayer(state);
+    const name = nameOf(p.id);
+    setStatus(`🤖 ${name}がかんがえ中…`);
+    render();
+    await wait(900);
+    const plan = planTurn(state, p.level);
+    if (plan.hang !== null) {
+        state = hang(state, plan.hang);
+        ui.newIds.add(state.hung.weightId);
+        play('drop');
+        setStatus(`${name}が ${positionLabel(plan.hang)} につるした`);
+        render();
+        await wait(850);
+    }
+    if (plan.move) {
+        const from = findWeight(state.board, plan.move.weightId).pos;
+        ui.selected = { id: plan.move.weightId, rehang: false };
+        render();
+        await wait(650);
+        state = move(state, plan.move.weightId, plan.move.to);
+        ui.selected = null;
+        play('move');
+        setStatus(`${name}が ${positionLabel(from)} → ${positionLabel(plan.move.to)} へ動かした`);
+        render();
+        await wait(750);
+    }
+    await releaseHands();
+}
+
+async function releaseHands() {
+    ui.busy = true;
+    ui.releasing = true;
+    ui.selected = null;
+    const p = currentPlayer(state);
+    play('release');
+    render();
+    await Promise.all([session.wrap(app.view.settle()), wait(800)]);
+    const result = release(state);
+    const { left, right } = result.moment;
+    if (result.balanced) {
+        play('safe');
+        await session.wrap(banner('セーフ！', { tone: 'success', sub: `左 ${left} ＝ 右 ${right}`, duration: 1000 }));
+    } else {
+        play('out');
+        setStatus(`${nameOf(p.id)}はアウト（左 ${left}、右 ${right}）`);
+        await session.wrap(banner(`${nameOf(p.id)} アウト…`, { tone: 'danger', sub: `左 ${left} ≠ 右 ${right}`, duration: 1700 }));
+    }
+    state = result.state;
+    ui.releasing = false;
+    ui.busy = false;
+    render();
+    await startTurn();
+}
+
+/* ---------- 人の操作 ---------- */
+
+function selectedIsRehang() {
+    return ui.selected?.rehang === true;
+}
+
+function canDrag(id) {
+    if (!isHumanTurn() || state.phase !== 'move') return false;
+    if (state.hung?.weightId === id && !state.moved) return true;
+    return moveRuleFor(state, id).ok;
+}
+
+function doHang(pos) {
+    if (!canHang(state.board, pos)) {
+        toast('そこはいっぱいだよ（6こまで）', 'warn');
+        play('error');
+        return;
+    }
+    state = hang(state, pos);
+    ui.newIds.add(state.hung.weightId);
+    play('drop');
+    setStatus(`${positionLabel(pos)} につるした。1つ動かすか、そのまま「はなす」`);
+}
+
+function rehang(pos) {
+    if (pos === state.hung.pos) return;
+    const base = undoHang(state);
+    if (!canHang(base.board, pos)) {
+        toast('そこはいっぱいだよ', 'warn');
+        return;
+    }
+    state = hang(base, pos);
+    ui.newIds.add(state.hung.weightId);
+    play('drop');
+    setStatus(`${positionLabel(pos)} につるしなおした`);
+}
+
+function explainMoveBlock(id, to) {
+    const from = findWeight(state.board, id).pos;
+    if (to === from) return null;
+    if (isAdjacent(from, to)) return 'となりの場所には動かせないよ';
+    if (!canHang(state.board, to)) return 'そこはいっぱいだよ';
+    return '動かせないよ';
+}
+
+function tryMove(id, to) {
+    if (canMoveTo(state, id, to)) {
+        const from = findWeight(state.board, id).pos;
+        state = move(state, id, to);
+        play('move');
+        setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ動かした。「はなす」で判定！`);
+        ui.selected = null;
+        return;
+    }
+    const reason = explainMoveBlock(id, to);
+    if (reason) {
+        toast(reason, 'warn');
+        play('error');
+    } else {
+        ui.selected = null;
+    }
+}
+
+function onHookTap(pos) {
+    if (!isHumanTurn()) return;
+    if (state.phase === 'hang') {
+        doHang(pos);
+    } else if (ui.selected) {
+        if (selectedIsRehang()) {
+            rehang(pos);
+            ui.selected = null;
+        } else {
+            tryMove(ui.selected.id, pos);
+        }
+    } else {
+        toast(state.moved ? '動かせるのは1つだけ。「はなす」で判定しよう' : '動かしたいおもりをタップしてね');
+    }
+    render();
+}
+
+function onWeightTap(id, pos) {
+    if (!isHumanTurn()) return;
+    if (state.phase === 'hang') {
+        doHang(pos);
+        render();
+        return;
+    }
+    // 選んでいるおもりがあり、別の場所のおもりをタップ → その場所へ
+    if (ui.selected && ui.selected.id !== id && findWeight(state.board, ui.selected.id).pos !== pos) {
+        onHookTap(pos);
+        return;
+    }
+    if (ui.selected?.id === id) {
+        ui.selected = null;
+    } else if (state.hung?.weightId === id && !state.moved) {
+        ui.selected = { id, rehang: true };
+        play('pick');
+        toast('つるしなおす場所をタップしてね');
+    } else {
+        const rule = moveRuleFor(state, id);
+        if (rule.ok) {
+            ui.selected = { id, rehang: false };
+            play('pick');
+        } else {
+            toast(rule.reason, 'warn');
+            play('error');
+        }
+    }
+    render();
+}
+
+function onDrop(source, pos) {
+    if (!isHumanTurn() || pos === null) {
+        render();
+        return;
+    }
+    if (source.kind === 'new' && state.phase === 'hang') doHang(pos);
+    else if (source.kind === 'weight' && state.hung?.weightId === source.id && !state.moved) rehang(pos);
+    else if (source.kind === 'weight') tryMove(source.id, pos);
+    render();
+}
+
+function onDockClick(e) {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (!act) return;
+    if (act === 'fast') {
+        ui.fast = true;
+        play('tap');
+        render();
+        return;
+    }
+    if (!isHumanTurn()) return;
+    play('tap');
+    if (act === 'undo-hang') {
+        state = undoHang(state);
+        ui.selected = null;
+        setStatus('つるしなおそう');
+    } else if (act === 'undo-move') {
+        state = undoMove(state);
+        setStatus('動かしたのをもどした');
+    } else if (act === 'release') {
+        run(releaseHands);
+        return;
+    }
+    render();
+}
+
+/* ---------- 描画 ---------- */
+
+function hintTargets() {
+    const map = new Map();
+    if (state.phase === 'hang') {
+        for (const pos of POSITIONS) map.set(pos, canHang(state.board, pos) ? 'ok' : 'blocked');
+        if (config.hints === 'on') {
+            for (const pos of hangablePositions(state)) {
+                const s1 = hang(state, pos);
+                const safe = isBalanced(s1.board)
+                    || legalMoves(s1).some(m => isBalanced(moveWeight(s1.board, m.weightId, m.to)));
+                if (safe) map.set(pos, 'hint');
+            }
+        }
+        return map;
+    }
+    if (!ui.selected) return map;
+    if (selectedIsRehang()) {
+        const base = undoHang(state);
+        for (const pos of POSITIONS) map.set(pos, canHang(base.board, pos) ? 'ok' : 'blocked');
+        return map;
+    }
+    const dests = new Set(moveDestinations(state, ui.selected.id));
+    for (const pos of POSITIONS) {
+        if (!dests.has(pos)) {
+            map.set(pos, 'blocked');
+            continue;
+        }
+        const balanced = config.hints === 'on' && isBalanced(moveWeight(state.board, ui.selected.id, pos));
+        map.set(pos, balanced ? 'hint' : 'ok');
+    }
+    return map;
+}
+
+function render() {
+    const human = isHumanTurn();
+    app.view.render({
+        board: state.board,
+        held: !ui.releasing,
+        selectedId: ui.selected?.id ?? null,
+        targets: human ? hintTargets() : new Map(),
+        newIds: ui.newIds,
+        interactive: human,
+    });
+    ui.newIds = new Set();
+    renderReadout($('#readout'), state.board);
+    $('#stage-note').textContent = ui.releasing ? '' : '✋ 手でささえているよ';
+    renderPlayers();
+    renderDock();
+}
+
+function renderPlayers() {
+    const turnId = state.phase === 'over' ? null : currentPlayer(state).id;
+    $('#players').innerHTML = state.order.map(id => {
+        const p = playerById(state, id);
+        const stock = Array.from({ length: Number(config.stock) }, (_, i) =>
+            `<i class="${i < p.stock ? 'is-left' : ''}"></i>`).join('');
+        const sub = p.kind === 'cpu' ? `CPU・${CPU_LEVELS[p.level]?.label ?? ''}` : (humanCount() === 1 ? 'あなた' : 'ひと');
+        return `
+            <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}"
+                aria-label="${PLAYER_META[id].name} ${sub}、のこり${p.stock}こ、はたらき${p.out ? 'アウト' : pointsOf(state, id)}${id === turnId ? '、いまのばん' : ''}">
+                <span class="pchip-sym" aria-hidden="true">${PLAYER_META[id].symbol}</span>
+                <span class="pchip-name">${PLAYER_META[id].name}<small>${sub}</small></span>
+                <span class="pchip-stock" aria-hidden="true">${stock}</span>
+                <span class="pchip-pts">${p.out ? 'OUT' : `<small>はたらき</small>${pointsOf(state, id)}`}</span>
+            </div>`;
+    }).join('');
+}
+
+function renderDock() {
+    const dock = $('#dock');
+    dock.onclick = onDockClick;
+    if (state.phase === 'over') {
+        dock.innerHTML = '';
+        return;
+    }
+    const p = currentPlayer(state);
+    const chip = `<span class="turn-chip c-${p.id}" aria-hidden="true">${PLAYER_META[p.id].symbol}</span>`;
+    if (p.kind === 'cpu') {
+        dock.innerHTML = `
+            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>🤖 かんがえ中…</p></div></div>
+            <div class="dock-actions"><button type="button" class="btn" data-act="fast" ${ui.fast ? 'disabled' : ''}>⏩ はやおくり</button></div>`;
+        return;
+    }
+    if (ui.busy) {
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>判定中…</p></div></div>`;
+        return;
+    }
+    if (state.phase === 'hang') {
+        dock.innerHTML = `
+            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>つるす場所をタップ（ドラッグもOK）</p></div></div>
+            <div class="tray"><button type="button" class="tray-item" data-tray="mine" aria-label="自分のおもり 10g、のこり${p.stock}こ">
+                ${weightIcon({ mass: 10, owner: p.id }, 0.9)}<span class="tray-label">10g ×${p.stock}</span></button></div>`;
+        bindTrayDrag(dock, app.view, () => ({ id: 'ghost', mass: 10, owner: p.id }));
+        return;
+    }
+    const msg = state.moved
+        ? '動かした！ 手をはなして判定しよう'
+        : state.hung ? 'おもりを1つ動かせるよ（となりはNG）。そのままでもOK' : 'おもりを1つ動かせるよ。そのままでもOK';
+    dock.innerHTML = `
+        <div class="turn-info c-${p.id}">${chip}<div><b>うごかす？</b><p>${msg}</p></div></div>
+        <div class="dock-actions">
+            ${state.hung ? '<button type="button" class="btn" data-act="undo-hang">↩ つるしなおす</button>' : ''}
+            ${state.moved ? '<button type="button" class="btn" data-act="undo-move">↩ 動かしたのをもどす</button>' : ''}
+            <button type="button" class="btn btn-primary btn-release is-ready" data-act="release">✋ はなす！</button>
+        </div>`;
+}
+
+/* ---------- 結果 ---------- */
+
+function ownFormula(id) {
+    const terms = [];
+    for (const pos of POSITIONS) {
+        for (const w of state.board[pos]) if (w.owner === id) terms.push(`${distanceOf(pos)}×${w.mass}`);
+    }
+    return terms.join(' + ');
+}
+
+async function showResult() {
+    const { rows, winners } = state.result;
+    render();
+    await wait(500);
+    const humanWon = winners.some(id => playerById(state, id).kind === 'human');
+    const noHumans = humanCount() === 0;
+    const single = humanCount() === 1;
+    let title;
+    if (winners.length > 1) title = `${winners.map(id => PLAYER_META[id].name).join('・')} の引き分け！`;
+    else if (single && humanWon) title = 'あなたの勝ち！';
+    else title = `${PLAYER_META[winners[0]].name} の勝ち！`;
+    const lastOne = alivePlayers(state).length === 1;
+    $('#result-emoji').textContent = humanWon || noHumans ? '🏆' : '🤖';
+    $('#result-title').textContent = title;
+    $('#result-sub').textContent = lastOne
+        ? 'さいごまで生き残った！'
+        : 'はたらき（きょり × 重さ）の合計で勝負！';
+    $('#result-ranking').innerHTML = rows.map(r => `
+        <li class="rank-row c-${r.playerId}${r.out ? ' is-out' : ''}">
+            <span class="rank-no">${r.rank}</span>
+            <span class="rank-chip" aria-hidden="true">${PLAYER_META[r.playerId].symbol}</span>
+            <span class="rank-name">${escapeHtml(nameOf(r.playerId))}</span>
+            <span class="rank-score">${r.out
+        ? `OUT<small>ターン${r.outAt}</small>`
+        : `${r.points}<small>${ownFormula(r.playerId) || 'なし'}</small>`}</span>
+        </li>`).join('');
+    $('#btn-result-again').onclick = () => {
+        play('tap');
+        app.go('battle', { config });
+    };
+    $('#btn-result-home').onclick = () => {
+        play('tap');
+        app.go('home');
+    };
+    play(humanWon || noHumans ? 'win' : 'out');
+    $('#dlg-result').showModal();
+    announce(`${title} ${rows.map(r => `${r.rank}位 ${nameOf(r.playerId)} ${r.out ? 'アウト' : r.points}`).join('、')}`);
+}

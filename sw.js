@@ -1,133 +1,85 @@
-// LEVER MASTER Service Worker
-// Version 1.0.4
+/* てこマスター Service Worker
+ * - インストール時に全ファイルをキャッシュ（初回からオフラインで遊べる）
+ * - ページはネットワーク優先、それ以外はキャッシュ優先＋裏で更新
+ * リリースのたびに VERSION を上げてください。
+ */
 
-const CACHE_NAME = 'lever-master-v14';
+const VERSION = '2.0.0';
+const CACHE = `lever-master-${VERSION}`;
 
-// Detect base path dynamically (works for both local and GitHub Pages)
-const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
-
-const ASSETS_TO_CACHE = [
-    `${BASE_PATH}/`,
-    `${BASE_PATH}/index.html`,
-    `${BASE_PATH}/src/js/main.js`,
-    `${BASE_PATH}/src/css/styles.css`,
-    `${BASE_PATH}/public/manifest.json`,
-    `${BASE_PATH}/public/icons/icon.svg`,
-    `${BASE_PATH}/public/icons/icon-192.png`,
-    `${BASE_PATH}/public/icons/icon-512.png`,
-    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-    'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap',
+const ASSETS = [
+    './',
+    'index.html',
+    'src/css/styles.css',
+    'src/js/main.js',
+    'src/js/ui.js',
+    'src/js/widgets.js',
+    'src/js/audio.js',
+    'src/js/storage.js',
+    'src/js/players.js',
+    'src/js/engine/lever.js',
+    'src/js/engine/battle.js',
+    'src/js/engine/ai.js',
+    'src/js/engine/puzzles.js',
+    'src/js/view/lever-view.js',
+    'src/js/view/weight-art.js',
+    'src/js/screens/lab.js',
+    'src/js/screens/puzzles.js',
+    'src/js/screens/battle.js',
+    'public/manifest.json',
+    'public/icons/icon.svg',
+    'public/icons/icon-192.png',
+    'public/icons/icon-512.png',
+    'public/icons/apple-touch-icon.png',
 ];
 
-// インストール時にアセットをキャッシュ
-self.addEventListener('install', (event) => {
-    console.log('[SW] Installing new version...');
+self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[SW] Caching assets');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-            .then(() => {
-                console.log('[SW] Skip waiting to activate immediately');
-                return self.skipWaiting();
-            })
-            .catch((error) => {
-                console.error('[SW] Cache failed:', error);
-            }),
+        caches.open(CACHE)
+            .then(cache => cache.addAll(ASSETS))
+            .then(() => self.skipWaiting()),
     );
 });
 
-// アクティベート時に古いキャッシュを削除
-self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating new version...');
+self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys()
-            .then((cacheNames) => {
-                return Promise.all(
-                    cacheNames
-                        .filter((name) => name.startsWith('lever-master-') && name !== CACHE_NAME)
-                        .map((name) => {
-                            console.log('[SW] Deleting old cache:', name);
-                            return caches.delete(name);
-                        }),
-                );
-            })
-            .then(() => {
-                console.log('[SW] Claiming clients');
-                // clients.claim()でcontrollerchangeイベントが発火し、
-                // クライアント側でリロード処理が行われる
-                return self.clients.claim();
-            }),
+            .then(keys => Promise.all(
+                keys.filter(k => k.startsWith('lever-master-') && k !== CACHE).map(k => caches.delete(k)),
+            ))
+            .then(() => self.clients.claim()),
     );
 });
 
-// メッセージ受信（手動更新リクエストなど）
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        console.log('[SW] Received skip waiting request');
-        self.skipWaiting();
+function putInCache(request, response) {
+    if (response && response.ok && response.type === 'basic') {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(request, copy));
     }
-});
+    return response;
+}
 
-// フェッチ時にキャッシュを優先（ネットワークフォールバック）
-self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
-    if (event.request.method !== 'GET') return;
+self.addEventListener('fetch', event => {
+    const { request } = event;
+    if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
-    // Skip cross-origin requests except for CDN assets
-    const url = new URL(event.request.url);
-    const isSameOrigin = url.origin === location.origin;
-    const isAllowedCDN = url.hostname === 'cdnjs.cloudflare.com' ||
-        url.hostname === 'fonts.googleapis.com' ||
-        url.hostname === 'fonts.gstatic.com';
-
-    if (!isSameOrigin && !isAllowedCDN) return;
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            fetch(request)
+                .then(res => putInCache(request, res))
+                .catch(() => caches.match(request).then(hit => hit || caches.match('index.html'))),
+        );
+        return;
+    }
 
     event.respondWith(
-        caches.match(event.request)
-            .then((cachedResponse) => {
-                if (cachedResponse) {
-                    // バックグラウンドでネットワークから更新をチェック（stale-while-revalidate）
-                    if (isSameOrigin) {
-                        fetch(event.request)
-                            .then((response) => {
-                                if (response && response.status === 200) {
-                                    // response.clone()でキャッシュ用のコピーを作成
-                                    const responseToCache = response.clone();
-                                    caches.open(CACHE_NAME).then((cache) => {
-                                        cache.put(event.request, responseToCache);
-                                    });
-                                }
-                            })
-                            .catch(() => { });
-                    }
-                    return cachedResponse;
-                }
-
-                return fetch(event.request)
-                    .then((response) => {
-                        // Don't cache non-successful responses
-                        if (!response || response.status !== 200) {
-                            return response;
-                        }
-
-                        // Clone and cache the response
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME)
-                            .then((cache) => {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return response;
-                    })
-                    .catch(() => {
-                        // Offline fallback for navigation requests
-                        if (event.request.mode === 'navigate') {
-                            return caches.match(`${BASE_PATH}/index.html`);
-                        }
-                        return new Response('Offline', { status: 503 });
-                    });
-            }),
+        caches.match(request).then(hit => {
+            const network = fetch(request).then(res => putInCache(request, res));
+            if (hit) {
+                network.catch(() => {});
+                return hit;
+            }
+            return network;
+        }),
     );
 });
