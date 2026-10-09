@@ -1,10 +1,13 @@
 # macOS
 .DS_Store
 
-# GAS specific files (not needed for GitHub Pages)
-.clasp.json
+# GAS: 生成物は追跡しない（scripts/build-gas.mjs が src/ から再生成する）
+gas/index.html
+gas/*.css.html
+gas/*.js.html
+
+# GAS: 手書きで管理するため gas/Code.js と gas/appsscript.json は追跡する
 *.gs
-appsscript.json
 
 # IDE
 .vscode/

@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check": "npm run lint && npm test",
-    "vendor": "node scripts/vendor.mjs"
+    "vendor": "node scripts/vendor.mjs",
+    "build:gas": "node scripts/build-gas.mjs",
+    "push:gas": "npm run build:gas && clasp push -f",
+    "deploy:gas": "npm run push:gas && clasp redeploy $npm_package_config_gasDeploymentId --description \"sync from src\"",
+    "deploy": "npm run deploy:gas && git push"
   },
   "keywords": [
     "education",
@@ -28,5 +32,8 @@
     "jsdom": "^25.0.1",
     "three": "^0.186.1",
     "vitest": "^4.0.15"
+  },
+  "config": {
+    "gasDeploymentId": "AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w"
   }
 }

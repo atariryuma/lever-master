@@ -4,6 +4,7 @@
  */
 
 import { LeverView } from './view/lever-view.js';
+import { LeverView3D, webglAvailable } from './view/lever-view-3d.js';
 import { createBoard, hang } from './engine/lever.js';
 import { $, $$, showScreen } from './ui.js';
 import { play, startBgm, stopBgm, unlockAudio } from './audio.js';
@@ -13,13 +14,15 @@ import * as lab from './screens/lab.js';
 import * as puzzles from './screens/puzzles.js';
 import * as battle from './screens/battle.js';
 
-const view = await createView();
+/** GAS（Google Apps Script）版として配信されているか（build-gas.mjs が設定） */
+const IS_GAS = Boolean(window.LEVER_GAS);
+
+const view = createView();
 let active = null; // いまプレイ画面を使っているモード
 
 /** WebGL が使えれば 3D、使えなければ SVG（2D）で表示する */
-async function createView() {
+function createView() {
     try {
-        const { LeverView3D, webglAvailable } = await import('./view/lever-view-3d.js');
         if (webglAvailable() && !new URLSearchParams(location.search).has('2d')) {
             const canvas = $('#lever3d');
             canvas.hidden = false;
@@ -29,6 +32,8 @@ async function createView() {
         }
     } catch (err) {
         console.warn('3D view unavailable, falling back to 2D:', err);
+        $('#lever3d').hidden = true;
+        document.documentElement.classList.remove('is-3d');
     }
     $('#lever').removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
     $('#lever-a11y').hidden = true;
@@ -201,16 +206,16 @@ function setupInstallTip() {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (standalone || !isIOS) return;
+    if (IS_GAS || standalone || !isIOS) return;
     const tip = $('#install-tip');
     tip.innerHTML = '📲 共有ボタン →「ホーム画面に追加」で、アプリのように全画面で遊べます';
     tip.hidden = false;
 }
 
 function registerServiceWorker() {
-    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+    // GAS 版はサンドボックス iframe 配信のため Service Worker を登録できない
+    if (IS_GAS || !('serviceWorker' in navigator) || location.protocol === 'file:') return;
     const register = () => navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
-    // 3D の読み込みを待つあいだに load が終わっていることがある
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register, { once: true });
 }

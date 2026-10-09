@@ -3,7 +3,10 @@
 **きょり × 重さ で、てこをつり合わせよう。**
 小学6年 理科「てこのはたらき」を、実験 → 問題 → 対戦 の3ステップで遊びながら学べる教材ゲームです。
 
-▶ **プレイ:** https://atariryuma.github.io/lever-master/
+| 配信先 | URL | 用途 |
+| --- | --- | --- |
+| GitHub Pages（本体） | [atariryuma.github.io/lever-master](https://atariryuma.github.io/lever-master/) | PWA・オフライン対応のフル機能版 |
+| GAS Web アプリ（ミラー） | [script.google.com/.../exec](https://script.google.com/macros/s/AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w/exec) | Google サイト / Classroom への埋め込み用 |
 
 ## 3つのモード
 
@@ -38,7 +41,25 @@ python3 -m http.server 8080   # http://localhost:8080 で確認
 ```
 
 構成や設計は [DEVELOPMENT.md](DEVELOPMENT.md) を参照してください。
-`main` ブランチに push すると GitHub Actions で GitHub Pages に自動デプロイされます。リリース時は `sw.js` の `VERSION` を上げてください。
+
+### デプロイ
+
+編集するのは常に `src/` と `index.html` だけ。GAS 版は `src/` から自動生成するので二重管理はしません。
+
+| コマンド | 内容 |
+| --- | --- |
+| `npm run build:gas` | `src/` から `gas/` を生成するだけ |
+| `npm run push:gas` | 生成して Apps Script プロジェクトへ push |
+| `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない） |
+| `npm run deploy` | `deploy:gas` + `git push`（GitHub Pages は Actions で自動デプロイ） |
+
+| 機能 | GitHub Pages | GAS |
+| --- | --- | --- |
+| ゲーム本体（3D / 2D） | ✅ | ✅（JS・CSS をインライン化） |
+| Service Worker・オフライン | ✅ | ❌ 登録しない |
+| PWA インストール | ✅ | ❌ |
+| アイコン・フォント | ✅ | GitHub Pages を参照 |
+リリース時は `sw.js` の `VERSION` を上げてください。
 
 ---
 

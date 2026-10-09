@@ -10,11 +10,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="てこマスター">
     <title>てこマスター – LEVER MASTER</title>
+    <!-- gas:strip PWA manifest — GASは静的ファイルを配信できない -->
     <link rel="manifest" href="public/manifest.json">
+    <!-- /gas:strip -->
     <link rel="icon" type="image/svg+xml" href="public/icons/icon.svg">
     <link rel="apple-touch-icon" href="public/icons/apple-touch-icon.png">
+    <!-- gas:inline styles.css -->
     <link rel="stylesheet" href="src/css/styles.css">
-    <script type="module" src="src/js/main.js"></script>
+    <!-- /gas:inline -->
 </head>
 <body>
 <div id="app">
@@ -243,5 +246,8 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="visually-hidden" id="live" aria-live="polite"></div>
 <noscript><p class="noscript">このゲームを遊ぶには JavaScript を有効にしてください。</p></noscript>
+<!-- gas:inline app.js -->
+<script type="module" src="src/js/main.js"></script>
+<!-- /gas:inline -->
 </body>
 </html>
