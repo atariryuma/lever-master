@@ -34,6 +34,13 @@ const heightOf = mass => LOOP_H + sizeOf(mass).h;
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+/**
+ * うでの回転（Three.js のラジアン）
+ * this.angle は SVG と同じ「時計回りが正（右が下がる）」の度数。
+ * Three.js の rotation.z は反時計回りが正なので、符号を反転する。
+ */
+export const beamRotationZ = angleDeg => (-angleDeg * Math.PI) / 180;
+
 export function webglAvailable() {
     try {
         const c = document.createElement('canvas');
@@ -601,8 +608,9 @@ export class LeverView3D {
             this.velocity = 0;
             if (this.settleResolvers.length || this.awaitingVerdict) this.finishSettle();
         }
-        this.beam.rotation.z = (this.angle * Math.PI) / 180;
-        return (this.angle - prev) / Math.max(dt, 1e-3);
+        this.beam.rotation.z = beamRotationZ(this.angle);
+        // ふりこ用の角速度は Three.js の向き（反時計回りが正）で返す
+        return -(this.angle - prev) / Math.max(dt, 1e-3);
     }
 
     stepStoppers(dt) {
