@@ -4,7 +4,7 @@
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.1.1';
+const VERSION = '2.2.0';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -14,6 +14,7 @@ const ASSETS = [
     'src/js/main.js',
     'src/js/ui.js',
     'src/js/widgets.js',
+    'src/js/fx.js',
     'src/js/audio.js',
     'src/js/storage.js',
     'src/js/players.js',

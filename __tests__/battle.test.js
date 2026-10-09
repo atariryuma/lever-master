@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    canMoveTo, computeResult, createBattle, currentPlayer, hang, hasSafeTurn, legalMoves,
+    canMoveTo, computeResult, createBattle, currentPlayer, forfeit, hang, hasSafeTurn, legalMoves,
     move, moveRuleFor, playerById, pointsOf, release, undoHang, undoMove,
 } from '../src/js/engine/battle.js';
 import { isBalanced, momentOf } from '../src/js/engine/lever.js';
@@ -68,6 +68,25 @@ describe('ターンの流れ', () => {
         s = undoMove(s);
         expect(s.board[-3].map(w => w.id)).toEqual(['n1']);
         expect(s.moved).toBeNull();
+    });
+});
+
+describe('時間切れ', () => {
+    it('つるす前でもアウトになり、次の人へ進む', () => {
+        const s = createBattle({ seats: [human, human, human, null], stock: 2 });
+        const r = forfeit(s);
+        expect(r.timeout).toBe(true);
+        expect(playerById(r.state, 'p1').out).toBe(true);
+        expect(playerById(r.state, 'p1').stock).toBe(2);
+        expect(currentPlayer(r.state).id).toBe('p2');
+    });
+
+    it('つるしたあとなら、おもりは手元にもどり、てこは元どおり', () => {
+        const s = twoPlayers();
+        const r = forfeit(hang(s, 5));
+        expect(r.state.board).toEqual(s.board);
+        expect(playerById(r.state, 'p1').stock).toBe(2);
+        expect(r.state.phase).toBe('over');
     });
 });
 

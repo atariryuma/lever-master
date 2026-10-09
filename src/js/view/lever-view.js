@@ -408,6 +408,11 @@ export class LeverView {
         }
     }
 
+    /** 3D 版の演出 API と同じ形（2D では画面側のエフェクトだけにする） */
+    fx() {}
+
+    setDanger() {}
+
     focusPosition(pos) {
         this.targetNodes.get(pos)?.focus();
     }

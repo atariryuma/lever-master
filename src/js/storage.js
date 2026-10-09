@@ -21,7 +21,7 @@ export function save(key, value) {
 
 export const DEFAULT_SETTINGS = Object.freeze({
     sfx: true,
-    bgm: false,
+    bgm: true,
     cpuSpeed: 'normal',
 });
 

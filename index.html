@@ -49,7 +49,7 @@
                 <span class="mode-step">STEP 3</span>
                 <span class="mode-icon" aria-hidden="true">⚖️</span>
                 <span class="mode-name">たいせん</span>
-                <span class="mode-desc">2〜4人・CPUとも。かたむけたらアウト！</span>
+                <span class="mode-desc">2〜4人・CPUとも。持ち時間内につり合わせろ。かたむけたらアウト！</span>
             </button>
         </nav>
 
@@ -83,6 +83,10 @@
                 <fieldset class="option">
                     <legend>1人のおもりの数</legend>
                     <div class="seg" id="opt-stock" role="radiogroup"></div>
+                </fieldset>
+                <fieldset class="option">
+                    <legend>持ち時間（1ターン）</legend>
+                    <div class="seg" id="opt-timer" role="radiogroup"></div>
                 </fieldset>
                 <fieldset class="option">
                     <legend>つり合うヒント</legend>
@@ -192,10 +196,10 @@
         <ol class="steps">
             <li><b>つるす</b><span>自分のおもり（10g）を1つ、好きな場所につるす。</span></li>
             <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
-            <li><b>はなす</b><span>手をはなして判定！ かたむいたら<em>アウト</em>（てこは元にもどる）。</span></li>
+            <li><b>けってい</b><span>判定！ かたむいていたら<em>アウト</em>（てこは元にもどる）。<br>持ち時間を使い切っても<em>アウト</em>。</span></li>
         </ol>
         <p class="rule-goal">🏆 全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
-        <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。</p>
+        <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。持ち時間は準備画面で変えられます（なし・30秒・15秒）。</p>
     </div>
 </dialog>
 
@@ -241,6 +245,7 @@
     </form>
 </dialog>
 
+<div class="fx" id="fx" aria-hidden="true"><div class="fx-vignette" id="fx-vignette"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="visually-hidden" id="live" aria-live="polite"></div>
 <noscript><p class="noscript">このゲームを遊ぶには JavaScript を有効にしてください。</p></noscript>

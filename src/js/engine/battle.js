@@ -181,16 +181,27 @@ export function release(state) {
     const player = currentPlayer(state);
     const moment = momentOf(state.board);
     const balanced = moment.diff === 0;
-    let s = copy(state);
-    if (!balanced) {
-        const p = playerById(s, player.id);
-        p.out = true;
-        p.outAt = s.turnNumber;
-        s.board = cloneBoard(s.turnStartBoard);
-        if (s.hung) p.stock += 1;
-    }
-    s = advance(s);
-    return { state: s, balanced, playerId: player.id, moment };
+    const s = balanced ? copy(state) : knockOut(state);
+    return { state: advance(s), balanced, playerId: player.id, moment };
+}
+
+/** 時間切れ：その場でアウト（てこはターン前にもどる） */
+export function forfeit(state) {
+    if (state.phase === 'over') throw new Error('ゲームは終わっています');
+    const player = currentPlayer(state);
+    const moment = momentOf(state.board);
+    return { state: advance(knockOut(state)), balanced: false, playerId: player.id, moment, timeout: true };
+}
+
+/** いまの手番の人をアウトにし、てこをターン前にもどす */
+function knockOut(state) {
+    const s = copy(state);
+    const p = currentPlayer(s);
+    p.out = true;
+    p.outAt = s.turnNumber;
+    s.board = cloneBoard(s.turnStartBoard);
+    if (s.hung) p.stock += 1;
+    return s;
 }
 
 function advance(state) {

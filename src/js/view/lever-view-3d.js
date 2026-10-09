@@ -175,6 +175,13 @@ export class LeverView3D {
         this.flash = null;
         this.shake = 0;
         this.time = 0;
+        this.zoom = 0; // マイナスで寄る（一瞬のパンチ）
+        this.focus = 0; // 判定中のカメラの寄り（0〜1）
+        this.focusGoal = 0;
+        this.danger = 0;
+        this.dangerGoal = 0;
+        this.particles = [];
+        this.waves = [];
         this.raycaster = new Raycaster();
         this.plane = new Plane(new Vector3(0, 0, 1), 0);
         this.colors = this.readColors();
@@ -225,6 +232,10 @@ export class LeverView3D {
         const rimR = new PointLight(colors.right, 18, 16);
         rimR.position.set(7, 2, 3);
         scene.add(rimL, rimR);
+        this.rims = [[rimL, colors.left], [rimR, colors.right]];
+        this.alarm = new PointLight(colors.danger, 0, 30);
+        this.alarm.position.set(0, 3, 6);
+        scene.add(this.alarm);
 
         // 床（グリッドが中心から外へフェード）
         const floor = new Mesh(new PlaneGeometry(64, 64), new MeshBasicMaterial({
@@ -412,6 +423,8 @@ export class LeverView3D {
         // ドラッグ中のプレビュー
         this.preview = null;
         this.camTarget = new Vector3(0, -2.3, 0);
+        this.lookAt = new Vector3();
+        this.glowTex = radialTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0)');
     }
 
     buildA11y() {
@@ -592,6 +605,7 @@ export class LeverView3D {
         this.stepGlow(dt);
         this.stepMarkers();
         this.updatePreview();
+        this.stepEffects(dt);
         if (this.dust) this.dust.rotation.y = Math.sin(this.time * 0.05) * 0.2;
         this.stepCamera(k);
     }
@@ -685,12 +699,18 @@ export class LeverView3D {
     stepCamera(k) {
         this.frameCamera();
         this.shake *= Math.pow(0.9, k);
+        this.zoom *= Math.pow(0.88, k);
+        this.focus += (this.focusGoal - this.focus) * Math.min(1, 0.08 * k);
         const sx = (Math.random() - 0.5) * this.shake;
         const sy = (Math.random() - 0.5) * this.shake;
         const orbit = this.showcase ? Math.sin(this.time * 0.25) * 0.35 : Math.sin(this.time * 0.18) * 0.04;
-        const dist = this.camDist;
-        this.camera.position.set(Math.sin(orbit) * dist + sx, this.camTarget.y + this.camLift + sy, Math.cos(orbit) * dist);
-        this.camera.lookAt(this.camTarget);
+        // 判定中は支点（針）へぐっと寄る
+        const dist = this.camDist * (1 - 0.32 * this.focus) + this.zoom;
+        const lookY = this.camTarget.y + (0.2 - this.camTarget.y) * 0.55 * this.focus;
+        const lift = this.camLift * (1 - 0.5 * this.focus);
+        this.camera.position.set(Math.sin(orbit) * dist + sx, lookY + lift + sy, Math.cos(orbit) * dist);
+        this.lookAt.set(sx * 0.3, lookY, 0);
+        this.camera.lookAt(this.lookAt);
     }
 
     finishSettle() {
@@ -1031,6 +1051,123 @@ export class LeverView3D {
             const c = this.project(v);
             b.style.cssText = `left:${c.x - 22}px;top:${c.y - 22}px`;
         }
+    }
+
+    /* ======================== 演出 ======================== */
+
+    /**
+     * 演出を出す
+     * @param {'hang'|'safe'|'out'|'judge'|'judgeEnd'|'win'|'turn'} kind
+     * @param {{ pos?: number, side?: 'left'|'right', color?: string }} opts
+     */
+    fx(kind, opts = {}) {
+        if (reduceMotion() && kind !== 'judge' && kind !== 'judgeEnd') return;
+        const color = opts.color ? new Color(opts.color) : this.colors.accent;
+        if (kind === 'hang' && opts.pos !== undefined) {
+            const p = new Vector3(opts.pos * UNIT, HOOK_Y, 0);
+            this.beam.localToWorld(p);
+            this.burst(p, color, 18, 3.2);
+            this.zoom = -0.6;
+            this.shake = Math.max(this.shake, 0.08);
+        } else if (kind === 'safe') {
+            const p = new Vector3(0, 0, 0.3);
+            this.wave(p, this.colors.ok, false, 4.5);
+            this.burst(p, this.colors.ok, 40, 5);
+            this.flash = { kind: 'equal', t: 0 };
+            this.zoom = -1.2;
+        } else if (kind === 'out') {
+            this.shake = 0.7;
+            this.zoom = 1.4;
+            if (!opts.side) {
+                // 時間切れ：てこは動かさず、支点から赤い火花
+                this.burst(new Vector3(0, 0, 0.3), this.colors.danger, 40, 5);
+                return;
+            }
+            const sign = opts.side === 'left' ? 1 : -1; // 度（時計回りが正）: 左が重い → 左が下がる → 負
+            this.velocity += -sign * 3.5;
+            const end = new Vector3(-sign * BEAM_HALF, 0, 0);
+            this.beam.localToWorld(end);
+            this.burst(end, this.colors.danger, 50, 6);
+            this.wave(end, this.colors.danger, false, 2.6);
+            this.flash = { kind: opts.side, t: 0 };
+        } else if (kind === 'judge') {
+            this.focusGoal = 1;
+        } else if (kind === 'judgeEnd') {
+            this.focusGoal = 0;
+        } else if (kind === 'turn') {
+            this.wave(new Vector3(0, FLOOR_Y + 0.25, 0), color, true);
+        } else if (kind === 'win') {
+            for (let i = 0; i < 6; i++) {
+                const p = new Vector3((Math.random() - 0.5) * 12, 3 + Math.random() * 2, (Math.random() - 0.5) * 3);
+                const c = [this.colors.p1, this.colors.p2, this.colors.p3, this.colors.p4, this.colors.ok, color][i];
+                this.burst(p, c, 30, 4, 4);
+            }
+        }
+    }
+
+    /** 危険度（0〜1）：赤い警告灯がうなる */
+    setDanger(level) {
+        this.dangerGoal = Math.max(0, Math.min(1, level));
+    }
+
+    burst(origin, color, count, speed, gravity = 6) {
+        for (let i = 0; i < count; i++) {
+            const sprite = new Sprite(new SpriteMaterial({
+                map: this.glowTex, color, transparent: true, blending: AdditiveBlending, depthWrite: false,
+            }));
+            const size = 0.12 + Math.random() * 0.22;
+            sprite.scale.set(size, size, 1);
+            sprite.position.copy(origin);
+            const dir = new Vector3(Math.random() - 0.5, Math.random() * 0.9 - 0.2, Math.random() - 0.5).normalize();
+            this.scene.add(sprite);
+            const v = dir.multiplyScalar(speed * (0.4 + Math.random()));
+            this.particles.push({ sprite, v, life: 0, max: 0.6 + Math.random() * 0.6, gravity });
+        }
+    }
+
+    wave(origin, color, flat = false, grow = flat ? 9 : 7) {
+        const ring = new Mesh(new RingGeometry(0.85, 1, 64), new MeshBasicMaterial({
+            color, transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
+        }));
+        ring.position.copy(origin);
+        if (flat) ring.rotation.x = -Math.PI / 2;
+        this.scene.add(ring);
+        this.waves.push({ ring, life: 0, max: flat ? 0.9 : 0.7, grow });
+    }
+
+    stepEffects(dt) {
+        this.particles = this.particles.filter(p => {
+            p.life += dt;
+            if (p.life >= p.max) {
+                this.scene.remove(p.sprite);
+                p.sprite.material.dispose();
+                return false;
+            }
+            p.v.y -= p.gravity * dt;
+            p.v.multiplyScalar(Math.pow(0.97, dt * 60));
+            p.sprite.position.addScaledVector(p.v, dt);
+            p.sprite.material.opacity = 1 - p.life / p.max;
+            return true;
+        });
+        this.waves = this.waves.filter(w => {
+            w.life += dt;
+            const t = w.life / w.max;
+            if (t >= 1) {
+                this.scene.remove(w.ring);
+                w.ring.geometry.dispose();
+                w.ring.material.dispose();
+                return false;
+            }
+            const scale = 0.3 + (1 - Math.pow(1 - t, 3)) * w.grow;
+            w.ring.scale.set(scale, scale, scale);
+            w.ring.material.opacity = 1 - t;
+            return true;
+        });
+        // 警告灯
+        this.danger += (this.dangerGoal - this.danger) * Math.min(1, dt * 4);
+        const pulse = 0.5 + 0.5 * Math.sin(this.time * (6 + this.danger * 6));
+        this.alarm.intensity = this.danger * (20 + 60 * pulse);
+        for (const [light, base] of this.rims) light.color.copy(base).lerp(this.colors.danger, this.danger * 0.7 * pulse);
     }
 
     /* ======================== ホーム画面のデモ ======================== */
