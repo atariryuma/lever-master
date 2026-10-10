@@ -130,14 +130,19 @@ function areaScale(board, maxWidth = 260, height = 56) {
     return { kx: Math.min(44, maxWidth / maxDist), ky: (height - 2) / maxMass, height };
 }
 
+/** 面積図に使える幅（パネルの幅から） */
+function areaWidth(root) {
+    const boxWidth = root.querySelector('.side-left')?.clientWidth || 300;
+    return Math.max(120, Math.min(320, boxWidth - 40));
+}
+
 const verdictOf = diff => (diff === 0 ? 'equal' : diff > 0 ? 'left' : 'right');
 
 export function renderReadout(root, board, { hidden = false, reveal = 'all', verdictHidden = false, area = false } = {}) {
     const m = momentOf(board);
     const max = Math.max(m.left, m.right, 1);
     root.classList.toggle('has-area', area);
-    const boxWidth = root.querySelector('.side-left')?.clientWidth ?? 300;
-    const scale = area ? areaScale(board, Math.max(120, Math.min(320, boxWidth - 40))) : null;
+    const scale = area ? areaScale(board, areaWidth(root)) : null;
     for (const side of ['left', 'right']) {
         const box = root.querySelector(`.side-${side}`);
         const terms = termsOf(board, side);
