@@ -71,6 +71,8 @@
 
 html,
 body { height: 100%; margin: 0; }
+/* ページ全体はスクロールさせない（各画面の中だけスクロール） */
+body { overflow: hidden; }
 
 body {
     font-family: var(--font);
@@ -97,6 +99,8 @@ h1, h2, h3, p { margin: 0; }
 
 .visually-hidden {
     position: absolute !important;
+    top: 0;
+    left: 0;
     width: 1px; height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
@@ -405,6 +409,27 @@ h1, h2, h3, p { margin: 0; }
 .mode-progress { margin-top: 4px; color: var(--gold); font-weight: 800; }
 .mode-progress:empty { display: none; }
 
+/* スマホたて向き：モードのカードを横長にして、3つとも1画面に */
+@media (max-width: 560px) {
+    .home-head { margin-top: clamp(96px, min(22vh, 38vw), 300px); }
+    .modes { gap: 10px; }
+    .mode-card {
+        grid-template-columns: 52px 1fr;
+        grid-template-areas: "icon name" "icon desc" "icon prog";
+        justify-items: start;
+        align-items: center;
+        gap: 0 14px;
+        padding: 18px 16px 14px;
+        text-align: left;
+    }
+    .mode-step { top: 8px; right: 16px; left: auto; }
+    .mode-icon { grid-area: icon; width: 52px; height: 52px; }
+    .mode-icon .i { width: 42px; height: 42px; }
+    .mode-name { grid-area: name; font-size: 22px; }
+    .mode-desc { grid-area: desc; font-size: 14px; }
+    .mode-progress { grid-area: prog; margin-top: 2px; }
+}
+
 .home-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .install-tip { max-width: 520px; padding: 10px 14px; border-radius: 12px; background: var(--card); color: var(--ink-2); font-size: 14px; }
 
@@ -442,6 +467,14 @@ h1, h2, h3, p { margin: 0; }
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
+}
+/* 横に広い画面（タブレット横・PC）：章を2列にならべて、スクロールなしで一覧できるように */
+@media (min-width: 1000px) {
+    .list-body { width: min(1280px, 100%); display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; align-content: start; }
+    .list-body .puzzle-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1000px) and (max-width: 1279px) {
+    .list-body .pz-title { font-size: 15px; }
 }
 .puzzle-card {
     position: relative;
@@ -518,12 +551,18 @@ h1, h2, h3, p { margin: 0; }
 .option { margin: 0; padding: 0; border: 0; }
 .option legend { margin-bottom: 6px; font-weight: 800; }
 .setup-start {
+    /* 「はじめる」は、スクロールしなくても押せるように下に固定 */
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
-    gap: 16px;
-    margin-top: 28px;
+    gap: 8px 16px;
+    margin: 28px -16px 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, var(--paper) 30%);
 }
 .setup-note { color: var(--ink-2); }
 
@@ -746,6 +785,13 @@ h1, h2, h3, p { margin: 0; }
 .beam-bar { fill: url(#g-metal); stroke: #4a5a8c; stroke-width: 1.5; }
 .beam-mark { fill: rgba(20, 30, 60, 0.55); }
 .beam-num { fill: var(--ink-2); font-size: 20px; font-weight: 800; text-anchor: middle; }
+/* せまい画面（スマホたて向き）の図：数字・ものさしを大きく */
+.lever.is-narrow .beam-num { font-size: 30px; }
+.lever.is-narrow .ruler text { font-size: 22px; }
+.lever.is-narrow .stand-label { font-size: 24px; }
+.lever.is-narrow .column-x { font-size: 48px; }
+.lever.is-narrow .column-x-label { font-size: 22px; }
+.lever.is-narrow .column-mark { font-size: 44px; }
 .hook { fill: none; stroke: #b9c4e2; stroke-width: 3; stroke-linecap: round; }
 .needle { stroke: var(--danger); stroke-width: 4; stroke-linecap: round; }
 .pivot { fill: #facc15; stroke: #0b1020; stroke-width: 3; }
@@ -1377,7 +1423,24 @@ h1, h2, h3, p { margin: 0; }
     .topbar-sub { display: none; }
 }
 
+/* スマホたて向き：下のボタンを1行にまとめて、てこの場所を広くする */
+@media (max-width: 520px) {
+    .dock-actions { flex-wrap: nowrap; }
+    .dock-actions .btn { flex: 1 1 auto; min-width: 0; padding: 0 8px; font-size: 14px; white-space: nowrap; }
+    .dock-actions .btn:not(.btn-primary) .i { display: none; }
+    .mission-text { font-size: 16px; }
+    .mission-hint { font-size: 14px; }
+}
+@media (max-width: 360px) {
+    .dock-actions .btn { padding: 0 6px; font-size: 13px; }
+    .dock-actions .btn-primary .i { display: none; }
+}
+
 /* たてに短い画面：てこの場所を確保する */
+@media (max-height: 600px) and (orientation: portrait) {
+    .readout.has-area .area { display: none; }
+    .readout.has-area .bar { display: flex; }
+}
 @media (max-height: 640px) and (orientation: portrait) {
     .stage::after { display: none; }
     .side-name { display: none; }

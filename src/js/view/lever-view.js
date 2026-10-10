@@ -87,8 +87,10 @@ export class LeverView {
         this.weightNodes = new Map();
         this.settleResolvers = [];
         this.drag = null;
+        this.wscale = 1; // せまい画面では、おもりを大きく描く
         this.build();
         this.bind();
+        this.watchSize();
         this.loop = this.loop.bind(this);
         this.frame = requestAnimationFrame(this.loop);
     }
@@ -118,10 +120,13 @@ export class LeverView {
             const x = PX + pos * UNIT;
             const col = el('g', { class: 'column' }, this.columns);
             el('rect', { class: 'column-rect', x: x - UNIT / 2 + 3, y: 24, width: UNIT - 6, height: H - 50, rx: 14 }, col);
-            el('text', { class: 'column-mark', x, y: H - 40 }, col).textContent = '✓';
+            col.mark = el('text', { class: 'column-mark', x, y: H - 40 }, col);
+            col.mark.textContent = '✓';
             // となりなどルールで置けない場所
-            el('text', { class: 'column-x', x, y: H - 78 }, col).textContent = '✕';
-            el('text', { class: 'column-x-label', x, y: H - 56 }, col).textContent = 'となり';
+            col.cross = el('text', { class: 'column-x', x, y: H - 78 }, col);
+            col.cross.textContent = '✕';
+            col.crossLabel = el('text', { class: 'column-x-label', x, y: H - 56 }, col);
+            col.crossLabel.textContent = 'となり';
             this.columnNodes.set(pos, col);
         }
 
@@ -181,6 +186,50 @@ export class LeverView {
 
         this.strings = el('g', { class: 'strings' }, svg);
         this.weights = el('g', { class: 'weights' }, svg);
+    }
+
+    /**
+     * 図はよこ長（1000×560）なので、スマホのたて向きでは全体が小さくなる。
+     * せまいときは、おもり・数字を大きくして見やすくする
+     */
+    watchSize() {
+        if (!('ResizeObserver' in window)) return;
+        new ResizeObserver(() => {
+            const { width, height } = this.svg.getBoundingClientRect();
+            if (!width) return;
+            this.box = { width, height };
+            this.fitViewBox();
+            const scale = width < 460 ? 1.45 : width < 640 ? 1.25 : 1;
+            this.svg.classList.toggle('is-narrow', scale > 1);
+            if (scale !== this.wscale) {
+                this.wscale = scale;
+                this.place();
+            }
+        }).observe(this.svg);
+    }
+
+    /**
+     * よこに長い画面（スマホ横向きなど）では、図の下（支点の台・床）を切って、てこを大きく見せる。
+     * いちばん長くぶら下がったおもりは、切らずに見せる
+     */
+    fitViewBox() {
+        if (!this.box?.height) return;
+        const top = 30;
+        const want = W * this.box.height / this.box.width;
+        const need = (this.deepest ?? ATTACH_Y + 60) + 40 - top;
+        const height = want >= H ? H : Math.min(H - top, Math.max(300, need, want));
+        const y = height >= H ? 0 : top;
+        const key = `${y} ${height}`;
+        if (key === this.viewKey) return;
+        this.viewKey = key;
+        this.svg.setAttribute('viewBox', `0 ${y} ${W} ${height}`);
+        // 下に出す ✓ と ✕ は、見えている範囲の下のほうへ
+        const bottom = y + height;
+        for (const col of this.columnNodes.values()) {
+            col.mark.setAttribute('y', bottom - 40);
+            col.cross.setAttribute('y', bottom - 78);
+            col.crossLabel.setAttribute('y', bottom - 56);
+        }
     }
 
     bind() {
@@ -383,14 +432,22 @@ export class LeverView {
             let lastTop = top;
             for (const weight of stack) {
                 const node = this.weightNodes.get(weight.id);
-                node?.setAttribute('transform', `translate(${x.toFixed(2)} ${top.toFixed(2)})`);
+                const s = this.wscale;
+                node?.setAttribute('transform', `translate(${x.toFixed(2)} ${top.toFixed(2)})${s !== 1 ? ` scale(${s})` : ''}`);
                 lastTop = top;
-                top += heightOf(weight.mass) + GAP;
+                top += (heightOf(weight.mass) + GAP) * s;
             }
             strings += `M${x.toFixed(2)} ${y.toFixed(2)} V${(lastTop + 4).toFixed(2)} `;
         }
         if (!this.stringPath) this.stringPath = el('path', { class: 'string' }, this.strings);
         this.stringPath.setAttribute('d', strings);
+        // いちばん下のおもりの位置（図を切りすぎないように）
+        const deepest = Math.max(ATTACH_Y + 60, ...POSITIONS.map(pos => this.board[pos].reduce(
+            (y, w) => y + (heightOf(w.mass) + GAP) * this.wscale, ATTACH_Y + STRING)));
+        if (deepest !== this.deepest) {
+            this.deepest = deepest;
+            this.fitViewBox();
+        }
     }
 
     /* ---------- 入力 ---------- */

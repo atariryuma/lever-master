@@ -184,6 +184,7 @@ export class LeverView3D {
         this.interactive = false;
         this.selectedId = null;
         this.selectedGroup = new Set();
+        this.wscale = 1;
         this.targetStates = new Map();
         this.hover = null;
         this.meshes = new Map();
@@ -400,6 +401,7 @@ export class LeverView3D {
             num.scale.set(0.5, 0.5, 1);
             num.position.set(x, 0.5, 0);
             this.beam.add(num);
+            (this.numLabels ??= []).push(num);
 
             // 置ける場所のマーカー（光の輪と柱）
             const marker = new Group();
@@ -569,8 +571,9 @@ export class LeverView3D {
             stack.add(mesh);
             mesh.userData.offset = y;
             mesh.position.set(0, y, 0);
+            mesh.scale.setScalar(this.wscale);
             if (newIds.has(weight.id) && !reduceMotion()) mesh.userData.drop = 1;
-            y -= heightOf(weight.mass) + GAP;
+            y -= (heightOf(weight.mass) + GAP) * this.wscale;
             const selected = this.selectedGroup.has(weight.id);
             mesh.userData.halo.visible = selected;
             mesh.userData.body.material.emissiveIntensity = selected ? 3 : 1;
@@ -578,7 +581,7 @@ export class LeverView3D {
         }
         const string = stack.userData.string;
         const last = this.board[pos].at(-1);
-        const len = last ? -y - heightOf(last.mass) - GAP : 0;
+        const len = last ? -y - (heightOf(last.mass) + GAP) * this.wscale : 0;
         string.visible = Boolean(last);
         string.scale.y = Math.max(0.01, len);
         string.position.y = -len / 2;
@@ -853,8 +856,9 @@ export class LeverView3D {
         let y = -STRING;
         for (const w of this.board[this.hover]) {
             if (w.id === this.drag.source.id) continue;
-            y -= heightOf(w.mass) + GAP;
+            y -= (heightOf(w.mass) + GAP) * this.wscale;
         }
+        this.preview.scale.setScalar(this.wscale);
         this.preview.position.y = y + Math.sin(this.time * 6) * 0.03;
         this.preview.visible = true;
     }
@@ -870,6 +874,17 @@ export class LeverView3D {
         this.renderer.setSize(w, h, false);
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();
+        // たて長（スマホたて向き）では、てこ全体が小さくなるので、おもりを大きく描く
+        const wscale = !this.showcase && w / h < 0.9 && w < 640 ? 1.35 : 1;
+        if (wscale !== this.wscale) {
+            this.wscale = wscale;
+            if (this.board) this.syncWeights(this.board, new Set());
+            const n = wscale > 1 ? 0.8 : 0.5;
+            for (const num of this.numLabels ?? []) {
+                num.scale.set(n, n, 1);
+                num.position.y = wscale > 1 ? 0.62 : 0.5;
+            }
+        }
         this.frameCamera(true);
     }
 
@@ -880,16 +895,20 @@ export class LeverView3D {
     frameCamera(snap = false) {
         let depth = 0;
         for (const pos of POSITIONS) {
-            const d = (this.board?.[pos] ?? []).reduce((sum, w) => sum + heightOf(w.mass) + GAP, 0);
+            const d = (this.board?.[pos] ?? []).reduce((sum, w) => sum + (heightOf(w.mass) + GAP) * this.wscale, 0);
             depth = Math.max(depth, d);
         }
         const top = 1.25;
         const lowest = this.showcase ? FLOOR_Y + 0.4 : Math.min(-2.6, HOOK_Y - STRING - depth - 1.1);
         const bottom = Math.max(FLOOR_Y + 0.2, lowest);
-        const halfW = this.showcase ? 7.6 : 7.3;
+        // たて長の画面では、てこのはばに合わせてぎりぎりまで寄る（よこの余白をへらす）
+        const portrait = this.camera.aspect < 1;
+        const halfW = this.showcase ? 7.6 : portrait ? 7.05 : 7.3;
         const halfH = (top - bottom) / 2 + 0.35;
         const vfov = (this.camera.fov * Math.PI) / 180;
-        const dist = Math.max(halfW / (Math.tan(vfov / 2) * this.camera.aspect), halfH / Math.tan(vfov / 2)) + 1.2;
+        const byWidth = halfW / (Math.tan(vfov / 2) * this.camera.aspect);
+        const byHeight = halfH / Math.tan(vfov / 2);
+        const dist = Math.max(byWidth + (portrait ? 0.3 : 1.2), byHeight + 1.2);
         const centerY = (top + bottom) / 2;
         const lift = this.showcase ? 3.2 : 1.6 + (centerY < -2 ? 0.6 : 0);
         if (snap || this.camDist === undefined) {
