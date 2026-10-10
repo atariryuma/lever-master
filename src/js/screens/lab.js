@@ -47,6 +47,8 @@ function startCelebrateWatch() {
         ms: 700,
         label: '水平キープ',
         isActive: () => {
+            // 形が変わったら、またお祝いできるように
+            if (state.celebratedKey && boardKey() !== state.celebratedKey) state.celebratedKey = null;
             const m = momentOf(state.board);
             return m.diff === 0 && m.left > 0 && boardKey() !== state.celebratedKey
                 && !app.view.drag && app.view.isCalm?.() === true;

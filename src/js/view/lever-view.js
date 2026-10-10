@@ -191,7 +191,7 @@ export class LeverView {
 
     destroy() {
         cancelAnimationFrame(this.frame);
-        this.endDrag(null);
+        this.cancelDrag();
         this.svg.removeEventListener('pointerdown', this.onPointerDown);
         this.svg.removeEventListener('keydown', this.onKeyDown);
     }
@@ -203,7 +203,10 @@ export class LeverView {
      *   chainMoves … おもりをつかむと、その下のおもりもいっしょに動く（たいせん）
      */
     render(view) {
-        if (!this.held && view.held === false && !reduceMotion()) this.velocity += kickFor(this.board, view.board);
+        if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
+            this.velocity += kickFor(this.board, view.board);
+        }
+        this.noKick = false;
         this.board = view.board;
         this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
@@ -222,6 +225,9 @@ export class LeverView {
     /** いっしょに動くおもりの id（つかんだおもりが先頭） */
     groupIds(id) {
         if (!id) return [];
+        // 画面側が「実際にいっしょに動くおもり」を知っているときはそれを使う（たいせんの動かしなおしなど）
+        const custom = this.handlers.dragGroup?.(id);
+        if (custom) return custom;
         return this.chainMoves && this.board ? chainOf(this.board, id).map(w => w.id) : [id];
     }
 
@@ -436,8 +442,9 @@ export class LeverView {
         window.removeEventListener('pointerup', this.onPointerUp);
         window.removeEventListener('pointercancel', this.onPointerUp);
         if (this.drag) {
-            const pos = e.type === 'pointercancel' ? null : this.positionAt(e.clientX, e.clientY);
-            this.endDrag(pos);
+            // タッチが中断された（OS のジェスチャーなど）ときは「外へ出した」ではなく、取りやめ
+            if (e.type === 'pointercancel') this.cancelDrag();
+            else this.endDrag(this.positionAt(e.clientX, e.clientY));
             return;
         }
         const p = this.press;
@@ -514,9 +521,15 @@ export class LeverView {
         g.style.transform = `translate(${x}px, ${y}px)`;
     }
 
+    /** 次の描画では反動をつけない（別の画面・別の表示から来たとき、前の盤面とくらべないように） */
+    skipKick() {
+        this.noKick = true;
+    }
+
     /** モードを切りかえるとき、前のモードの状態を消す */
     reset() {
         this.held = null;
+        this.skipKick();
         this.cancelDrag();
         this.target = 0;
         this.angle = 0;

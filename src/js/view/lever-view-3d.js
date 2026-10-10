@@ -463,7 +463,10 @@ export class LeverView3D {
 
     render(view) {
         const prevBoard = this.board;
-        if (this.held === false && view.held === false && !reduceMotion()) this.velocity += kickFor(prevBoard, view.board);
+        if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
+            this.velocity += kickFor(prevBoard, view.board);
+        }
+        this.noKick = false;
         this.board = view.board;
         this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
@@ -481,6 +484,9 @@ export class LeverView3D {
     /** いっしょに動くおもりの id（つかんだおもりが先頭） */
     groupIds(id) {
         if (!id) return [];
+        // 画面側が「実際にいっしょに動くおもり」を知っているときはそれを使う（たいせんの動かしなおしなど）
+        const custom = this.handlers.dragGroup?.(id);
+        if (custom) return custom;
         return this.chainMoves && this.board ? chainOf(this.board, id).map(w => w.id) : [id];
     }
 
@@ -607,9 +613,15 @@ export class LeverView3D {
         return Object.values(this.swing).every(s => Math.abs(s.a) < 0.06 && Math.abs(s.v) < 0.12);
     }
 
+    /** 次の描画では反動をつけない（別の画面・別の表示から来たとき、前の盤面とくらべないように） */
+    skipKick() {
+        this.noKick = true;
+    }
+
     /** モードを切りかえるとき、前のモードの状態（ささえ・判定の光・警告・カメラの寄り）を消す */
     reset() {
         this.held = null;
+        this.skipKick();
         this.awaitingVerdict = false;
         this.resetGlow();
         this.focusGoal = 0;
@@ -896,7 +908,7 @@ export class LeverView3D {
 
     destroy() {
         cancelAnimationFrame(this.frame);
-        this.endDrag(null);
+        this.cancelDrag();
         this.resizeObserver.disconnect();
         this.renderer.dispose();
     }
@@ -972,8 +984,9 @@ export class LeverView3D {
         window.removeEventListener('pointerup', this.onPointerUp);
         window.removeEventListener('pointercancel', this.onPointerUp);
         if (this.drag) {
-            const pos = e.type === 'pointercancel' ? null : this.positionAt(e.clientX, e.clientY);
-            this.endDrag(pos);
+            // タッチが中断された（OS のジェスチャーなど）ときは「外へ出した」ではなく、取りやめ
+            if (e.type === 'pointercancel') this.cancelDrag();
+            else this.endDrag(this.positionAt(e.clientX, e.clientY));
             return;
         }
         const p = this.press;

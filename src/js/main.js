@@ -48,6 +48,10 @@ function setViewKind(kind, { refresh = true } = {}) {
     const next = kind === '2d' || !views.v3d ? views.v2d : views.v3d;
     if (next !== view) {
         view.cancelDrag?.();
+        next.skipKick?.(); // かくれていたあいだの盤面とくらべて、ゆらさない
+        // 前の表示の傾きから続ける（かくれていたあいだの古い角度から大きくゆれない）
+        next.angle = view.angle;
+        next.velocity = view.velocity;
         next.handlers = view.handlers;
         view.handlers = {};
         view = next;
@@ -117,6 +121,7 @@ let viewPref = '3d';
 const ROUTE_BGM = { home: 'menu', puzzles: 'menu', setup: 'menu', lab: 'study', puzzle: 'study', battle: 'battle' };
 
 function go(route, params = {}) {
+    for (const v of Object.values(views)) v?.cancelDrag?.();
     if (active) {
         active.leave();
         active = null;

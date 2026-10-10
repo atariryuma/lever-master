@@ -181,7 +181,7 @@ export function enter(appCtx, params) {
 
     $('#play-title').innerHTML = `${icon('scale')}たいせん`;
     $('#players').hidden = false;
-    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag, dropLabel };
+    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag, dropLabel, dragGroup };
     setBgm('battle', 0);
     render();
     run(async () => {
@@ -196,6 +196,7 @@ export function enter(appCtx, params) {
 }
 
 export function leave() {
+    app.view.cancelDrag?.();
     stopTimer();
     session?.end();
     hideBanner();
@@ -522,6 +523,16 @@ function canDrag(id) {
     return isHungWeight(id) || moveRuleFor(moveBase(), id).ok;
 }
 
+/**
+ * つかんだとき、実際にいっしょに動くおもり（表示用）。
+ * つるしたおもりは1こだけ。ほかは「さっきの動かすをもどした盤面」での道づれ
+ */
+function dragGroup(id) {
+    if (isHungWeight(id)) return [id];
+    const base = moveBase();
+    return findWeight(base.board, id) ? chainOf(base.board, id).map(w => w.id) : [id];
+}
+
 /** てこの外へ出したときの案内（null なら出さない） */
 function dropLabel(id) {
     if (isHungWeight(id)) return 'ここに出すと、つるしたおもりを手にもどす';
@@ -612,12 +623,15 @@ function tryMove(id, to) {
         return;
     }
     const replaced = Boolean(state.moved) && !again;
-    const count = chainOf(base.board, id).length;
+    const chain = chainOf(base.board, id);
+    // さっき動かしたおもりが元にもどって、今回の道づれに入るとき
+    const pulledBack = replaced && chainOf(state.board, state.moved.weightId).some(w => chain.some(c => c.id === w.id));
     state = move(base, id, to);
     play('move');
-    const what = count > 1 ? `${count}こまとめて` : '';
+    const what = chain.length > 1 ? `${chain.length}こまとめて` : '';
     setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした`);
-    if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
+    if (pulledBack) toast('動かせるのは1つ。さっき動かしたおもりは元にもどって、いっしょに動いたよ');
+    else if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
 }
 
 function onHookTap(pos) {
@@ -735,26 +749,45 @@ function stopKeep() {
 /* ---------- 描画 ---------- */
 
 function hintTargets() {
+    if (state.phase === 'hang') return hangTargets();
+    if (!ui.selected) return new Map();
+    return selectedIsRehang() ? rehangTargets() : moveTargets(ui.selected.id);
+}
+
+const withHints = () => config.hints === 'on';
+
+function hangTargets() {
     const map = new Map();
-    if (state.phase === 'hang') {
-        for (const pos of POSITIONS) map.set(pos, canHang(state.board, pos) ? 'ok' : 'blocked');
-        if (config.hints === 'on') {
-            for (const pos of hangablePositions(state)) {
-                const s1 = hang(state, pos);
-                const safe = isBalanced(s1.board)
-                    || legalMoves(s1).some(m => isBalanced(moveChain(s1.board, m.weightId, m.to)));
-                if (safe) map.set(pos, 'hint');
-            }
+    for (const pos of POSITIONS) map.set(pos, canHang(state.board, pos) ? 'ok' : 'blocked');
+    if (!withHints()) return map;
+    for (const pos of hangablePositions(state)) {
+        const s1 = hang(state, pos);
+        const safe = isBalanced(s1.board)
+            || legalMoves(s1).some(m => isBalanced(moveChain(s1.board, m.weightId, m.to)));
+        if (safe) map.set(pos, 'hint');
+    }
+    return map;
+}
+
+function rehangTargets() {
+    const map = new Map();
+    const base = undoHang(state);
+    const moved = state.moved;
+    for (const pos of POSITIONS) {
+        if (!canHang(base.board, pos)) {
+            map.set(pos, 'blocked');
+            continue;
         }
-        return map;
+        // つるしなおした結果（動かしたおもりも、まだ動かせればそのまま）がつり合うなら ✓
+        let next = hang(base, pos);
+        if (moved && canMoveTo(next, moved.weightId, moved.to)) next = move(next, moved.weightId, moved.to);
+        map.set(pos, withHints() && isBalanced(next.board) ? 'hint' : 'ok');
     }
-    if (!ui.selected) return map;
-    if (selectedIsRehang()) {
-        const base = undoHang(state);
-        for (const pos of POSITIONS) map.set(pos, canHang(base.board, pos) ? 'ok' : 'blocked');
-        return map;
-    }
-    const id = ui.selected.id;
+    return map;
+}
+
+function moveTargets(id) {
+    const map = new Map();
     const base = moveBase();
     const dests = new Set(moveDestinations(base, id));
     // 動かしたおもりは、元の場所へもどせる
@@ -765,7 +798,7 @@ function hintTargets() {
             continue;
         }
         const after = canMoveTo(base, id, pos) ? moveChain(base.board, id, pos) : base.board;
-        map.set(pos, config.hints === 'on' && isBalanced(after) ? 'hint' : 'ok');
+        map.set(pos, withHints() && isBalanced(after) ? 'hint' : 'ok');
     }
     return map;
 }

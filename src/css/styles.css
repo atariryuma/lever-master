@@ -615,6 +615,7 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: 0 0 calc(30px * var(--p, 0)) color-mix(in srgb, var(--ok) 60%, transparent);
 }
 .keep[hidden] { display: none; }
+@media (max-width: 760px) { .keep { top: 40px; } }
 .keep svg { width: 30px; height: 30px; transform: rotate(-90deg); }
 .keep circle { fill: none; stroke-width: 5; }
 .keep-track { stroke: rgba(74, 222, 128, 0.2); }
