@@ -6,9 +6,9 @@
  * - タップ／ドラッグ／キーボードで、位置やおもりを選べる
  */
 
-import { POSITIONS, findWeight, momentOf, positionLabel } from '../engine/lever.js';
+import { POSITIONS, chainOf, findWeight, momentOf, positionLabel } from '../engine/lever.js';
 import { PLAYER_META } from '../players.js';
-import { heightOf, toneOf, weightIcon, weightShape } from './weight-art.js';
+import { ghostIcon, heightOf, toneOf, weightShape } from './weight-art.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const W = 1000;
@@ -172,20 +172,29 @@ export class LeverView {
     /**
      * @param {{ board: object, held?: boolean, selectedId?: string|null,
      *           targets?: Map<number,string>, newIds?: Set<string>, hover?: number|null,
-     *           interactive?: boolean }} view
+     *           interactive?: boolean, chainMoves?: boolean }} view
+     *   chainMoves … おもりをつかむと、その下のおもりもいっしょに動く（たいせん）
      */
     render(view) {
         this.board = view.board;
+        this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
         this.svg.classList.toggle('is-interactive', this.interactive);
         this.setHeld(Boolean(view.held));
         this.selectedId = view.selectedId ?? null;
+        this.selectedGroup = new Set(this.groupIds(this.selectedId));
         this.targetStates = view.targets ?? new Map();
         this.renderColumns(view.hover ?? null);
         this.renderWeights(view.newIds ?? new Set());
         this.renderRulers();
         this.updateTarget();
         this.place();
+    }
+
+    /** いっしょに動くおもりの id（つかんだおもりが先頭） */
+    groupIds(id) {
+        if (!id) return [];
+        return this.chainMoves && this.board ? chainOf(this.board, id).map(w => w.id) : [id];
     }
 
     renderColumns(hover) {
@@ -247,9 +256,9 @@ export class LeverView {
                 const movable = this.interactive && !weight.locked && (this.handlers.canDrag?.(weight.id) ?? false);
                 node.setAttribute('class', [
                     'weight', toneOf(weight),
-                    weight.id === this.selectedId ? 'is-selected' : '',
+                    this.selectedGroup.has(weight.id) ? 'is-selected' : '',
                     movable ? 'is-movable' : '',
-                    this.drag?.source.id === weight.id ? 'is-dragging' : '',
+                    this.drag?.ids.includes(weight.id) ? 'is-dragging' : '',
                 ].join(' '));
                 node.setAttribute('aria-label', weightAria(weight, pos));
                 if (movable) {
@@ -450,10 +459,12 @@ export class LeverView {
         const scale = this.svg.getBoundingClientRect().width / W;
         const ghost = document.createElement('div');
         ghost.className = 'drag-ghost';
-        ghost.innerHTML = weightIcon(source.weight, Math.max(0.6, scale) * 1.08);
+        const ids = source.kind === 'weight' ? this.groupIds(source.id) : [];
+        const weights = ids.length ? ids.map(id => findWeight(this.board, id).weight) : [source.weight];
+        ghost.innerHTML = ghostIcon(weights, Math.max(0.6, scale) * 1.08);
         document.body.appendChild(ghost);
-        this.drag = { source, ghost };
-        if (source.kind === 'weight') this.weightNodes.get(source.id)?.classList.add('is-dragging');
+        this.drag = { source, ghost, ids };
+        for (const id of ids) this.weightNodes.get(id)?.classList.add('is-dragging');
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
             window.addEventListener('pointerup', this.onPointerUp);
@@ -469,13 +480,24 @@ export class LeverView {
         g.style.transform = `translate(${x}px, ${y}px)`;
     }
 
-    endDrag(pos) {
+    /** ドラッグを取りやめる（onDrop は呼ばない。時間切れなど） */
+    cancelDrag() {
         if (!this.drag) return;
-        const { source, ghost } = this.drag;
+        const { ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
         this.press = null;
-        if (source.kind === 'weight') this.weightNodes.get(source.id)?.classList.remove('is-dragging');
+        for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
+        this.setHover(null);
+    }
+
+    endDrag(pos) {
+        if (!this.drag) return;
+        const { source, ghost, ids } = this.drag;
+        ghost.remove();
+        this.drag = null;
+        this.press = null;
+        for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
         this.setHover(null);
         this.handlers.onDrop?.(source, pos);
     }

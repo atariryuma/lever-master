@@ -16,10 +16,10 @@ import {
     Raycaster, Scene, ShadowMaterial, SphereGeometry, Sprite, SpriteMaterial, SRGBColorSpace,
     TorusGeometry, Vector2, Vector3, WebGLRenderer, ConeGeometry, RingGeometry, PCFShadowMap,
 } from '../../vendor/three.js';
-import { POSITIONS, findWeight, isBalanced, momentOf, positionLabel } from '../engine/lever.js';
+import { POSITIONS, chainOf, findWeight, isBalanced, momentOf, positionLabel } from '../engine/lever.js';
 import { PLAYER_META } from '../players.js';
 import { tiltFor } from './lever-view.js';
-import { weightIcon } from './weight-art.js';
+import { ghostIcon } from './weight-art.js';
 
 const UNIT = 1;
 const BEAM_HALF = 6.62;
@@ -166,6 +166,7 @@ export class LeverView3D {
         this.board = null;
         this.interactive = false;
         this.selectedId = null;
+        this.selectedGroup = new Set();
         this.targetStates = new Map();
         this.hover = null;
         this.meshes = new Map();
@@ -448,15 +449,23 @@ export class LeverView3D {
     render(view) {
         const prevBoard = this.board;
         this.board = view.board;
+        this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
         this.canvas.classList.toggle('is-interactive', this.interactive);
         this.selectedId = view.selectedId ?? null;
+        this.selectedGroup = new Set(this.groupIds(this.selectedId));
         this.targetStates = view.targets ?? new Map();
         if (view.hover !== undefined) this.hover = view.hover;
         this.syncWeights(prevBoard, view.newIds ?? new Set());
         this.setHeld(Boolean(view.held));
         this.updateTarget();
         this.syncA11y();
+    }
+
+    /** いっしょに動くおもりの id（つかんだおもりが先頭） */
+    groupIds(id) {
+        if (!id) return [];
+        return this.chainMoves && this.board ? chainOf(this.board, id).map(w => w.id) : [id];
     }
 
     makeWeightMesh(weight) {
@@ -525,10 +534,10 @@ export class LeverView3D {
             mesh.position.set(0, y, 0);
             if (newIds.has(weight.id) && !reduceMotion()) mesh.userData.drop = 1;
             y -= heightOf(weight.mass) + GAP;
-            const selected = weight.id === this.selectedId;
+            const selected = this.selectedGroup.has(weight.id);
             mesh.userData.halo.visible = selected;
             mesh.userData.body.material.emissiveIntensity = selected ? 3 : 1;
-            mesh.userData.body.material.opacity = this.drag?.source.id === weight.id ? 0.25 : 1;
+            mesh.userData.body.material.opacity = this.drag?.ids.includes(weight.id) ? 0.25 : 1;
         }
         const string = stack.userData.string;
         const last = this.board[pos].at(-1);
@@ -959,13 +968,12 @@ export class LeverView3D {
         if (this.drag) return;
         const ghost = document.createElement('div');
         ghost.className = 'drag-ghost';
-        ghost.innerHTML = weightIcon(source.weight, 1.1);
+        const ids = source.kind === 'weight' ? this.groupIds(source.id) : [];
+        const weights = ids.length ? ids.map(id => findWeight(this.board, id).weight) : [source.weight];
+        ghost.innerHTML = ghostIcon(weights, 1.1);
         document.body.appendChild(ghost);
-        this.drag = { source, ghost };
-        if (source.kind === 'weight') {
-            const m = this.meshes.get(source.id);
-            if (m) m.userData.body.material.opacity = 0.25;
-        }
+        this.drag = { source, ghost, ids };
+        this.setGroupOpacity(ids, 0.25);
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
             window.addEventListener('pointerup', this.onPointerUp);
@@ -975,20 +983,35 @@ export class LeverView3D {
         this.setHover(this.positionAt(e.clientX, e.clientY));
     }
 
+    setGroupOpacity(ids, opacity) {
+        for (const id of ids) {
+            const m = this.meshes.get(id);
+            if (m) m.userData.body.material.opacity = opacity;
+        }
+    }
+
     moveGhost(x, y) {
         if (this.drag) this.drag.ghost.style.transform = `translate(${x}px, ${y}px)`;
     }
 
-    endDrag(pos) {
+    /** ドラッグを取りやめる（onDrop は呼ばない。時間切れなど） */
+    cancelDrag() {
         if (!this.drag) return;
-        const { source, ghost } = this.drag;
+        const { ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
         this.press = null;
-        if (source.kind === 'weight') {
-            const m = this.meshes.get(source.id);
-            if (m) m.userData.body.material.opacity = 1;
-        }
+        this.setGroupOpacity(ids, 1);
+        this.setHover(null);
+    }
+
+    endDrag(pos) {
+        if (!this.drag) return;
+        const { source, ghost, ids } = this.drag;
+        ghost.remove();
+        this.drag = null;
+        this.press = null;
+        this.setGroupOpacity(ids, 1);
         this.setHover(null);
         this.handlers.onDrop?.(source, pos);
     }

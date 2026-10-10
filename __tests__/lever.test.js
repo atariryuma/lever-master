@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     MAX_STACK, POSITIONS, canHang, createBoard, findWeight, hang, isAdjacent, isBalanced,
-    momentByOwner, momentOf, moveWeight, positionLabel, removeWeight, termsOf,
+    chainOf, momentByOwner, momentOf, moveChain, moveWeight, positionLabel, removeWeight, termsOf,
 } from '../src/js/engine/lever.js';
 
 const w = (id, mass = 10, owner) => ({ id, mass, owner });
@@ -91,5 +91,28 @@ describe('momentByOwner / positionLabel', () => {
         expect(positionLabel(-3)).toBe('左3');
         expect(positionLabel(6)).toBe('右6');
         expect(POSITIONS).toHaveLength(12);
+    });
+});
+
+describe('moveChain（道づれ）', () => {
+    it('つかんだおもりから下を、順番そのままで移動先の下へつなぐ', () => {
+        let b = createBoard();
+        b = hang(b, 2, w('a'));
+        b = hang(b, 2, w('b', 20));
+        b = hang(b, 2, w('c', 30));
+        b = hang(b, -4, w('d'));
+        expect(chainOf(b, 'b').map(x => x.id)).toEqual(['b', 'c']);
+        const next = moveChain(b, 'b', -4);
+        expect(next[2].map(x => x.id)).toEqual(['a']);
+        expect(next[-4].map(x => x.id)).toEqual(['d', 'b', 'c']);
+        expect(b[2]).toHaveLength(3); // 元の盤面は変えない
+    });
+
+    it('入りきらないときはエラー', () => {
+        let b = createBoard();
+        for (let i = 0; i < MAX_STACK; i++) b = hang(b, 5, w(`f${i}`));
+        b = hang(b, 1, w('a'));
+        b = hang(b, 1, w('b'));
+        expect(() => moveChain(b, 'a', 5)).toThrow();
     });
 });

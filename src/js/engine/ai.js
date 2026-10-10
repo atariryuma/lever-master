@@ -6,7 +6,7 @@
  * つよい   … さらに「次の人がつり合わせられなくなる手」をねらう
  */
 
-import { isBalanced, momentByOwner, momentOf, moveWeight } from './lever.js';
+import { isBalanced, momentByOwner, momentOf, moveChain } from './lever.js';
 import {
     alivePlayers,
     currentPlayer,
@@ -33,7 +33,7 @@ export function enumerateTurns(state) {
             turns.push({
                 hang: hangPos,
                 move: { weightId: m.weightId, to: m.to },
-                board: moveWeight(base.board, m.weightId, m.to),
+                board: moveChain(base.board, m.weightId, m.to),
             });
         }
     };

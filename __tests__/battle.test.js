@@ -112,6 +112,28 @@ describe('うごかすルール', () => {
         expect(() => move(s, 'n2', 1)).toThrow();
     });
 
+    it('つかんだおもりの下のおもりも道づれで動き、もどすとくさりごともどる', () => {
+        const s = hang(twoPlayers(), 6);
+        s.board[-3].push({ id: 'x1', mass: 10, owner: 'p2' }, { id: 'x2', mass: 10, owner: 'p2' });
+        const moved = move(s, 'x1', -5);
+        expect(moved.board[-3].map(w => w.id)).toEqual(['n1']);
+        expect(moved.board[-5].map(w => w.id)).toEqual(['x1', 'x2']);
+        expect(moved.moved.count).toBe(2);
+        expect(undoMove(moved).board[-3].map(w => w.id)).toEqual(['n1', 'x1', 'x2']);
+        const all = move(s, 'n1', -5);
+        expect(all.board[-3]).toHaveLength(0);
+        expect(all.board[-5].map(w => w.id)).toEqual(['n1', 'x1', 'x2']);
+    });
+
+    it('くさりが入りきらない場所へは動かせない（6こまで）', () => {
+        const s = hang(twoPlayers(), 6);
+        s.board[-3].push({ id: 'x1', mass: 10 }, { id: 'x2', mass: 10 });
+        for (let i = 0; i < 4; i++) s.board[-5].push({ id: `f${i}`, mass: 10 });
+        expect(canMoveTo(s, 'n1', -5)).toBe(false); // 4 + 3 > 6
+        expect(canMoveTo(s, 'x2', -5)).toBe(true); // 4 + 1
+        expect(canMoveTo(s, 'x1', -5)).toBe(true); // 4 + 2
+    });
+
     it('つるす前は動かせない', () => {
         expect(moveRuleFor(twoPlayers(), 'n1').ok).toBe(false);
     });

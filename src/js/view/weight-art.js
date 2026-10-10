@@ -47,3 +47,9 @@ export function weightIcon(weight, scale = 1) {
     return `<svg class="weight-icon" viewBox="${-vw / 2} -2 ${vw} ${vh}" width="${vw * scale}" height="${vh * scale}" aria-hidden="true" data-w="${w}">
         <g class="weight ${toneOf(weight)}">${weightShape(weight)}</g></svg>`;
 }
+
+/** ドラッグ中のゴースト（くさりで動かすときは下のおもりも重ねて見せる） */
+export function ghostIcon(weights, scale = 1) {
+    if (weights.length <= 1) return weightIcon(weights[0], scale);
+    return `<div class="ghost-chain">${weights.map(w => weightIcon(w, scale * 0.85)).join('')}</div>`;
+}

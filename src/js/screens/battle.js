@@ -8,7 +8,8 @@ import {
 } from '../engine/battle.js';
 import { CPU_LEVELS, planTurn } from '../engine/ai.js';
 import {
-    POSITIONS, canHang, distanceOf, findWeight, isAdjacent, isBalanced, momentOf, moveWeight, positionLabel,
+    POSITIONS, canHang, canHangChain, chainOf, distanceOf, findWeight, isAdjacent, isBalanced, momentOf, moveChain,
+    positionLabel,
 } from '../engine/lever.js';
 import { PLAYER_META, SEAT_IDS } from '../players.js';
 import {
@@ -32,14 +33,23 @@ const SETUP_DEFAULT = {
     ],
     stock: '4',
     hints: 'off',
-    timer: '30',
+    timer: '90',
+    v: 2,
 };
+
+/** 持ち時間の選択肢（秒）。はじめは考える時間をたっぷりとる */
+const TIMER_OPTIONS = [['none', 'なし'], ['30', '30秒'], ['60', '60秒'], ['90', '90秒'], ['120', '120秒']];
 
 const SPEED = { slow: 1.6, normal: 1, fast: 0.45 };
 
 let app;
 const setup = load('battleSetup', structuredClone(SETUP_DEFAULT));
-setup.timer ??= SETUP_DEFAULT.timer;
+// v1（30秒/15秒が標準だったころ）の設定は、新しい標準の 90 秒にそろえる
+if (setup.v !== SETUP_DEFAULT.v) {
+    setup.timer = SETUP_DEFAULT.timer;
+    setup.v = SETUP_DEFAULT.v;
+}
+if (!TIMER_OPTIONS.some(([v]) => v === setup.timer)) setup.timer = SETUP_DEFAULT.timer;
 let session;
 let config;
 let state;
@@ -99,7 +109,7 @@ export function renderSetup(appCtx) {
         },
     });
     segmented($('#opt-timer'), {
-        options: [['none', 'なし'], ['30', '30秒'], ['15', '15秒']],
+        options: TIMER_OPTIONS,
         value: setup.timer,
         onChange: v => {
             setup.timer = v;
@@ -155,7 +165,7 @@ export function enter(appCtx, params) {
     state = createBattle({ seats, stock: Number(config.stock), firstSeat });
     ui = {
         selected: null, newIds: new Set(), busy: false, fast: false,
-        timer: null, streak: {}, intensity: 0, finalShown: false,
+        timer: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null,
     };
 
     $('#play-title').innerHTML = `${icon('scale')}たいせん`;
@@ -253,32 +263,58 @@ async function startTurn() {
 
 const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** min〜max のランダムな待ち時間（ミリ秒） */
+const jitter = (min, max) => min + Math.random() * (max - min);
+
+/** CPU の「考える時間」。つよいほど・選べる手が多いほどじっくり考える */
+const THINK = { easy: [1100, 2000], normal: [1500, 2600], strong: [2000, 3400] };
+
+/** CPU が候補の場所を見くらべているように、カーソルをいくつか動かしてから決める */
+async function cpuLook(finalPos, candidates, totalMs) {
+    const others = candidates.filter(pos => pos !== finalPos).sort(() => Math.random() - 0.5);
+    const path = [...others.slice(0, 1 + Math.floor(Math.random() * 3)), finalPos];
+    for (const pos of path) {
+        ui.cpuCursor = pos;
+        render();
+        await wait(totalMs / path.length);
+    }
+    ui.cpuCursor = null;
+}
+
 async function runCpu() {
     ui.busy = true;
     const p = currentPlayer(state);
     const name = nameOf(p.id);
     setStatus(`${name}がかんがえ中…`);
     render();
-    await wait(700);
     const plan = planTurn(state, p.level);
+    const [min, max] = THINK[p.level] ?? THINK.normal;
+    const think = jitter(min, max);
     if (plan.hang !== null) {
+        await wait(think * 0.35);
+        await cpuLook(plan.hang, hangablePositions(state), think * 0.65);
         state = hang(state, plan.hang);
         hangEffects(plan.hang, p.id);
         setStatus(`${name}が ${positionLabel(plan.hang)} につるした`);
         render();
-        await wait(950);
+        await wait(jitter(900, 1500));
+    } else {
+        await wait(think * 0.6);
     }
     if (plan.move) {
         const from = findWeight(state.board, plan.move.weightId).pos;
+        const count = chainOf(state.board, plan.move.weightId).length;
         ui.selected = { id: plan.move.weightId, rehang: false };
+        setStatus(`${name}が ${positionLabel(from)} のおもり${count > 1 ? `（${count}こ）` : ''}をつかんだ…`);
         render();
-        await wait(600);
+        await wait(jitter(600, 1000));
+        await cpuLook(plan.move.to, moveDestinations(state, plan.move.weightId), jitter(700, 1300));
         state = move(state, plan.move.weightId, plan.move.to);
         ui.selected = null;
         play('move');
-        setStatus(`${name}が ${positionLabel(from)} → ${positionLabel(plan.move.to)} へ動かした`);
+        setStatus(`${name}が ${positionLabel(from)} → ${positionLabel(plan.move.to)} へ${count > 1 ? `${count}こまとめて` : ''}動かした`);
         render();
-        await wait(800);
+        await wait(jitter(800, 1200));
     }
     await judge();
 }
@@ -343,7 +379,7 @@ async function showOut(result) {
     fx.flash('danger');
     fx.shake();
     const title = result.timeout ? 'TIME UP!' : 'OUT!!';
-    const sub = result.timeout ? `${nameOf(id)} 時間切れ` : `${nameOf(id)} ─ 左 ${left} ≠ 右 ${right}`;
+    const sub = result.timeout ? `${nameOf(id)} 時間切れ（つるしていない）` : `${nameOf(id)} ─ 左 ${left} ≠ 右 ${right}`;
     setStatus(`${nameOf(id)}はアウト（${result.timeout ? '時間切れ' : `左 ${left}、右 ${right}`}）`);
     await session.wrap(fx.slam(title, { tone: 'danger', sub, ms: 1700 }));
     // てこをターン前にもどす
@@ -355,11 +391,25 @@ async function showOut(result) {
     await startTurn();
 }
 
+/**
+ * 時間切れ。つるしてあれば、その形のまま自動で判定する（けっていを押しわすれてもOK）。
+ * まだつるしていなければアウト。
+ */
 async function timeUp() {
     if (!isHumanTurn()) return;
     ui.busy = true;
+    ui.selected = null;
+    app.view.cancelDrag?.();
     render();
-    await showOut(forfeit(state));
+    if (state.phase !== 'move') {
+        await showOut(forfeit(state));
+        return;
+    }
+    play('whoosh');
+    fx.flash('danger');
+    setStatus('時間切れ！ このままの形で判定');
+    await session.wrap(fx.turnSweep('TIME UP!', 'このままの形で判定！', 'c-final'));
+    await judge();
 }
 
 /* ---------- 持ち時間 ---------- */
@@ -466,16 +516,21 @@ function explainMoveBlock(id, to) {
     const from = findWeight(state.board, id).pos;
     if (to === from) return null;
     if (isAdjacent(from, to)) return 'となりの場所には動かせないよ';
-    if (!canHang(state.board, to)) return 'そこはいっぱいだよ';
+    const count = chainOf(state.board, id).length;
+    if (!canHangChain(state.board, to, count)) {
+        return count > 1 ? `下のおもりと${count}こいっしょに動くので、そこには入らないよ（6こまで）` : 'そこはいっぱいだよ';
+    }
     return '動かせないよ';
 }
 
 function tryMove(id, to) {
     if (canMoveTo(state, id, to)) {
         const from = findWeight(state.board, id).pos;
+        const count = chainOf(state.board, id).length;
         state = move(state, id, to);
         play('move');
-        setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ動かした。「けってい」で判定！`);
+        const what = count > 1 ? `${count}こまとめて` : '';
+        setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした。「けってい」で判定！`);
         ui.selected = null;
         return;
     }
@@ -528,6 +583,8 @@ function onWeightTap(id, pos) {
         if (rule.ok) {
             ui.selected = { id, rehang: false };
             play('pick');
+            const count = chainOf(state.board, id).length;
+            if (count > 1) toast(`下の${count - 1}こも、いっしょに動くよ`);
         } else {
             toast(rule.reason, 'warn');
             play('error');
@@ -582,7 +639,7 @@ function hintTargets() {
             for (const pos of hangablePositions(state)) {
                 const s1 = hang(state, pos);
                 const safe = isBalanced(s1.board)
-                    || legalMoves(s1).some(m => isBalanced(moveWeight(s1.board, m.weightId, m.to)));
+                    || legalMoves(s1).some(m => isBalanced(moveChain(s1.board, m.weightId, m.to)));
                 if (safe) map.set(pos, 'hint');
             }
         }
@@ -600,10 +657,15 @@ function hintTargets() {
             map.set(pos, 'blocked');
             continue;
         }
-        const balanced = config.hints === 'on' && isBalanced(moveWeight(state.board, ui.selected.id, pos));
+        const balanced = config.hints === 'on' && isBalanced(moveChain(state.board, ui.selected.id, pos));
         map.set(pos, balanced ? 'hint' : 'ok');
     }
     return map;
+}
+
+/** CPU が見ている場所 */
+function cpuTargets() {
+    return ui.cpuCursor == null ? new Map() : new Map([[ui.cpuCursor, 'ok']]);
 }
 
 function render() {
@@ -611,8 +673,9 @@ function render() {
     app.view.render({
         board: state.board,
         held: false, // たいせんでは手でささえない（つるすたびにその場で傾く）
+        chainMoves: true, // つかんだおもりの下のおもりも道づれで動く
         selectedId: ui.selected?.id ?? null,
-        targets: human ? hintTargets() : new Map(),
+        targets: human ? hintTargets() : cpuTargets(),
         newIds: ui.newIds,
         interactive: human,
     });

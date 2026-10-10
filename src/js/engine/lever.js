@@ -101,6 +101,33 @@ export function moveWeight(board, id, toPos) {
     return hang(removeWeight(board, id), toPos, found.weight);
 }
 
+/**
+ * つかんだおもりと、その下にぶら下がっているおもり（いっしょに動く「くさり」）
+ * @returns {Weight[]} つかんだおもりが先頭。見つからなければ空
+ */
+export function chainOf(board, id) {
+    const found = findWeight(board, id);
+    return found ? board[found.pos].slice(found.index) : [];
+}
+
+/** くさりごと pos へつるせるか（MAX_STACK をこえない） */
+export function canHangChain(board, pos, count) {
+    return POSITIONS.includes(pos) && board[pos].length + count <= MAX_STACK;
+}
+
+/** おもりを、その下のおもりごと toPos の一番下へ動かす（ならび順はそのまま） */
+export function moveChain(board, id, toPos) {
+    const found = findWeight(board, id);
+    if (!found) throw new Error(`weight ${id} not found`);
+    if (found.pos === toPos) return cloneBoard(board);
+    const chain = board[found.pos].slice(found.index);
+    if (!canHangChain(board, toPos, chain.length)) throw new Error(`cannot hang ${chain.length} at ${toPos}`);
+    const next = cloneBoard(board);
+    next[found.pos].splice(found.index);
+    next[toPos].push(...chain.map(w => ({ ...w })));
+    return next;
+}
+
 /** 持ち主ごとのはたらき（＝たいせんのポイント） */
 export function momentByOwner(board, owner) {
     let total = 0;

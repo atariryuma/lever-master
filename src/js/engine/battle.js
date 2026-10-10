@@ -4,6 +4,7 @@
  * 1ターンの流れ
  *   1. つるす … 自分のおもりを1つつるす（持っているときは必須）
  *   2. うごかす … 好きなおもりを1つだけ動かしてよい（任意）
+ *      - つかんだおもりの下にぶら下がっているおもりも、いっしょに動く（道づれ）
  *      - 今つるした場所のおもりは動かせない
  *      - となりの位置へは動かせない（左1⇔右1 もとなり）
  *   3. はなす … 手をはなして判定。かたむいたらアウト（てこはターン前にもどる）
@@ -15,6 +16,8 @@
 import {
     POSITIONS,
     canHang,
+    canHangChain,
+    chainOf,
     cloneBoard,
     createBoard,
     findWeight,
@@ -23,7 +26,7 @@ import {
     isBalanced,
     momentByOwner,
     momentOf,
-    moveWeight,
+    moveChain,
 } from './lever.js';
 
 const WEIGHT_MASS = 10;
@@ -121,7 +124,8 @@ export function undoHang(state) {
 export function undoMove(state) {
     if (!state.moved) throw new Error('動かしたおもりがありません');
     const s = copy(state);
-    s.board = moveWeight(s.board, s.moved.weightId, s.moved.from);
+    // 動かしたくさりは移動先の一番下にあるので、先頭をつかめばくさりごともどる
+    s.board = moveChain(s.board, s.moved.weightId, s.moved.from);
     s.moved = null;
     return s;
 }
@@ -141,7 +145,8 @@ export function moveRuleFor(state, weightId) {
 export function canMoveTo(state, weightId, toPos) {
     const rule = moveRuleFor(state, weightId);
     if (!rule.ok) return false;
-    return toPos !== rule.from && !isAdjacent(rule.from, toPos) && canHang(state.board, toPos);
+    return toPos !== rule.from && !isAdjacent(rule.from, toPos)
+        && canHangChain(state.board, toPos, chainOf(state.board, weightId).length);
 }
 
 export function moveDestinations(state, weightId) {
@@ -164,8 +169,9 @@ export function move(state, weightId, toPos) {
     if (!canMoveTo(state, weightId, toPos)) throw new Error('そこへは動かせません');
     const s = copy(state);
     const from = findWeight(s.board, weightId).pos;
-    s.board = moveWeight(s.board, weightId, toPos);
-    s.moved = { weightId, from, to: toPos };
+    const count = chainOf(s.board, weightId).length;
+    s.board = moveChain(s.board, weightId, toPos);
+    s.moved = { weightId, from, to: toPos, count };
     return s;
 }
 
@@ -185,7 +191,7 @@ export function release(state) {
     return { state: advance(s), balanced, playerId: player.id, moment };
 }
 
-/** 時間切れ：その場でアウト（てこはターン前にもどる） */
+/** 時間切れでまだつるしていない：その場でアウト（てこはターン前にもどる）。つるしてあれば release で判定する */
 export function forfeit(state) {
     if (state.phase === 'over') throw new Error('ゲームは終わっています');
     const player = currentPlayer(state);
@@ -261,7 +267,7 @@ export function hasSafeTurn(state) {
         const afterHang = hang(state, pos);
         if (tryRelease(afterHang)) return true;
         for (const m of legalMoves(afterHang)) {
-            if (isBalanced(moveWeight(afterHang.board, m.weightId, m.to))) return true;
+            if (isBalanced(moveChain(afterHang.board, m.weightId, m.to))) return true;
         }
     }
     return false;

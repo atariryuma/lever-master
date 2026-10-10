@@ -747,6 +747,7 @@ h1, h2, h3, p { margin: 0; }
     filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.25));
 }
 .weight-icon { display: block; overflow: visible; }
+.ghost-chain { display: grid; justify-items: center; gap: 1px; }
 
 /* ----- 計算式 ----- */
 .readout {
