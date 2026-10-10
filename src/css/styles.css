@@ -1611,8 +1611,11 @@ h1, h2, h3, p { margin: 0; }
     .tour-art { max-height: 96px; }
     .tour-page p { font-size: 14px; line-height: 1.5; }
     .tour-page h3 { font-size: 18px; }
-    /* おしらせは上に（下の計算式・ボタンをかくさない） */
-    .toast { top: calc(90px + var(--sat)); bottom: auto; padding: 6px 14px; font-size: 14px; }
+    /* 水平キープのゲージは右上のすみへ（てこのものさし・目盛りにかぶらない） */
+    .keep { top: 4px; left: auto; right: calc(10px + var(--sar)); transform: none; padding: 2px 10px 2px 4px; }
+    .keep svg { width: 24px; height: 24px; }
+    /* おしらせは上のバーの上に重ねて出す（てこ・計算式・ボタンをかくさない） */
+    .toast { top: calc(6px + var(--sat)); bottom: auto; padding: 6px 14px; font-size: 14px; }
 }
 
 /* =========================================================

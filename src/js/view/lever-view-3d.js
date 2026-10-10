@@ -898,19 +898,22 @@ export class LeverView3D {
             const d = (this.board?.[pos] ?? []).reduce((sum, w) => sum + (heightOf(w.mass) + GAP) * this.wscale, 0);
             depth = Math.max(depth, d);
         }
-        const top = 1.25;
-        const lowest = this.showcase ? FLOOR_Y + 0.4 : Math.min(-2.6, HOOK_Y - STRING - depth - 1.1);
+        // よこに長くて低い画面（スマホよこ向き）：床や台まで入れると、てこが小さくなって指で選びにくい。
+        // うでとぶら下がったおもりだけが入るように、上下をつめて寄る
+        const wide = !this.showcase && this.camera.aspect > 2.4;
+        const { top, minLow, pad } = wide ? { top: 0.95, minLow: -1.7, pad: 0.5 } : { top: 1.25, minLow: -2.6, pad: 1.1 };
+        const lowest = this.showcase ? FLOOR_Y + 0.4 : Math.min(minLow, HOOK_Y - STRING - depth - pad);
         const bottom = Math.max(FLOOR_Y + 0.2, lowest);
         // たて長の画面では、てこのはばに合わせてぎりぎりまで寄る（よこの余白をへらす）
         const portrait = this.camera.aspect < 1;
-        const halfW = this.showcase ? 7.6 : portrait ? 7.05 : 7.3;
+        const halfW = this.showcase ? 7.6 : portrait || wide ? 7.05 : 7.3;
         const halfH = (top - bottom) / 2 + 0.35;
         const vfov = (this.camera.fov * Math.PI) / 180;
         const byWidth = halfW / (Math.tan(vfov / 2) * this.camera.aspect);
         const byHeight = halfH / Math.tan(vfov / 2);
-        const dist = Math.max(byWidth + (portrait ? 0.3 : 1.2), byHeight + 1.2);
+        const dist = Math.max(byWidth + (portrait || wide ? 0.3 : 1.2), byHeight + (wide ? 0.4 : 1.2));
         const centerY = (top + bottom) / 2;
-        const lift = this.showcase ? 3.2 : 1.6 + (centerY < -2 ? 0.6 : 0);
+        const lift = this.showcase ? 3.2 : wide ? 0.9 : 1.6 + (centerY < -2 ? 0.6 : 0);
         if (snap || this.camDist === undefined) {
             this.camDist = dist;
             this.camLift = lift;
