@@ -43,7 +43,7 @@ function createViews() {
     return { v2d, v3d };
 }
 
-/** 3D と 図（2D）の切りかえ。handlers を引きついで、画面を描き直す */
+/** 3D と 図（2D）の切りかえ。handlers を引きついで、画面を描き直す（refresh を持つのはじっけんだけ） */
 function setViewKind(kind, { refresh = true } = {}) {
     const next = kind === '2d' || !views.v3d ? views.v2d : views.v3d;
     if (next !== view) {

@@ -98,11 +98,6 @@ export function enter(appCtx, { id }) {
     announce(`もんだい${puzzle.id}。${puzzle.text}`);
 }
 
-export function refresh() {
-    if (state.phase !== 'cleared') render();
-    else app.view.render({ board: state.board, held: false, targets: new Map(), interactive: false });
-}
-
 export function leave() {
     session?.end();
     app.view.handlers = {};

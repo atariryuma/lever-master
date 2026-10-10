@@ -337,7 +337,7 @@ function scheduler() {
     }
 }
 
-export function startBgm() {
+function startBgm() {
     if (!context() || schedulerTimer || !(settings.bgmVolume > 0)) return;
     nextNoteTime = now() + 0.1;
     step16 = 0;
@@ -345,7 +345,7 @@ export function startBgm() {
     schedulerTimer = setInterval(scheduler, 40);
 }
 
-export function stopBgm() {
+function stopBgm() {
     clearInterval(schedulerTimer);
     schedulerTimer = null;
     if (bgmBus) bgmBus.gain.setTargetAtTime(0, now(), 0.1);

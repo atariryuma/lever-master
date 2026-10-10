@@ -10,7 +10,7 @@ const SIZES = {
     30: { w: 48, h: 46 },
 };
 
-export const LOOP = 8; // 上の輪っかの高さ
+const LOOP = 8; // 上の輪っかの高さ
 export const sizeOf = mass => SIZES[mass] ?? SIZES[10];
 export const heightOf = mass => LOOP + sizeOf(mass).h;
 

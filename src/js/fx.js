@@ -51,11 +51,6 @@ export function slam(text, { tone = 'ok', sub = '', ms = 1400 } = {}) {
     return new Promise(resolve => setTimeout(resolve, ms - 200));
 }
 
-/** 判定前の「…」演出（カウントの数字） */
-export function countdown(text) {
-    spawn('fx-count', escapeHtml(text), 700);
-}
-
 /** 得点などのポップアップ（画面座標） */
 export function popup(text, x, y, tone = 'ok') {
     const el = spawn(`fx-pop is-${tone}`, escapeHtml(text), 1300);

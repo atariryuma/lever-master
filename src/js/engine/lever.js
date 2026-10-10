@@ -44,7 +44,7 @@ export function momentOf(board) {
     return { left, right, diff: left - right };
 }
 
-export const massAt = (board, pos) => board[pos].reduce((sum, w) => sum + w.mass, 0);
+const massAt = (board, pos) => board[pos].reduce((sum, w) => sum + w.mass, 0);
 
 export const isBalanced = board => momentOf(board).diff === 0;
 
@@ -77,8 +77,6 @@ export function findWeight(board, id) {
     }
     return null;
 }
-
-export const allWeights = board => POSITIONS.flatMap(pos => board[pos].map(w => ({ ...w, pos })));
 
 /** おもりを位置 pos の一番下につるす */
 export function hang(board, pos, weight) {

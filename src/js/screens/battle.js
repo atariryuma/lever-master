@@ -175,10 +175,6 @@ export function enter(appCtx, params) {
     });
 }
 
-export function refresh() {
-    render();
-}
-
 export function leave() {
     stopTimer();
     session?.end();

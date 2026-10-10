@@ -64,5 +64,3 @@ export function icon(name, className = '') {
 export function stars(n, className = '') {
     return [0, 1, 2].map(i => icon('star', `star${i < n ? ' is-on' : ''}${className ? ` ${className}` : ''}`)).join('');
 }
-
-export const ICON_NAMES = Object.freeze(Object.keys(PATHS));

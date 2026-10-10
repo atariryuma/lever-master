@@ -26,8 +26,8 @@ import {
     moveWeight,
 } from './lever.js';
 
-export const WEIGHT_MASS = 10;
-export const DEFAULT_STOCK = 4;
+const WEIGHT_MASS = 10;
+const DEFAULT_STOCK = 4;
 
 /**
  * @param {{ seats: ({kind:'human'|'cpu', level?:string}|null)[], stock?: number, firstSeat?: number }} options
@@ -170,7 +170,7 @@ export function move(state, weightId, toPos) {
 }
 
 /** 手をはなせる状態か（持っているならつるしてから） */
-export const canRelease = state => state.phase === 'move';
+const canRelease = state => state.phase === 'move';
 
 /**
  * 手をはなして判定する

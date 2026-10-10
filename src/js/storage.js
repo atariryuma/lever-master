@@ -19,7 +19,7 @@ export function save(key, value) {
     }
 }
 
-export const DEFAULT_SETTINGS = Object.freeze({
+const DEFAULT_SETTINGS = Object.freeze({
     sfxVolume: 0.8,
     bgmVolume: 0.6,
     cpuSpeed: 'normal',

@@ -988,20 +988,6 @@ h1, h2, h3, p { margin: 0; }
     100% { opacity: 0; }
 }
 
-.fx-count {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-family: var(--font-display);
-    font-size: clamp(60px, 12vw, 140px);
-    font-weight: 900;
-    color: #fff;
-    text-shadow: 0 0 30px rgba(34, 211, 238, 0.9);
-    animation: count 0.6s ease-out forwards;
-}
-@keyframes count { from { transform: scale(1.8); opacity: 0.95; } to { transform: scale(0.8); opacity: 0; } }
-
 .fx-pop {
     position: absolute;
     transform: translate(-50%, -50%);
