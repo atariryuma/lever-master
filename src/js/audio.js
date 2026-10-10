@@ -211,7 +211,6 @@ const SOUNDS = {
         noise({ dur: 1.2, vol: 0.2, type: 'highpass', freq: 3000, to: 8000 });
         chord([146.83, 220, 293.66], { at: 0.25, dur: 1.2, type: 'sawtooth', vol: 0.08 });
     },
-    star: () => chord([1046.5, 1318.5, 1568], { dur: 0.25, type: 'triangle', vol: 0.1, spread: 0.07 }),
     win: () => {
         kick(0, 0.9);
         noise({ dur: 1.4, vol: 0.18, type: 'highpass', freq: 5000 });

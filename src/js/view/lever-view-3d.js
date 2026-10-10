@@ -45,7 +45,9 @@ export const beamRotationZ = angleDeg => (-angleDeg * Math.PI) / 180;
 export function webglAvailable() {
     try {
         const c = document.createElement('canvas');
-        return Boolean(c.getContext('webgl2') || c.getContext('webgl'));
+        const gl = c.getContext('webgl2') || c.getContext('webgl');
+        gl?.getExtension('WEBGL_lose_context')?.loseContext(); // しらべるだけなので、すぐ返す
+        return Boolean(gl);
     } catch {
         return false;
     }
@@ -667,7 +669,7 @@ export class LeverView3D {
 
     loop(now) {
         this.frame = requestAnimationFrame(this.loop);
-        const dt = Math.min(0.05, (now - this.last) / 1000 || 0.016);
+        const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016); // 遅い端末でも、ゆれ方の速さは同じ
         this.last = now;
         if (!this.isVisible()) {
             if (this.settleResolvers.length) this.finishSettle();
@@ -1058,8 +1060,17 @@ export class LeverView3D {
         if (this.drag) this.drag.ghost.style.transform = `translate(${x}px, ${y}px)`;
     }
 
+    /** 押したまま（まだドラッグになっていない）を取りやめる。手番が変わったあとに、前の押しが効かないように */
+    cancelPress() {
+        this.press = null;
+        window.removeEventListener('pointermove', this.onPointerMove);
+        window.removeEventListener('pointerup', this.onPointerUp);
+        window.removeEventListener('pointercancel', this.onPointerUp);
+    }
+
     /** ドラッグを取りやめる（onDrop は呼ばない。時間切れなど） */
     cancelDrag() {
+        this.cancelPress();
         if (!this.drag) return;
         const { ghost, ids } = this.drag;
         ghost.remove();

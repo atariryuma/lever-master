@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const root = join(import.meta.dirname, '..');
@@ -20,6 +20,11 @@ describe('Service Worker のキャッシュ一覧', () => {
             .map(f => relative(root, f).replaceAll('\\', '/'))
             .filter(f => !f.endsWith('.txt'));
         const missing = files.filter(f => !cached.has(f));
+        expect(missing).toEqual([]);
+    });
+
+    it('キャッシュ一覧のファイルはすべて存在する（1つでも無いと Service Worker が入らない）', () => {
+        const missing = [...cached].filter(f => !existsSync(join(root, f)));
         expect(missing).toEqual([]);
     });
 

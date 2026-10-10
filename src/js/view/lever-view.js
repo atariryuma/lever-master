@@ -545,8 +545,17 @@ export class LeverView {
         this.settleResolvers?.splice(0).forEach(r => r());
     }
 
+    /** 押したまま（まだドラッグになっていない）を取りやめる。手番が変わったあとに、前の押しが効かないように */
+    cancelPress() {
+        this.press = null;
+        window.removeEventListener('pointermove', this.onPointerMove);
+        window.removeEventListener('pointerup', this.onPointerUp);
+        window.removeEventListener('pointercancel', this.onPointerUp);
+    }
+
     /** ドラッグを取りやめる（onDrop は呼ばない。時間切れなど） */
     cancelDrag() {
+        this.cancelPress();
         if (!this.drag) return;
         const { ghost, ids } = this.drag;
         ghost.remove();

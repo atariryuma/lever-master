@@ -4,6 +4,7 @@ import {
     move, moveRuleFor, playerById, pointsOf, release, undoHang, undoMove,
 } from '../src/js/engine/battle.js';
 import { isBalanced, momentOf } from '../src/js/engine/lever.js';
+import { enumerateTurns } from '../src/js/engine/ai.js';
 
 const human = { kind: 'human' };
 const twoPlayers = () => createBattle({ seats: [human, human, null, null], stock: 2 });
@@ -152,6 +153,15 @@ describe('終了と順位', () => {
         expect(s.result.winners.sort()).toEqual(['p1', 'p2']);
     });
 
+    it('はたらきの合計が大きい人が1位（同点でなければ1人だけ）', () => {
+        const s = createBattle({ seats: [human, human, null, null] });
+        s.board[5].push({ id: 'a', mass: 10, owner: 'p1' }); // p1: 50
+        s.board[-2].push({ id: 'b', mass: 10, owner: 'p2' }); // p2: 20
+        const result = computeResult(s);
+        expect(result.winners).toEqual(['p1']);
+        expect(result.rows.map(r => [r.playerId, r.rank, r.points])).toEqual([['p1', 1, 50], ['p2', 2, 20]]);
+    });
+
     it('アウトの人は生き残りより下の順位', () => {
         const s = createBattle({ seats: [human, human, human, null] });
         s.players[1].out = true;
@@ -167,5 +177,12 @@ describe('hasSafeTurn', () => {
         expect(hasSafeTurn(twoPlayers())).toBe(true);
         const s = hang(twoPlayers(), 4);
         expect(Math.abs(momentOf(s.board).diff)).toBe(40);
+    });
+
+    it('どうやってもつり合わせられない盤面では false（CPU の手の列挙とも一致）', () => {
+        const s = twoPlayers();
+        for (const p of [-6, -5, -4]) for (let i = 0; i < 6; i++) s.board[p].push({ id: `x${p}${i}`, mass: 30, owner: 'neutral' });
+        expect(hasSafeTurn(s)).toBe(false);
+        expect(enumerateTurns(s).some(t => isBalanced(t.board))).toBe(false);
     });
 });

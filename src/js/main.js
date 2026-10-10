@@ -146,6 +146,8 @@ function enterPlay(mode, params) {
     showScreen('screen-play');
     for (const v of Object.values(views)) v?.reset?.();
     mode.enter(app, params);
+    // タイトルはモードが決めるので、決まってから読み上げ用にフォーカスしなおす
+    $('#play-title').focus({ preventScroll: true });
 }
 
 /** 前の画面のバナー・演出（帯・たたきつけ・紙吹雪）を残さない */

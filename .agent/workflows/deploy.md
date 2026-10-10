@@ -12,6 +12,8 @@ description: GitHub PagesへLEVER MASTERをデプロイ
 
 ## デプロイ手順
 
+0. `sw.js` の `VERSION` と `package.json` の `version` を上げる
+
 1. 変更をステージングに追加
 ```bash
 cd "/Users/ryuma/My scripts/LEVER MASTER"
@@ -35,4 +37,5 @@ git push
 ## 注意事項
 - `main`ブランチへのプッシュで自動的にGitHub Actionsがトリガーされる
 - デプロイ完了まで通常1-2分かかる
-- GAS関連ファイル（`.clasp.json`, `Code.gs`, `appsscript.json`）は`.gitignore`で除外済み
+- GAS 版は GitHub Pages の本体を読み込むので、Pages の反映を確認してから `npm run deploy:gas`
+- `gas/Code.js` と `gas/appsscript.json`、`.clasp.json` は追跡している。`gas/index.html` は自動生成で追跡しない

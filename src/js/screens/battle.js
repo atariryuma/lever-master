@@ -853,7 +853,7 @@ function renderPlayers() {
             `<i class="${!p.out && i < p.stock ? 'is-left' : ''}"></i>`).join('');
         const sub = p.kind === 'cpu' ? `CPU・${CPU_LEVELS[p.level]?.label ?? ''}` : (humanCount() === 1 ? 'あなた' : 'ひと');
         return `
-            <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}"
+            <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}" role="group"
                 aria-label="${PLAYER_META[id].name} ${sub}、のこり${p.stock}こ、はたらき${p.out ? 'アウト' : pointsOf(state, id)}${id === turnId ? '、いまのばん' : ''}">
                 <span class="pchip-sym" aria-hidden="true">${icon(id)}</span>
                 <span class="pchip-name">${PLAYER_META[id].name}<small>${sub}</small></span>

@@ -18,12 +18,14 @@ src/js/
     puzzles.js          もんだいデータとソルバー
   view/
     lever-view-3d.js    3D のてこ（Three.js）。ふだんはこちら
-    lever-view.js       SVG のてこ（WebGL が使えないときの代わり。?2d で強制）
+    lever-view.js       SVG のてこ（「図」の表示。WebGL が使えないときもこれ。?2d で強制）。ゆれの計算（stepSpring/kickFor）もここ
     weight-art.js       おもりの絵（2D・ドラッグ中の表示）
   screens/              モードごとの画面ロジック（lab / puzzles / battle）
   ui.js widgets.js      共通 UI 部品（計算式パネル・バナー・トースト・セグメント等）
   fx.js                 画面全体の演出（たいせん・もんだいクリア）
   icons.js              SVG アイコン（スプライトを <body> に入れ、icon('名前') で使う。絵文字は使わない）
+  keep.js               水平キープのゲージ（つり合ったまま静まると決定）
+  players.js            プレイヤーの名前・色・記号
   audio.js storage.js   効果音・BGM／localStorage
 __tests__/              Vitest
 src/vendor/three.js     同梱した Three.js（使う部品だけ。`npm run vendor` で作り直す）
@@ -92,6 +94,6 @@ npm run check   # 両方
 
 ## リリース
 
-1. `sw.js` の `VERSION` を上げる（キャッシュ更新のため）
+1. `sw.js` の `VERSION` と `package.json` の `version` を上げる（キャッシュ更新のため）
 2. `main` に push → GitHub Actions が Pages にデプロイ
 3. Pages の反映を確認してから `npm run deploy:gas`

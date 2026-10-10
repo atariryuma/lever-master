@@ -20,8 +20,13 @@ export const MODE = 'puzzle';
 
 const loadProgress = () => {
     const p = load('progress', { stars: {} });
-    // こわれた保存データでもホームが開けるように
-    if (!p.stars || typeof p.stars !== 'object') p.stars = {};
+    // こわれた保存データでもホームが開けるように（★は 1〜3 の数だけ残す）
+    const raw = p.stars && typeof p.stars === 'object' ? p.stars : {};
+    p.stars = {};
+    for (const [id, n] of Object.entries(raw)) {
+        const stars = Math.round(Number(n));
+        if (stars >= 1 && stars <= 3) p.stars[id] = stars;
+    }
     return p;
 };
 
@@ -331,7 +336,7 @@ function startAutoCheck() {
         ms: 2500,
         label: app.has3d ? '3Dでたしかめるよ' : 'たしかめるよ',
         isActive: () => state.phase === 'placing' && state.tray.length === 0 && !state.selected
-            && !app.view.drag && boardKey() !== state.triedKey,
+            && !app.view.drag && !app.view.press && boardKey() !== state.triedKey,
         onDone: () => releaseHands().catch(err => {
             if (!(err instanceof SessionEnded)) throw err;
         }),
@@ -390,8 +395,10 @@ async function releaseHands() {
     state.phase = 'placing';
     render();
     startAutoCheck();
-    // 「たしかめる」を押したあとフォーカスが消えるので、キーボードでもすぐ続けられるようにもどす
-    document.querySelector('#dock [data-act="release"]')?.focus({ preventScroll: true });
+    // 「たしかめる」を押したあとフォーカスが消えていたら、キーボードでもすぐ続けられるようにもどす
+    if (document.activeElement === document.body || !document.activeElement) {
+        document.querySelector('#dock [data-act="release"]')?.focus({ preventScroll: true });
+    }
 }
 
 /** 図で予想した形のまま 3D へ。「じっけん！」の帯のあいだはささえておき、そのあと手をはなす */

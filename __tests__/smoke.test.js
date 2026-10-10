@@ -40,6 +40,7 @@ describe('アプリのロード', () => {
         ({ window } = new JSDOM(html, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://example.com/' }));
         installBrowserStubs(window);
         window.addEventListener('error', e => errors.push(`window.error: ${e.message}`));
+        window.addEventListener('unhandledrejection', e => errors.push(`unhandledrejection: ${e.reason?.message ?? e.reason}`));
         window.console.warn = () => {};
 
         const run = (label, fn) => {
@@ -68,7 +69,8 @@ describe('アプリのロード', () => {
             click('[data-go="setup"]');
             click('#btn-start');
         });
-        await new Promise(r => setTimeout(r, 50));
+        // たいせんは BATTLE! の演出（約1.7秒）と TURN の帯（約1秒）のあと最初のターンへ進む。そこまで待つ
+        await new Promise(r => setTimeout(r, 4000));
     });
 
     it('起動・画面移動でエラーが出ない', () => {
@@ -85,5 +87,10 @@ describe('アプリのロード', () => {
     it('たいせん画面が開いている', () => {
         expect(window.document.querySelector('#screen-play').hidden).toBe(false);
         expect(window.document.querySelectorAll('#players .pchip').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('たいせんが最初のターンまで進む（演出のあとで止まらない）', () => {
+        expect(window.document.querySelector('#players .pchip.is-turn')).not.toBeNull();
+        expect(window.document.querySelector('#play-sub').textContent).toMatch(/のばん|かんがえ中/);
     });
 });
