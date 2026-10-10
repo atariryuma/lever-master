@@ -10,24 +10,43 @@
  *     ES modules をそのまま読み込める
  *   - PWA manifest は除去。window.LEVER_GAS = true でアプリ側の SW 登録などを止める
  *   - キャッシュ対策として、エントリ（main.js / styles.css）に ?v=<コミット> を付ける
+ *   - main.js から import されるモジュールにも ?v= を付けるため、import map で
+ *     「Pages 上の各 .js の URL → ?v=<コミット> 付きの URL」を対応づける。
+ *     これでブラウザに古いモジュール（Pages は max-age=600）が残っていても、新旧が混ざらない
  *
- * ⚠️ GitHub Pages に同じコミットがデプロイされてから GAS を更新すること（npm run deploy は
- *    GAS 更新 → git push の順なので、Pages の反映まで数分は古い本体が表示されることがある）。
+ * ⚠️ GitHub Pages に同じコミットがデプロイされてから GAS を更新すること
+ *    （main に push → Pages の Actions 完了 → npm run deploy:gas）。
  *
  * 置換は全て「必ず1件以上マッチする」ことを検証し、
  * 元HTMLの構造が変わって黙って壊れることを防ぐ。
  */
 
-import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 import { ROOT } from './bundle.mjs';
 
 const GAS_DIR = resolve(ROOT, 'gas');
 
-/** GAS から配信できない静的アセットの参照先（GitHub Pages） */
-const PAGES_BASE = 'https://atariryuma.github.io/lever-master';
+/** GAS から配信できない静的アセットの参照先（GitHub Pages）。ローカル検証用に上書きできる */
+const PAGES_BASE = process.env.GAS_PAGES_BASE ?? 'https://atariryuma.github.io/lever-master';
+
+/** dir 以下の .js をすべて（ROOT からの相対パス） */
+async function listJs(dir) {
+    const entries = await readdir(resolve(ROOT, dir), { withFileTypes: true, recursive: true });
+    return entries
+        .filter(e => e.isFile() && e.name.endsWith('.js'))
+        .map(e => relative(ROOT, resolve(e.parentPath ?? e.path, e.name)).replaceAll('\\', '/'))
+        .sort();
+}
+
+/** すべてのモジュールを ?v=<コミット> 付きで読ませる import map */
+async function importMap(version) {
+    const files = [...await listJs('src/js'), ...await listJs('src/vendor')];
+    const imports = Object.fromEntries(files.map(f => [`${PAGES_BASE}/${f}`, `${PAGES_BASE}/${f}?v=${version}`]));
+    return `    <script type="importmap">${JSON.stringify({ imports })}</script>\n`;
+}
 
 /**
  * 必ず1件以上マッチする前提の置換。マッチしなければビルドを失敗させる。
@@ -60,7 +79,7 @@ function mustReplace(source, pattern, replacement, label) {
  * @param {string} version キャッシュ対策のクエリ
  * @returns {string} GAS用HTML
  */
-function toGasHtml(html, version) {
+function toGasHtml(html, version, map) {
     let out = html;
 
     // <!-- gas:strip 理由 --> ... <!-- /gas:strip -->
@@ -87,7 +106,7 @@ function toGasHtml(html, version) {
     out = mustReplace(
         out,
         /<\/head>/,
-        '    <script>window.LEVER_GAS = true;</script>\n</head>',
+        `    <script>window.LEVER_GAS = true;</script>\n${map}</head>`,
         'GAS 版フラグの挿入',
     );
 
@@ -103,7 +122,7 @@ async function main() {
     const version = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim();
     const indexHtml = await readFile(resolve(ROOT, 'index.html'), 'utf8');
     const banner = '<!-- このファイルは scripts/build-gas.mjs による自動生成です。直接編集しないでください。 -->\n';
-    const out = banner + toGasHtml(indexHtml, version);
+    const out = banner + toGasHtml(indexHtml, version, await importMap(version));
     await writeFile(resolve(GAS_DIR, 'index.html'), out);
 
     console.log(`[build-gas] gas/index.html を生成しました（${(Buffer.byteLength(out) / 1024).toFixed(1)}KB, v=${version}）`);

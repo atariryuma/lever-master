@@ -78,6 +78,8 @@ npm run check   # 両方
 - アプリ本体（JS・CSS・Three.js・フォント・アイコン）は **GitHub Pages から読み込む**。GitHub Pages は CORS を許可しているので、GAS の iframe からそのまま ES modules を読める
   - 以前は JS を1ファイルにまとめてインライン化していたが、Three.js を含めて 600KB を超えると GAS の配信ラッパー内で `SyntaxError: Invalid or unexpected token` になったためやめた
 - エントリ（`main.js` / `styles.css`）には `?v=<コミット>` を付けてキャッシュを避ける
+- `main.js` が import するモジュールにも、import map（`<script type="importmap">`）で `?v=<コミット>` を付ける。Pages は max-age=600 なので、これがないとデプロイ直後に新旧のモジュールが混ざって起動しないことがある。`src/js` と `src/vendor` の .js はビルド時に自動で列挙される
+- `GAS_PAGES_BASE=http://localhost:8801 npm run build:gas` で読み込み先を変えて、ローカルで確認できる
 - `<!-- gas:strip 理由 -->…<!-- /gas:strip -->` は除去（PWA manifest）
 - `<head>` の最後に `window.LEVER_GAS = true` を入れ、アプリ側で Service Worker 登録とインストール案内を止める
 
