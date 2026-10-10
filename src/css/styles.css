@@ -1721,12 +1721,23 @@ h1, h2, h3, p { margin: 0; }
     .play[data-mode="battle"] > .topbar { border-bottom: 0.5px solid var(--separator); }
     .play[data-mode="battle"] .topbar-title { display: none; }
     .play[data-mode="battle"] > .players {
+        /* 横スクロールにせず、人数でちょうど分ける（画面の外にはみ出さない） */
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 6px;
         align-items: center;
+        overflow: hidden;
         margin: 0;
         padding: calc(4px + var(--sat)) calc(8px + var(--sar)) 4px 0;
         background: var(--material);
         border-bottom: 0.5px solid var(--separator);
     }
+    .play[data-mode="battle"] .pchip { min-width: 0; gap: 6px; padding: 2px 8px 2px 3px; }
+    .play[data-mode="battle"] .pchip-name small, .play[data-mode="battle"] .pchip-pts small { display: none; }
+    .play[data-mode="battle"] .pchip-stock { gap: 2px; }
+    .play[data-mode="battle"] .pchip-stock i { width: 7px; height: 7px; border-width: 1.5px; }
+    .play[data-mode="battle"] .pchip-pts { min-width: 0; font-size: 15px; }
     .topbar { min-height: 44px; padding-top: calc(2px + var(--sat)); padding-bottom: 2px; }
     .topbar .icon-btn { width: 40px; height: 40px; }
 
@@ -1742,12 +1753,14 @@ h1, h2, h3, p { margin: 0; }
     /* 操作エリア：1行（タイマー・ひとこと・ボタン） */
     .dock { flex-wrap: nowrap; min-height: 52px; padding-top: 4px; padding-bottom: calc(4px + var(--sab)); }
     .turn-info { flex: 1 1 auto; min-width: 0; gap: 8px; }
-    .turn-info > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .turn-info > div:not(.timer) { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .turn-info b { flex: none; font-size: 15px; }
     .turn-info p { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
     .turn-steps { display: none; }
     .timer { width: 36px; height: 36px; font-size: 13px; }
     .dock .tray-item { min-height: 44px; }
+    .dock-actions { flex: none; flex-wrap: nowrap; }
+    .btn-judge { min-width: 0; }
 }
 
 /* よこ向きのおすすめは、画面に入ったときに少しだけ出して消す */

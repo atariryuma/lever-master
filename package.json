@@ -1,6 +1,6 @@
 {
   "name": "lever-master",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "てこマスター - 小6理科「てこのはたらき」を遊びながら学ぶ教材ゲーム",
   "type": "module",
   "scripts": {
