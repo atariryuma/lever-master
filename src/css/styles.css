@@ -548,7 +548,9 @@ h1, h2, h3, p { margin: 0; }
 .players {
     display: flex;
     gap: 8px;
-    padding: 0 12px 6px;
+    /* 横スクロールの箱は上下もはみ出しを切るので、光（box-shadow）のぶん上に余白をとる（見た目の位置は margin で相殺） */
+    margin-top: -8px;
+    padding: 8px 12px 6px;
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -581,7 +583,7 @@ h1, h2, h3, p { margin: 0; }
 .pchip-stock i.is-left { background: var(--pc); }
 .pchip-pts { display: grid; min-width: 46px; text-align: right; font-family: var(--font-display); font-weight: 900; font-size: 18px; line-height: 1; }
 .pchip-pts small { font-size: 10px; font-weight: 400; color: var(--ink-2); }
-.pchip.is-turn { background: var(--pc-soft); border-color: var(--pc); box-shadow: 0 0 18px color-mix(in srgb, var(--pc) 45%, transparent); transform: translateY(-1px); }
+.pchip.is-turn { background: var(--pc-soft); border-color: var(--pc); box-shadow: 0 0 10px color-mix(in srgb, var(--pc) 50%, transparent); }
 .pchip.is-out { opacity: 0.45; filter: grayscale(0.8); border-style: dashed; }
 
 /* ステージ */
