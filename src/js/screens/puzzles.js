@@ -503,7 +503,7 @@ function render() {
     trayBox.innerHTML = state.tray.length
         ? state.tray.map(w => `
             <button type="button" class="tray-item" data-tray="${w.id}" aria-pressed="${state.selected?.kind === 'tray' && state.selected.id === w.id}"
-                aria-label="${w.mass}gのおもり">${weightIcon(w, 0.9)}<span class="tray-label">${w.mass}g</span></button>`).join('')
+                aria-label="${w.mass}gのおもり">${weightIcon(w, 1.15)}</button>`).join('')
         : '<p class="tray-empty">ぜんぶつるした！</p>';
     // 作りなおしてもキーボードのフォーカスを失わない
     if (focusedTray) (trayBox.querySelector(`[data-tray="${focusedTray}"]`) ?? trayBox.querySelector('[data-tray]'))?.focus();

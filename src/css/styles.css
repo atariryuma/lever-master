@@ -1019,6 +1019,8 @@ h1, h2, h3, p { margin: 0; }
     -webkit-user-select: none;
 }
 .tray-item .weight-icon { width: 40px; height: auto; }
+/* おもりの絵に重さが書いてあるときは、下のラベルなし。そのぶん絵を大きく */
+.tray-item:not(:has(.tray-label)) .weight-icon { width: 54px; }
 .tray-item[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
 .tray-label { font-size: 13px; font-weight: 800; }
 .tray-empty { color: var(--ok); font-weight: 800; }
@@ -1541,6 +1543,7 @@ h1, h2, h3, p { margin: 0; }
     .tray { gap: 6px; }
     .tray-item { min-width: 58px; min-height: 58px; padding: 2px 6px; border-radius: 12px; }
     .tray-item .weight-icon { width: 30px; }
+    .tray-item:not(:has(.tray-label)) .weight-icon { width: 44px; }
     .tray-label { font-size: 13px; }
     .btn { min-height: 44px; }
     .turn-info { gap: 8px; }
@@ -1568,6 +1571,12 @@ h1, h2, h3, p { margin: 0; }
     .pz-title { font-size: 15px; }
     .pz-stars { font-size: 13px; }
 
+    /* 同じことを2回出さない（そのぶん、てこの場所を広く） */
+    .area text { display: none; }            /* 面積図の「3×20」は、すぐ上の式と同じ */
+    .turn-chip { display: none; }            /* 手番の色は、上のプレイヤー表示で光っている */
+    .seat-color { display: none; }           /* 「あお」などは、色を見ればわかる */
+    #screen-play[data-mode="battle"] .topbar-sub { display: none; } /* 下の操作エリアに同じことが出ている */
+
     /* たいせんの準備 */
     .seat { gap: 8px; padding: 10px 12px; border-radius: 14px; }
     .seat-head { font-size: 17px; }
@@ -1588,6 +1597,8 @@ h1, h2, h3, p { margin: 0; }
     .mode-icon .i { width: 34px; height: 34px; }
     .mode-name { font-size: 20px; }
     .mode-desc { font-size: 13px; }
+    .tray-item:not(:has(.tray-label)) .weight-icon { width: 42px; }
+    .tray-item { min-height: 52px; }
     /* クリアのパネル：星・ひとこと・ボタンを1行に（下の場所をとりすぎない） */
     .clear-panel { flex-wrap: nowrap; gap: 10px; }
     .clear-stars { font-size: 22px; }

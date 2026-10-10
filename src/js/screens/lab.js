@@ -82,8 +82,8 @@ function buildDock() {
     dock.innerHTML = `
         <div class="tray" role="group" aria-label="つるすおもりをえらぶ">
             ${MASSES.map(m => `
-                <button type="button" class="tray-item" data-tray="m${m}" data-mass="${m}" aria-pressed="false">
-                    ${weightIcon({ mass: m }, 0.9)}<span class="tray-label">${m}g</span>
+                <button type="button" class="tray-item" data-tray="m${m}" data-mass="${m}" aria-pressed="false" aria-label="${m}gのおもり">
+                    ${weightIcon({ mass: m }, 1.15)}
                 </button>`).join('')}
         </div>
         <div class="dock-actions">

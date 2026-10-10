@@ -236,6 +236,7 @@ async function wait(ms) {
 }
 
 function setStatus(text) {
+    if (ui) ui.lastStatus = text;
     $('#play-sub').textContent = text;
     announce(text);
 }
@@ -934,7 +935,7 @@ function fillDock(dock) {
     }
     if (p.kind === 'cpu') {
         dock.innerHTML = `
-            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}かんがえ中…</p></div></div>
+            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}${escapeHtml(cpuLine(p))}</p></div></div>
             <div class="dock-actions"><button type="button" class="btn" data-act="fast" ${ui.fast ? 'disabled' : ''}>${icon('fast')}はやおくり</button></div>`;
         return;
     }
@@ -948,7 +949,7 @@ function fillDock(dock) {
         dock.innerHTML = `
             <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん ${streak}</b>${turnSteps(0)}<p>つるす場所をタップ（ドラッグもOK）</p></div></div>
             <div class="tray"><button type="button" class="tray-item" data-tray="mine" aria-label="自分のおもり 10g、のこり${p.stock}こ">
-                ${weightIcon({ mass: 10, owner: p.id }, 0.9)}<span class="tray-label">10g ×${p.stock}</span></button></div>`;
+                ${weightIcon({ mass: 10, owner: p.id }, 0.9)}<span class="tray-label">×${p.stock}</span></button></div>`;
         bindTrayDrag(dock, () => app.view, () => ({ id: 'ghost', mass: 10, owner: p.id }));
         updateTimerView();
         return;
@@ -967,6 +968,12 @@ function fillDock(dock) {
             <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい` : `${icon('alert')}けってい`}</button>
         </div>`;
     updateTimerView();
+}
+
+/** CPU の番の下の表示：いま何をしたか（上の小さい文字と同じ内容。スマホでは上は出さない） */
+function cpuLine(p) {
+    const text = ui.lastStatus ?? '';
+    return text.startsWith(nameOf(p.id)) ? text.slice(nameOf(p.id).length).replace(/^が\s*/, '') : 'かんがえ中…';
 }
 
 /** いまどのステップか（0: つるす、1: うごかす、2: けってい） */
