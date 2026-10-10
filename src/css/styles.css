@@ -1615,6 +1615,37 @@ h1, h2, h3, p { margin: 0; }
     .toast { top: calc(90px + var(--sat)); bottom: auto; padding: 6px 14px; font-size: 14px; }
 }
 
+/* =========================================================
+   スマホの下側：枠をへらして「ひとつのパネル」にまとめる
+   （モバイルゲームの定番：常に出す情報は1か所に、枠の入れ子をつくらない）
+   ========================================================= */
+@media (max-width: 560px), (max-height: 500px) and (orientation: landscape) {
+    /* 計算式と操作エリアを、同じ背景の1枚のパネルに */
+    .play > .readout {
+        background: linear-gradient(180deg, rgba(14, 20, 40, 0.88), rgba(14, 20, 40, 0.94));
+        border-top: 1px solid var(--line);
+        padding-top: 6px;
+    }
+    .play > .dock { border-top: 0; background: rgba(14, 20, 40, 0.94); backdrop-filter: none; }
+    /* 左右の式：カードの枠をなくし、色の細い線だけ */
+    .side { border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; padding: 0 2px; }
+    .side .bar { height: 4px; }
+    /* つり合いの判定：枠をなくして、色の文字と記号だけ */
+    .verdict { border: 0; background: transparent; box-shadow: none; min-width: 48px; }
+    .verdict[data-state="equal"] { background: var(--ok-soft); box-shadow: none; }
+    /* トレイ：おもりの絵だけ（えらんだときだけ枠） */
+    .tray-item { border-color: transparent; background: rgba(255, 255, 255, 0.04); box-shadow: none; }
+    .tray-item[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+    /* サブのボタンは枠なし。メインのボタン（けってい・たしかめる・つぎへ）だけ目立たせる */
+    .dock .btn:not(.btn-primary) { border-color: transparent; background: rgba(255, 255, 255, 0.06); box-shadow: none; }
+    .clear-panel .btn:not(.btn-primary) { border-color: transparent; }
+}
+
+/* よこ向き：プレイヤーの表示が下で切れないように（光のぶんの余白） */
+@media (max-height: 620px) and (orientation: landscape) {
+    .players { padding-bottom: 10px; margin-bottom: -4px; }
+}
+
 /* よこ向きのおすすめは、画面に入ったときに少しだけ出して消す */
 @media (orientation: portrait) and (max-width: 600px) {
     .stage::after { opacity: 0; }
