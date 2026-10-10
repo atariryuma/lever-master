@@ -18,8 +18,9 @@ import {
 } from '../../vendor/three.js';
 import { POSITIONS, chainOf, findWeight, isBalanced, momentOf, positionLabel } from '../engine/lever.js';
 import { PLAYER_META } from '../players.js';
-import { tiltFor } from './lever-view.js';
+import { isCalm, kickFor, stepSpring, tiltFor } from './lever-view.js';
 import { ghostIcon } from './weight-art.js';
+import { setDropZone } from '../widgets.js';
 
 const UNIT = 1;
 const BEAM_HALF = 6.62;
@@ -462,6 +463,7 @@ export class LeverView3D {
 
     render(view) {
         const prevBoard = this.board;
+        if (this.held === false && view.held === false && !reduceMotion()) this.velocity += kickFor(prevBoard, view.board);
         this.board = view.board;
         this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
@@ -599,6 +601,12 @@ export class LeverView3D {
         return new Promise(resolve => this.settleResolvers.push(resolve));
     }
 
+    /** 手をはなしていて、うでも、ぶら下がったおもりも静まっている */
+    isCalm() {
+        if (!this.board || this.held !== false || !isCalm(this)) return false;
+        return Object.values(this.swing).every(s => Math.abs(s.a) < 0.06 && Math.abs(s.v) < 0.12);
+    }
+
     /** モードを切りかえるとき、前のモードの状態（ささえ・判定の光・警告・カメラの寄り）を消す */
     reset() {
         this.held = null;
@@ -676,11 +684,7 @@ export class LeverView3D {
     /** うで（バネで目標の角度へ） @returns {number} 角速度（度/秒） */
     stepBeam(dt, k) {
         const prev = this.angle;
-        const delta = this.target - this.angle;
-        if (Math.abs(delta) > 0.01 || Math.abs(this.velocity) > 0.01) {
-            this.velocity = (this.velocity + delta * 0.06 * k) * Math.pow(0.84, k);
-            this.angle += this.velocity * k;
-        } else {
+        if (!stepSpring(this, k)) {
             this.angle = this.target;
             this.velocity = 0;
             if (this.settleResolvers.length || this.awaitingVerdict) this.finishSettle();
@@ -1019,6 +1023,7 @@ export class LeverView3D {
         ghost.innerHTML = ghostIcon(weights, 1.1);
         document.body.appendChild(ghost);
         this.drag = { source, ghost, ids };
+        setDropZone(source.kind === 'weight' ? this.handlers.dropLabel?.(source.id) ?? null : null);
         this.setGroupOpacity(ids, 0.25);
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
@@ -1046,6 +1051,7 @@ export class LeverView3D {
         const { ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
+        setDropZone(null);
         this.press = null;
         this.setGroupOpacity(ids, 1);
         this.setHover(null);
@@ -1056,6 +1062,7 @@ export class LeverView3D {
         const { source, ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
+        setDropZone(null);
         this.press = null;
         this.setGroupOpacity(ids, 1);
         this.setHover(null);
@@ -1161,7 +1168,7 @@ export class LeverView3D {
                 return;
             }
             const sign = opts.side === 'left' ? 1 : -1; // 度（時計回りが正）: 左が重い → 左が下がる → 負
-            this.velocity += -sign * 3.5;
+            this.velocity += -sign * 1.2;
             const end = new Vector3(-sign * BEAM_HALF, 0, 0);
             this.beam.localToWorld(end);
             this.burst(end, this.colors.danger, 50, 6);

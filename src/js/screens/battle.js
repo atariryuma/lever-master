@@ -21,6 +21,7 @@ import { load, save, settings } from '../storage.js';
 import { bindTrayDrag, segmented } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
 import { icon } from '../icons.js';
+import { watchKeep } from '../keep.js';
 
 export const MODE = 'battle';
 
@@ -175,12 +176,12 @@ export function enter(appCtx, params) {
     state = createBattle({ seats, stock: Number(config.stock), firstSeat });
     ui = {
         selected: null, newIds: new Set(), busy: false, fast: false,
-        timer: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null, intro: false,
+        timer: null, keep: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null, intro: false,
     };
 
     $('#play-title').innerHTML = `${icon('scale')}たいせん`;
     $('#players').hidden = false;
-    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag };
+    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag, dropLabel };
     setBgm('battle', 0);
     render();
     run(async () => {
@@ -272,6 +273,7 @@ async function startTurn() {
         ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
         : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
     startTimer();
+    startKeep();
     render();
 }
 
@@ -341,14 +343,15 @@ function hangEffects(pos, owner) {
 }
 
 /** 判定：ドラムロール → SAFE! / OUT!! */
-async function judge() {
+/** @param {{ auto?: boolean }} [opts] auto … 水平キープで決まったとき（ドラムロールは短く） */
+async function judge({ auto = false } = {}) {
     stopTimer();
     ui.busy = true;
     ui.selected = null;
     const p = currentPlayer(state);
     render();
     app.view.fx?.('judge');
-    const roll = p.kind === 'cpu' ? 700 : 1000;
+    const roll = auto ? 450 : p.kind === 'cpu' ? 700 : 1000;
     play('drumroll', roll / 1000);
     await session.sleep(roll * (ui.fast ? 0.4 : 1));
     const result = release(state);
@@ -467,6 +470,7 @@ function startTimer() {
 }
 
 function stopTimer() {
+    stopKeep();
     if (ui?.timer) clearInterval(ui.timer.id);
     if (ui) ui.timer = null;
 }
@@ -495,7 +499,19 @@ function updateDanger() {
     app.view.setDanger?.(tilted ? Math.max(0.6, level) : level);
 }
 
-/* ---------- 人の操作 ---------- */
+/* ---------- 人の操作 ----------
+ * ボタンにたよらず、てこを直接さわって進める
+ *   - つるしたおもり … ドラッグ／タップで別の場所へ（つるしなおし）。てこの外へ出すと手にもどる
+ *   - 動かしたおもり … もう一度動かせる。元の場所やてこの外へ出すと元にもどる
+ *   - 別のおもりを動かす … さっきの「動かす」は元にもどして、こちらを動かす（動かせるのは1つ）
+ *   - 水平のまま静まって 2 秒キープすると、自動で「けってい」
+ */
+
+/** 動かしなおすときの元の状態（すでに動かしていたら、それをもどした状態） */
+const moveBase = () => (state.moved ? undoMove(state) : state);
+const isHungWeight = id => state.hung?.weightId === id;
+/** さっき動かしたくさり（先頭と、その下）に入っているか */
+const inMovedChain = id => Boolean(state.moved) && chainOf(state.board, state.moved.weightId).some(w => w.id === id);
 
 function selectedIsRehang() {
     return ui.selected?.rehang === true;
@@ -503,8 +519,14 @@ function selectedIsRehang() {
 
 function canDrag(id) {
     if (!isHumanTurn() || state.phase !== 'move') return false;
-    if (state.hung?.weightId === id && !state.moved) return true;
-    return moveRuleFor(state, id).ok;
+    return isHungWeight(id) || moveRuleFor(moveBase(), id).ok;
+}
+
+/** てこの外へ出したときの案内（null なら出さない） */
+function dropLabel(id) {
+    if (isHungWeight(id)) return 'ここに出すと、つるしたおもりを手にもどす';
+    if (inMovedChain(id)) return 'ここに出すと、動かす前にもどす';
+    return null;
 }
 
 function doHang(pos) {
@@ -515,51 +537,87 @@ function doHang(pos) {
     }
     state = hang(state, pos);
     hangEffects(pos, currentPlayer(state).id);
-    setStatus(`${positionLabel(pos)} につるした。1つ動かすか、そのまま「けってい」`);
+    setStatus(isBalanced(state.board)
+        ? `${positionLabel(pos)} につるした。水平のまま 2 秒で決定！`
+        : `${positionLabel(pos)} につるした。おもりを1つ動かして水平にしよう`);
 }
 
+/** つるしたおもりを別の場所へ。動かしていたおもりは、まだ動かせるならそのまま */
 function rehang(pos) {
     if (pos === state.hung.pos) return;
+    const moved = state.moved;
     const base = undoHang(state);
     if (!canHang(base.board, pos)) {
         toast('そこはいっぱいだよ', 'warn');
+        play('error');
         return;
     }
-    state = hang(base, pos);
+    let next = hang(base, pos);
+    if (moved) {
+        if (canMoveTo(next, moved.weightId, moved.to)) next = move(next, moved.weightId, moved.to);
+        else toast('動かしたおもりは元にもどったよ', 'warn');
+    }
+    state = next;
     ui.selected = null; // つるしなおすと id が変わるので、選択はのこさない
     hangEffects(pos, currentPlayer(state).id);
     setStatus(`${positionLabel(pos)} につるしなおした`);
 }
 
-function explainMoveBlock(id, to) {
-    const from = findWeight(state.board, id).pos;
-    if (to === from) return null;
+/** てこの外へ出した：つるしたおもりは手に、動かしたおもりは元の場所にもどす */
+function takeBack(id) {
+    if (isHungWeight(id)) {
+        const hadMove = Boolean(state.moved);
+        state = undoHang(state);
+        play('tap');
+        setStatus('おもりを手にもどした。つるす場所をえらぼう');
+        if (hadMove) toast('動かしたおもりも元にもどったよ');
+    } else if (inMovedChain(id)) {
+        state = undoMove(state);
+        play('move');
+        setStatus('動かす前にもどした');
+    }
+    ui.selected = null;
+}
+
+function explainMoveBlock(base, id, to) {
+    const from = findWeight(base.board, id).pos;
     if (isAdjacent(from, to)) return 'となりの場所には動かせないよ';
-    const count = chainOf(state.board, id).length;
-    if (!canHangChain(state.board, to, count)) {
+    const count = chainOf(base.board, id).length;
+    if (!canHangChain(base.board, to, count)) {
         return count > 1 ? `下のおもりと${count}こいっしょに動くので、そこには入らないよ（6こまで）` : 'そこはいっぱいだよ';
     }
     return '動かせないよ';
 }
 
 function tryMove(id, to) {
-    if (canMoveTo(state, id, to)) {
-        const from = findWeight(state.board, id).pos;
-        const count = chainOf(state.board, id).length;
-        state = move(state, id, to);
-        play('move');
-        const what = count > 1 ? `${count}こまとめて` : '';
-        setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした。「けってい」で判定！`);
+    const now = findWeight(state.board, id)?.pos;
+    if (now === undefined || to === now) {
         ui.selected = null;
         return;
     }
-    const reason = explainMoveBlock(id, to);
-    if (reason) {
-        toast(reason, 'warn');
-        play('error');
-    } else {
-        ui.selected = null;
+    const again = inMovedChain(id);
+    const base = moveBase();
+    const from = findWeight(base.board, id).pos;
+    ui.selected = null;
+    // 動かしたおもりを元の場所へ → 動かす前にもどす
+    if (again && to === from) {
+        state = base;
+        play('move');
+        setStatus('動かす前にもどした');
+        return;
     }
+    if (!canMoveTo(base, id, to)) {
+        toast(explainMoveBlock(base, id, to), 'warn');
+        play('error');
+        return;
+    }
+    const replaced = Boolean(state.moved) && !again;
+    const count = chainOf(base.board, id).length;
+    state = move(base, id, to);
+    play('move');
+    const what = count > 1 ? `${count}こまとめて` : '';
+    setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした`);
+    if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
 }
 
 function onHookTap(pos) {
@@ -567,14 +625,10 @@ function onHookTap(pos) {
     if (state.phase === 'hang') {
         doHang(pos);
     } else if (ui.selected) {
-        if (selectedIsRehang()) {
-            rehang(pos);
-            ui.selected = null;
-        } else {
-            tryMove(ui.selected.id, pos);
-        }
+        if (selectedIsRehang()) rehang(pos);
+        else tryMove(ui.selected.id, pos);
     } else {
-        toast(state.moved ? '動かせるのは1つだけ。「けってい」で判定しよう' : '動かしたいおもりをタップしてね');
+        toast('おもりをドラッグ（またはタップ）して動かせるよ');
     }
     render();
 }
@@ -595,12 +649,12 @@ function onWeightTap(id, pos) {
     }
     if (ui.selected?.id === id) {
         ui.selected = null;
-    } else if (state.hung?.weightId === id && !state.moved) {
+    } else if (isHungWeight(id)) {
         ui.selected = { id, rehang: true };
         play('pick');
-        toast('つるしなおす場所をタップしてね');
+        toast('つるしなおす場所をタップ（てこの外へドラッグで手にもどす）');
     } else {
-        const rule = moveRuleFor(state, id);
+        const rule = moveRuleFor(moveBase(), id);
         if (rule.ok) {
             ui.selected = { id, rehang: false };
             play('pick');
@@ -615,14 +669,26 @@ function onWeightTap(id, pos) {
 }
 
 function onDrop(source, pos) {
-    if (!isHumanTurn() || pos === null) {
+    if (!isHumanTurn()) {
         render();
         return;
     }
-    if (source.kind === 'new' && state.phase === 'hang') doHang(pos);
-    else if (source.kind === 'weight' && state.hung?.weightId === source.id && !state.moved) rehang(pos);
-    else if (source.kind === 'weight') tryMove(source.id, pos);
+    if (source.kind === 'new') {
+        if (pos !== null && state.phase === 'hang') doHang(pos);
+    } else if (pos === null) {
+        takeBack(source.id);
+    } else if (isHungWeight(source.id)) {
+        rehang(pos);
+    } else {
+        tryMove(source.id, pos);
+    }
     render();
+}
+
+/** ボタンでも同じことができる（キーボード・読み上げ用）：最後の操作をもどす */
+function undoLast() {
+    if (state.moved) takeBack(state.moved.weightId);
+    else if (state.hung) takeBack(state.hung.weightId);
 }
 
 function onDockClick(e) {
@@ -636,18 +702,34 @@ function onDockClick(e) {
     }
     if (!isHumanTurn()) return;
     play('tap');
-    if (act === 'undo-hang') {
-        state = undoHang(state);
-        ui.selected = null;
-        setStatus('つるしなおそう');
-    } else if (act === 'undo-move') {
-        state = undoMove(state);
-        setStatus('動かしたのをもどした');
+    if (act === 'undo') {
+        undoLast();
     } else if (act === 'judge') {
         run(judge);
         return;
     }
     render();
+}
+
+/* ---------- 水平キープで自動けってい ---------- */
+
+const KEEP_MS = 2000;
+
+function startKeep() {
+    stopKeep();
+    ui.keep = watchKeep({
+        ms: KEEP_MS,
+        label: '水平キープ',
+        // 自分で何かしたあと（つるした・動かした）、つり合ったまま静まっていて、さわっていないとき
+        isActive: () => isHumanTurn() && state.phase === 'move' && Boolean(state.hung || state.moved)
+            && !ui.selected && !app.view.drag && isBalanced(state.board) && app.view.isCalm?.() === true,
+        onDone: () => run(() => judge({ auto: true })),
+    });
+}
+
+function stopKeep() {
+    ui?.keep?.stop();
+    if (ui) ui.keep = null;
 }
 
 /* ---------- 描画 ---------- */
@@ -672,14 +754,18 @@ function hintTargets() {
         for (const pos of POSITIONS) map.set(pos, canHang(base.board, pos) ? 'ok' : 'blocked');
         return map;
     }
-    const dests = new Set(moveDestinations(state, ui.selected.id));
+    const id = ui.selected.id;
+    const base = moveBase();
+    const dests = new Set(moveDestinations(base, id));
+    // 動かしたおもりは、元の場所へもどせる
+    if (inMovedChain(id)) dests.add(findWeight(base.board, id).pos);
     for (const pos of POSITIONS) {
         if (!dests.has(pos)) {
             map.set(pos, 'blocked');
             continue;
         }
-        const balanced = config.hints === 'on' && isBalanced(moveChain(state.board, ui.selected.id, pos));
-        map.set(pos, balanced ? 'hint' : 'ok');
+        const after = canMoveTo(base, id, pos) ? moveChain(base.board, id, pos) : base.board;
+        map.set(pos, config.hints === 'on' && isBalanced(after) ? 'hint' : 'ok');
     }
     return map;
 }
@@ -757,16 +843,17 @@ function renderDock() {
         return;
     }
     const balanced = isBalanced(state.board);
+    const acted = Boolean(state.hung || state.moved);
     const msg = !balanced
-        ? `${icon('alert')}かたむいている！ このままけっていするとアウト`
-        : state.moved ? 'つり合ってる！ けっていしよう'
-            : state.hung ? 'おもりを1つ動かせるよ（となりはNG）。そのままでもOK' : 'おもりを1つ動かせるよ。そのままでもOK';
+        ? `${icon('alert')}かたむいている！ おもりをドラッグして水平にしよう`
+        : acted ? '水平のまま 2 秒キープで決定。まだ動かしてもOK'
+            : 'おもりを1つ動かせるよ。このままでよければ「けってい」';
+    // 「もどす」と「けってい」はキーボード・読み上げ用にのこす（ふだんは、てこを直接さわれば足りる）
     dock.innerHTML = `
-        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'うごかす？' : 'ピンチ！'} ${streak}</b><p>${msg}</p></div></div>
+        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b><p>${msg}</p></div></div>
         <div class="dock-actions">
-            ${state.hung ? `<button type="button" class="btn" data-act="undo-hang">${icon('undo')}つるしなおす</button>` : ''}
-            ${state.moved ? `<button type="button" class="btn" data-act="undo-move">${icon('undo')}動かしたのをもどす</button>` : ''}
-            <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい！` : `${icon('alert')}けってい`}</button>
+            ${acted ? `<button type="button" class="btn" data-act="undo" aria-label="ひとつもどす">${icon('undo')}もどす</button>` : ''}
+            <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい` : `${icon('alert')}けってい`}</button>
         </div>`;
     updateTimerView();
 }

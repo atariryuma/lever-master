@@ -91,3 +91,14 @@ export function bindTrayDrag(container, view, getWeight) {
     container.addEventListener('click', click, true);
     trayBindings.set(container, { down, click });
 }
+
+/**
+ * てこにつるしてあるおもりをドラッグしているあいだ、下の操作エリアに「ここに出すと…」を出す
+ * @param {string|null} label null で消す
+ */
+export function setDropZone(label) {
+    const dock = document.getElementById('dock');
+    if (!dock) return;
+    if (label) dock.dataset.drop = label;
+    else delete dock.dataset.drop;
+}

@@ -595,6 +595,49 @@ h1, h2, h3, p { margin: 0; }
     user-select: none;
     -webkit-user-select: none;
 }
+/* 水平キープのゲージ */
+.keep {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px 4px 6px;
+    border-radius: 999px;
+    background: rgba(12, 18, 36, 0.85);
+    border: 1px solid color-mix(in srgb, var(--ok) 60%, transparent);
+    color: var(--ok);
+    font-weight: 900;
+    transform: translateX(-50%);
+    pointer-events: none;
+    box-shadow: 0 0 calc(30px * var(--p, 0)) color-mix(in srgb, var(--ok) 60%, transparent);
+}
+.keep[hidden] { display: none; }
+.keep svg { width: 30px; height: 30px; transform: rotate(-90deg); }
+.keep circle { fill: none; stroke-width: 5; }
+.keep-track { stroke: rgba(74, 222, 128, 0.2); }
+.keep-fill { stroke: var(--ok); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--p, 0)); }
+
+/* おもりをてこの外（下の操作エリア）へドラッグ → 元にもどす・はずす */
+.dock { position: relative; }
+.dock[data-drop]::after {
+    content: attr(data-drop);
+    position: absolute;
+    inset: 4px;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    border: 2px dashed var(--accent);
+    border-radius: 16px;
+    background: rgba(8, 14, 30, 0.88);
+    color: var(--accent);
+    font-size: 17px;
+    font-weight: 900;
+    pointer-events: none;
+}
+
 .stage-note {
     position: absolute;
     top: 6px;

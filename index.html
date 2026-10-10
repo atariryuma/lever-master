@@ -118,6 +118,10 @@
             <div class="lever-a11y" id="lever-a11y" role="group" aria-label="実験用てこ"></div>
             <svg id="lever" class="lever" role="group" aria-label="実験用てこ" hidden></svg>
             <p class="stage-note" id="stage-note"></p>
+            <div class="keep" id="keep" hidden aria-hidden="true">
+                <svg viewBox="0 0 44 44"><circle class="keep-track" cx="22" cy="22" r="18"/><circle class="keep-fill" cx="22" cy="22" r="18" pathLength="1"/></svg>
+                <b id="keep-label"></b>
+            </div>
             <div class="banner" id="banner" aria-hidden="true"></div>
         </div>
         <div class="readout" id="readout">
@@ -198,8 +202,8 @@
     <div class="sheet-body rules">
         <ol class="steps">
             <li><b>つるす</b><span>自分のおもり（10g）を1つ、好きな場所につるす。</span></li>
-            <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。<br>・つかんだおもりの<em>下にぶら下がっているおもりも道づれ</em>でいっしょに動く<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
-            <li><b>けってい</b><span>判定！ かたむいていたら<em>アウト</em>（てこは元にもどる）。<br>時間切れになると、そのままの形で自動で判定（まだつるしていなければ<em>アウト</em>）。</span></li>
+            <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。おもりはドラッグで動かす。動かしなおしもOK、てこの外へ出すと元にもどる。<br>・つかんだおもりの<em>下にぶら下がっているおもりも道づれ</em>でいっしょに動く<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
+            <li><b>けってい</b><span>水平のまま静まって<em>2秒キープ</em>すると自動で決定（「けってい」ボタンでもOK）。かたむいたまま決定すると<em>アウト</em>（てこは元にもどる）。<br>時間切れになると、そのままの形で自動で判定（まだつるしていなければ<em>アウト</em>）。</span></li>
         </ol>
         <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
         <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。持ち時間は準備画面で変えられます（なし・30〜120秒。はじめは90秒）。</p>

@@ -5,11 +5,12 @@
 import { MASSES, POSITIONS, canHang, createBoard, findWeight, hang, moveWeight, positionLabel, removeWeight } from '../engine/lever.js';
 import { $, announce, formulaText, renderReadout, toast } from '../ui.js';
 import * as fx from '../fx.js';
-import { isBalanced, momentOf } from '../engine/lever.js';
+import { momentOf } from '../engine/lever.js';
 import { play } from '../audio.js';
 import { bindTrayDrag } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
 import { icon } from '../icons.js';
+import { watchKeep } from '../keep.js';
 
 export const MODE = 'lab';
 
@@ -30,16 +31,43 @@ export function enter(appCtx) {
     $('#play-title').innerHTML = `${icon('flask')}じっけん`;
     $('#play-sub').textContent = 'おもりをえらんで、つるす場所をタップ（ドラッグでもOK）';
     $('#players').hidden = true;
-    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag: () => true };
+    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag: () => true, dropLabel: () => 'ここに出すと、はずす' };
     buildDock();
     render();
+    startCelebrateWatch();
 }
+
+/**
+ * つり合って、水平のまま静まったらお祝い（反動でゆれているあいだは、まだ）。
+ * 同じ形では1回だけ
+ */
+function startCelebrateWatch() {
+    state.keep?.stop();
+    state.keep = watchKeep({
+        ms: 700,
+        label: '水平キープ',
+        isActive: () => {
+            const m = momentOf(state.board);
+            return m.diff === 0 && m.left > 0 && boardKey() !== state.celebratedKey
+                && !app.view.drag && app.view.isCalm?.() === true;
+        },
+        onDone: () => {
+            state.celebratedKey = boardKey();
+            celebrate(momentOf(state.board));
+            startCelebrateWatch();
+        },
+    });
+}
+
+const boardKey = () => POSITIONS.map(pos => state.board[pos].map(w => w.id).join(',')).join('|');
 
 export function refresh() {
     render();
 }
 
 export function leave() {
+    state.keep?.stop();
+    state.keep = null;
     app.view.handlers = {};
 }
 
@@ -57,7 +85,6 @@ function buildDock() {
                 </button>`).join('')}
         </div>
         <div class="dock-actions">
-            <button type="button" class="btn" data-act="remove">${icon('trash')}はずす</button>
             <button type="button" class="btn" data-act="clear">${icon('clear')}ぜんぶはずす</button>
             <button type="button" class="btn btn-toggle" data-act="hold" aria-pressed="false">${icon('hand')}ささえる</button>
             <button type="button" class="btn btn-toggle" data-act="hide" aria-pressed="false">${icon('eyeOff')}式をかくす</button>
@@ -79,21 +106,13 @@ function onDockClick(e) {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     play('tap');
-    if (act === 'remove' && state.selectedId) {
-        update(removeWeight(state.board, state.selectedId));
-        state.selectedId = null;
-    } else if (act === 'clear') {
+    if (act === 'clear') {
         state.board = createBoard();
         state.selectedId = null;
         announce('おもりをぜんぶはずしました');
     } else if (act === 'hold') {
         state.held = !state.held;
-        if (!state.held) {
-            play('release');
-            // 手をはなした瞬間につり合っていたら、ここで結果を見せる
-            const m = momentOf(state.board);
-            if (m.diff === 0 && m.left > 0) celebrate(m);
-        }
+        if (!state.held) play('release');
     } else if (act === 'hide') {
         state.hidden = !state.hidden;
     }
@@ -101,14 +120,11 @@ function onDockClick(e) {
 }
 
 function update(board, newId) {
-    const wasBalanced = isBalanced(state.board);
     state.board = board;
     if (newId) state.newIds.add(newId);
     // 式をかくしているときは数を読み上げない
     announce(state.hidden ? 'おもりを動かしました' : formulaText(board));
-    // 左右どちらにもおもりがあって、つり合ったとき（ささえているあいだは結果を見せない）
-    const m = momentOf(board);
-    if (!wasBalanced && m.diff === 0 && m.left > 0 && !state.held) celebrate(m);
+    // つり合ったときのお祝いは startCelebrateWatch（水平のまま静まってから）
 }
 
 function celebrate(m) {
@@ -155,12 +171,21 @@ function onWeightTap(id, pos) {
         onHookTap(pos);
         return;
     }
-    state.selectedId = state.selectedId === id ? null : id;
+    // えらんでいるおもりをもう一度タップ → はずす
+    if (state.selectedId === id) {
+        update(removeWeight(state.board, id));
+        state.selectedId = null;
+        play('tap');
+        toast('はずしたよ');
+        render();
+        return;
+    }
+    state.selectedId = id;
     if (state.selectedId) {
         state.selectedMass = null;
         play('pick');
         const found = findWeight(state.board, id);
-        toast(`${positionLabel(found.pos)}の ${found.weight.mass}g をえらんだよ。動かす場所をタップ`);
+        toast(`${positionLabel(found.pos)}の ${found.weight.mass}g をえらんだよ。動かす場所をタップ（もう一度タップで、はずす）`);
     }
     render();
 }
@@ -197,7 +222,6 @@ function render() {
     for (const b of dock.querySelectorAll('[data-tray]')) {
         b.setAttribute('aria-pressed', String(Number(b.dataset.mass) === state.selectedMass));
     }
-    dock.querySelector('[data-act="remove"]').disabled = !state.selectedId;
     dock.querySelector('[data-act="hold"]').setAttribute('aria-pressed', String(state.held));
     dock.querySelector('[data-act="hide"]').setAttribute('aria-pressed', String(state.hidden));
     $('#stage-note').innerHTML = state.held ? `${icon('hand')}ささえ中…もう一度おすと、てこが動くよ` : '';

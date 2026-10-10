@@ -14,6 +14,7 @@ import { load, save } from '../storage.js';
 import { bindTrayDrag } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
 import { icon, stars as starIcons } from '../icons.js';
+import { watchKeep } from '../keep.js';
 
 export const MODE = 'puzzle';
 
@@ -91,6 +92,8 @@ export function enter(appCtx, { id }) {
         showHint: false,
         newIds: new Set(),
         where: '2d', // 図で予想中か、3D でたしかめ中か
+        keep: null, // 水平キープのゲージ
+        triedKey: null, // 最後にたしかめた形（同じ形では自動でたしかめない）
     };
     const chapter = CHAPTERS.find(c => c.id === puzzle.chapter);
     $('#play-title').innerHTML = `${icon('puzzle')}もんだい ${puzzle.id}「${escapeHtml(puzzle.title)}」`;
@@ -99,13 +102,16 @@ export function enter(appCtx, { id }) {
     app.view.handlers = {
         onHookTap, onWeightTap, onDrop,
         canDrag: id => state.phase === 'placing' && !findWeight(state.board, id)?.weight.locked,
+        dropLabel: () => 'ここに出すと、トレイにもどす',
     };
     buildDock();
     render();
+    startAutoCheck();
     announce(`もんだい${puzzle.id}。${puzzle.text}`);
 }
 
 export function leave() {
+    stopKeep();
     session?.end();
     app.view.handlers = {};
 }
@@ -200,7 +206,7 @@ function onClearClick(e) {
     }
 }
 
-const releaseLabel = () => (app.has3d ? '「3Dでたしかめる」でじっけんしよう' : '「手をはなす」でたしかめよう');
+const releaseLabel = () => 'このまま少し待つと、自動でたしかめるよ';
 
 const allowed = pos => allowedPositions(state.puzzle).includes(pos);
 const sideName = () => (state.puzzle.side === 'right' ? '右うで' : '左うで');
@@ -299,12 +305,50 @@ function onDrop(source, pos) {
     render();
 }
 
+/* ---------- 水平キープ ---------- */
+
+function stopKeep() {
+    state?.keep?.stop();
+    if (state) state.keep = null;
+}
+
+/** 盤面の形（どこに、どのおもりがあるか） */
+const boardKey = () => POSITIONS.map(pos => state.board[pos].map(w => w.id).join(',')).join('|');
+
+/**
+ * ぜんぶつるして、さわらずに少し待つと自動でたしかめる（ボタンを押さなくてよい）。
+ * 同じ形で一度ためしたあとは、形を変えるまで待つ
+ */
+function startAutoCheck() {
+    stopKeep();
+    state.keep = watchKeep({
+        ms: 2500,
+        label: app.has3d ? '3Dでたしかめるよ' : 'たしかめるよ',
+        isActive: () => state.phase === 'placing' && state.tray.length === 0 && !state.selected
+            && !app.view.drag && boardKey() !== state.triedKey,
+        onDone: () => releaseHands().catch(err => {
+            if (!(err instanceof SessionEnded)) throw err;
+        }),
+    });
+}
+
+/** 手をはなしたあと、水平のまま静まっているのを見とどける */
+function keepLevel(ms) {
+    stopKeep();
+    return new Promise(resolve => {
+        state.keep = watchKeep({ ms, label: '水平キープ', isActive: () => app.view.isCalm?.() ?? true, onDone: resolve });
+    });
+}
+
 async function releaseHands() {
     if (state.tray.length) {
         toast('トレイのおもりを、ぜんぶつるしてからためそう', 'warn');
         play('error');
         return;
     }
+    if (state.phase !== 'placing') return;
+    stopKeep();
+    state.triedKey = boardKey();
     state.phase = 'checking';
     state.selected = null;
     state.tries += 1;
@@ -312,9 +356,11 @@ async function releaseHands() {
     state.held = false;
     play('release');
     render();
+    // 大きく動かしたほど、反動でゆれてから静まる。つり合っていれば、水平のまま少しキープして成功
     await Promise.all([session.wrap(app.view.settle()), session.sleep(700)]);
 
     if (isBalanced(state.board)) {
+        await session.wrap(keepLevel(900));
         await showClear();
         return;
     }
@@ -336,6 +382,7 @@ async function releaseHands() {
     }
     state.phase = 'placing';
     render();
+    startAutoCheck();
     // 「たしかめる」を押したあとフォーカスが消えるので、キーボードでもすぐ続けられるようにもどす
     document.querySelector('#dock [data-act="release"]')?.focus({ preventScroll: true });
 }

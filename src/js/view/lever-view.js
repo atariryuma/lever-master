@@ -9,6 +9,7 @@
 import { POSITIONS, chainOf, findWeight, momentOf, positionLabel } from '../engine/lever.js';
 import { PLAYER_META } from '../players.js';
 import { ghostIcon, heightOf, toneOf, weightShape } from './weight-art.js';
+import { setDropZone } from '../widgets.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const W = 1000;
@@ -35,6 +36,32 @@ const el = (tag, attrs = {}, parent) => {
 export function tiltFor(diff) {
     return -Math.tanh(diff / TILT_SCALE) * MAX_TILT;
 }
+
+/**
+ * うでの動き（2D・3D 共通）。少しやわらかいバネで、目標の角度のまわりを何回かゆれてから止まる。
+ * k は 60fps を 1 とした経過フレーム数
+ */
+const STIFF = 0.022;
+const DAMP = 0.955;
+export function stepSpring(s, k = 1) {
+    const delta = s.target - s.angle;
+    s.velocity = (s.velocity + delta * STIFF * k) * Math.pow(DAMP, k);
+    s.angle += s.velocity * k;
+    return Math.abs(delta) > 0.01 || Math.abs(s.velocity) > 0.01;
+}
+
+/**
+ * つるす・動かす・はずすときの「反動」（度/フレーム）。
+ * はたらきの変化が大きいほど強くゆれる。つり合う形になっても、いったん大きくゆれてから静まる
+ */
+export function kickFor(prevBoard, nextBoard) {
+    if (!prevBoard || !nextBoard) return 0;
+    const change = momentOf(nextBoard).diff - momentOf(prevBoard).diff;
+    return Math.max(-0.9, Math.min(0.9, -change * 0.005));
+}
+
+/** 静まった（ほぼ動いていない） */
+export const isCalm = s => Math.abs(s.target - s.angle) < 0.12 && Math.abs(s.velocity) < 0.02;
 
 function weightAria(weight, pos) {
     const owner = weight.owner && PLAYER_META[weight.owner]
@@ -176,6 +203,7 @@ export class LeverView {
      *   chainMoves … おもりをつかむと、その下のおもりもいっしょに動く（たいせん）
      */
     render(view) {
+        if (!this.held && view.held === false && !reduceMotion()) this.velocity += kickFor(this.board, view.board);
         this.board = view.board;
         this.chainMoves = Boolean(view.chainMoves);
         this.interactive = view.interactive !== false;
@@ -299,17 +327,22 @@ export class LeverView {
         }
     }
 
+    /** 手をはなしていて、うでが静まっている */
+    isCalm() {
+        return Boolean(this.board) && this.held === false && isCalm(this);
+    }
+
     /** 傾きが落ち着くまで待つ */
     settle() {
         return new Promise(resolve => this.settleResolvers.push(resolve));
     }
 
-    loop() {
+    loop(now = performance.now()) {
         this.frame = requestAnimationFrame(this.loop);
-        const delta = this.target - this.angle;
-        if (Math.abs(delta) > 0.01 || Math.abs(this.velocity) > 0.01) {
-            this.velocity = (this.velocity + delta * 0.06) * 0.84;
-            this.angle += this.velocity;
+        // 経過時間で進める（遅い端末でも、ゆれ方の速さは同じ）
+        const k = Math.min(6, (now - (this.lastFrame ?? now)) / (1000 / 60)) || 1;
+        this.lastFrame = now;
+        if (stepSpring(this, k)) {
             this.place();
         } else if (this.settleResolvers.length) {
             this.angle = this.target;
@@ -464,6 +497,7 @@ export class LeverView {
         ghost.innerHTML = ghostIcon(weights, Math.max(0.6, scale) * 1.08);
         document.body.appendChild(ghost);
         this.drag = { source, ghost, ids };
+        setDropZone(source.kind === 'weight' ? this.handlers.dropLabel?.(source.id) ?? null : null);
         for (const id of ids) this.weightNodes.get(id)?.classList.add('is-dragging');
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
@@ -496,6 +530,7 @@ export class LeverView {
         const { ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
+        setDropZone(null);
         this.press = null;
         for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
         this.setHover(null);
@@ -506,6 +541,7 @@ export class LeverView {
         const { source, ghost, ids } = this.drag;
         ghost.remove();
         this.drag = null;
+        setDropZone(null);
         this.press = null;
         for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
         this.setHover(null);
