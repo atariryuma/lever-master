@@ -47,7 +47,7 @@ export default [
         files: ['sw.js'],
         languageOptions: {
             sourceType: 'script',
-            globals: { self: 'readonly', caches: 'readonly', fetch: 'readonly', Response: 'readonly', URL: 'readonly' },
+            globals: { self: 'readonly', caches: 'readonly', fetch: 'readonly', Request: 'readonly', Response: 'readonly', URL: 'readonly' },
         },
     },
 

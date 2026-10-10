@@ -64,6 +64,8 @@ export function bindTrayDrag(container, view, getWeight) {
             const weight = getWeight(btn);
             if (!weight) return;
             btn.dataset.dragged = '1';
+            // マウスだとドロップ先で click が起きるので、フラグは次の操作までに消す
+            window.addEventListener('pointerup', () => setTimeout(() => delete btn.dataset.dragged, 0), { once: true });
             play('pick');
             (typeof view === 'function' ? view() : view).startDrag({ kind: 'new', weight, trayId: btn.dataset.tray }, ev);
         };

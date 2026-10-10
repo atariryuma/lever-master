@@ -4,7 +4,7 @@
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.4.2';
+const VERSION = '2.5.0';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -42,7 +42,7 @@ const ASSETS = [
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE)
-            .then(cache => cache.addAll(ASSETS))
+            .then(cache => cache.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' }))))
             .then(() => self.skipWaiting()),
     );
 });

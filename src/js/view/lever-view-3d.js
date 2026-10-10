@@ -79,6 +79,20 @@ function weightAria(weight, pos) {
     return `${owner}${weight.mass}gのおもり（${positionLabel(pos)}）`;
 }
 
+/**
+ * おもりのメッシュを外して GPU の資源を返す。
+ * 文字のテクスチャ（textTexture）は使い回しているので dispose しない。
+ */
+function disposeMesh(group) {
+    group.parent?.remove(group);
+    const materials = new Set();
+    group.traverse(o => {
+        o.geometry?.dispose();
+        if (o.material) materials.add(o.material);
+    });
+    for (const m of materials) m.dispose();
+}
+
 const textures = new Map();
 function textTexture(text, { size = 128, color = '#ffffff', font = '900 64px Orbitron, "BIZ UDPGothic", sans-serif', glow = null } = {}) {
     const key = `${text}|${size}|${color}|${font}|${glow}`;
@@ -514,7 +528,7 @@ export class LeverView3D {
         }
         for (const [id, mesh] of this.meshes) {
             if (!seen.has(id)) {
-                mesh.parent?.remove(mesh);
+                disposeMesh(mesh);
                 this.meshes.delete(id);
             }
         }
@@ -552,7 +566,7 @@ export class LeverView3D {
         const key = `${weight.mass}|${weight.owner}|${weight.locked}`;
         let mesh = this.meshes.get(weight.id);
         if (mesh && mesh.userData.key !== key) {
-            mesh.parent?.remove(mesh);
+            disposeMesh(mesh);
             mesh = null;
         }
         if (!mesh) {
@@ -583,6 +597,24 @@ export class LeverView3D {
 
     settle() {
         return new Promise(resolve => this.settleResolvers.push(resolve));
+    }
+
+    /** モードを切りかえるとき、前のモードの状態（ささえ・判定の光・警告・カメラの寄り）を消す */
+    reset() {
+        this.held = null;
+        this.awaitingVerdict = false;
+        this.resetGlow();
+        this.focusGoal = 0;
+        this.dangerGoal = 0;
+        this.selectedId = null;
+        this.selectedGroup = new Set();
+        this.cancelDrag();
+        for (const s of Object.values(this.swing)) {
+            s.a = 0;
+            s.v = 0;
+        }
+        this.level();
+        this.settleResolvers.splice(0).forEach(r => r());
     }
 
     /** うでをすぐに水平にする（図から切りかえた直後に、前の傾きが残らないように） */
@@ -762,7 +794,7 @@ export class LeverView3D {
         const weight = this.drag.source.weight;
         const key = `${weight.mass}|${weight.owner}|${weight.locked}`;
         if (this.preview?.userData.key !== key) {
-            if (this.preview) this.preview.parent?.remove(this.preview);
+            if (this.preview) disposeMesh(this.preview);
             this.preview = this.makeWeightMesh(weight);
             this.preview.userData.key = key;
             this.preview.userData.body.material.opacity = 0.45;

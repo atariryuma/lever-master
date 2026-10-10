@@ -17,17 +17,24 @@ import { icon, stars as starIcons } from '../icons.js';
 
 export const MODE = 'puzzle';
 
-let progress = load('progress', { stars: {} });
+const loadProgress = () => {
+    const p = load('progress', { stars: {} });
+    // こわれた保存データでもホームが開けるように
+    if (!p.stars || typeof p.stars !== 'object') p.stars = {};
+    return p;
+};
+
+let progress = loadProgress();
 let app;
 let state;
 let session;
 
 export function reloadProgress() {
-    progress = load('progress', { stars: {} });
+    progress = loadProgress();
 }
 
 export function progressSummary() {
-    const earned = Object.values(progress.stars).reduce((a, b) => a + b, 0);
+    const earned = Object.values(progress.stars).reduce((a, b) => a + (Number(b) || 0), 0);
     return { total: PUZZLES.length, earned, max: PUZZLES.length * 3 };
 }
 
@@ -218,7 +225,13 @@ function placeFromTray(trayId, pos) {
     announce(state.tray.length ? `つるしました。のこり${state.tray.length}こ` : `ぜんぶつるしました。${releaseLabel()}`);
 }
 
+/** 盤面を変えたら、前の結果（どちらが重いか）はかくす */
+function boardChanged() {
+    state.revealSide = false;
+}
+
 function returnToTray(id) {
+    boardChanged();
     const { weight } = findWeight(state.board, id);
     state.board = removeWeight(state.board, id);
     state.tray = [...state.tray, weight].sort((a, b) => a.id.localeCompare(b.id));
@@ -239,6 +252,7 @@ function onHookTap(pos) {
         else if (!allowed(pos)) toast(`このもんだいは${sideName()}につるそう`, 'warn');
         else if (canHang(state.board, pos)) {
             state.board = moveWeight(state.board, sel.id, pos);
+            boardChanged();
             state.selected = null;
             play('move');
         }
@@ -275,6 +289,7 @@ function onDrop(source, pos) {
     } else if (findWeight(state.board, source.id).pos !== pos) {
         if (allowed(pos) && canHang(state.board, pos)) {
             state.board = moveWeight(state.board, source.id, pos);
+            boardChanged();
             play('move');
         } else {
             play('error');
@@ -320,6 +335,8 @@ async function releaseHands() {
     }
     state.phase = 'placing';
     render();
+    // 「たしかめる」を押したあとフォーカスが消えるので、キーボードでもすぐ続けられるようにもどす
+    document.querySelector('#dock [data-act="release"]')?.focus({ preventScroll: true });
 }
 
 /** 図で予想した形のまま 3D へ。「じっけん！」の帯のあいだはささえておき、そのあと手をはなす */

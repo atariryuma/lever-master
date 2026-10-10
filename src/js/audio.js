@@ -330,6 +330,8 @@ const bgmLevel = () => TRACKS[bgmMode].level * 2 * settings.bgmVolume;
 function scheduler() {
     if (ctx.state !== 'running') return;
     const track = TRACKS[bgmMode];
+    // タイマーがおくれた（重い処理・裏のタブ）ときに、たまった音符を一度に鳴らさない
+    if (nextNoteTime < now()) nextNoteTime = now() + 0.05;
     while (nextNoteTime < now() + 0.15) {
         track.schedule(nextNoteTime - now(), step16);
         nextNoteTime += 60 / track.bpm() / 4;
@@ -374,3 +376,8 @@ document.addEventListener('visibilitychange', () => {
     if (document.hidden) ctx.suspend().catch(() => {});
     else ctx.resume().catch(() => {});
 });
+
+// iOS などでは、ユーザー操作の外では resume できないことがある。止まっていたら次のタップで再開する
+window.addEventListener('pointerdown', () => {
+    if (ctx && ctx.state !== 'running' && !document.hidden) ctx.resume().catch(() => {});
+}, { capture: true, passive: true });

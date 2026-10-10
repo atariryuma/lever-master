@@ -421,10 +421,16 @@ function startTimer() {
     const startedAt = performance.now();
     let lastSecond = Math.ceil(total / 1000);
     let lastBeat = 0;
+    let lastTick = startedAt;
+    let paused = 0;
     ui.timer = { total, left: total };
     ui.timer.id = setInterval(() => {
         if (!session.alive || !ui.timer) return;
-        const elapsed = performance.now() - startedAt;
+        const t = performance.now();
+        // 「やめますか？」・ルール・せっていを開いているあいだは時間を止める
+        if (document.querySelector('dialog[open]')) paused += t - lastTick;
+        lastTick = t;
+        const elapsed = t - startedAt - paused;
         const left = Math.max(0, total - elapsed);
         ui.timer.left = left;
         const sec = Math.ceil(left / 1000);

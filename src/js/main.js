@@ -137,6 +137,7 @@ function enterPlay(mode, params) {
     help.innerHTML = icon(rules ? 'help' : 'book');
     help.setAttribute('aria-label', rules ? 'たいせんのルール' : 'てこのきほん');
     showScreen('screen-play');
+    for (const v of Object.values(views)) v?.reset?.();
     mode.enter(app, params);
 }
 

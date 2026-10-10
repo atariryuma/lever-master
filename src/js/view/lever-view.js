@@ -480,6 +480,16 @@ export class LeverView {
         g.style.transform = `translate(${x}px, ${y}px)`;
     }
 
+    /** モードを切りかえるとき、前のモードの状態を消す */
+    reset() {
+        this.held = null;
+        this.cancelDrag();
+        this.target = 0;
+        this.angle = 0;
+        this.velocity = 0;
+        this.settleResolvers?.splice(0).forEach(r => r());
+    }
+
     /** ドラッグを取りやめる（onDrop は呼ばない。時間切れなど） */
     cancelDrag() {
         if (!this.drag) return;
