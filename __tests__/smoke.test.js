@@ -27,12 +27,14 @@ function installBrowserStubs(window) {
     };
     window.HTMLDialogElement.prototype.close = function() {
         this.open = false;
+        this.dispatchEvent(new window.Event('close'));
     };
 }
 
 describe('アプリのロード', () => {
     const errors = [];
     let window;
+    let tourOpened = false;
 
     beforeAll(async () => {
         const bundle = await bundleToIife('src/js/main.js');
@@ -68,6 +70,9 @@ describe('アプリのロード', () => {
             click('[data-go="home"]');
             click('[data-go="setup"]');
             click('#btn-start');
+            // はじめての対戦では「あそびかた」が開く → 最後のページまで進めて閉じる
+            tourOpened = window.document.getElementById('dlg-rules').open;
+            for (let i = 0; i < 4; i++) click('#dlg-rules [data-tour="next"]');
         });
         // たいせんは BATTLE! の演出（約1.7秒）と TURN の帯（約1秒）のあと最初のターンへ進む。そこまで待つ
         await new Promise(r => setTimeout(r, 4000));
@@ -87,6 +92,11 @@ describe('アプリのロード', () => {
     it('たいせん画面が開いている', () => {
         expect(window.document.querySelector('#screen-play').hidden).toBe(false);
         expect(window.document.querySelectorAll('#players .pchip').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('はじめての対戦では、あそびかたが開き、閉じると始まる', () => {
+        expect(tourOpened).toBe(true);
+        expect(window.document.getElementById('dlg-rules').open).toBe(false);
     });
 
     it('たいせんが最初のターンまで進む（演出のあとで止まらない）', () => {

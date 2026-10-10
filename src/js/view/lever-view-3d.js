@@ -420,8 +420,21 @@ export class LeverView3D {
             }));
             check.scale.set(0.55, 0.55, 1);
             check.position.y = -4.1;
-            marker.add(ring, pillar, check);
-            marker.userData = { ring, pillar, check };
+            // となりなどルールで置けない場所の ✕（「となり」と書く）
+            const cross = new Sprite(new SpriteMaterial({
+                map: textTexture('✕', { color: '#fb7185', font: '900 96px sans-serif', glow: 'rgba(251,113,133,0.8)' }),
+                transparent: true, opacity: 0, depthWrite: false,
+            }));
+            cross.scale.set(0.6, 0.6, 1);
+            cross.position.y = -0.75;
+            const crossLabel = new Sprite(new SpriteMaterial({
+                map: textTexture('となり', { size: 256, color: '#fb7185', font: '900 64px "BIZ UDPGothic", sans-serif' }),
+                transparent: true, opacity: 0, depthWrite: false,
+            }));
+            crossLabel.scale.set(1.1, 1.1, 1);
+            crossLabel.position.y = -1.3;
+            marker.add(ring, pillar, check, cross, crossLabel);
+            marker.userData = { ring, pillar, check, cross, crossLabel };
             this.beam.add(marker);
             this.markers.set(pos, marker);
         }
@@ -758,22 +771,26 @@ export class LeverView3D {
     /** 置ける場所：光の輪（ヒントは緑＋✓、ポインターの下は光の柱） */
     stepMarkers() {
         for (const pos of POSITIONS) {
-            const { ring, pillar, check } = this.markers.get(pos).userData;
+            const { ring, pillar, check, cross, crossLabel } = this.markers.get(pos).userData;
             const state = this.targetStates.get(pos);
             const hover = this.hover === pos;
-            const blocked = state === 'blocked';
+            const near = state === 'near';
+            const blocked = state === 'blocked' || near;
             const color = blocked ? this.colors.danger : state === 'hint' ? this.colors.ok : this.colors.accent;
             ring.material.color.copy(color);
             pillar.material.color.copy(color);
             const breathe = 0.75 + 0.25 * Math.sin(this.time * 3 + pos);
             let ringOpacity = state ? 0.5 * breathe : 0;
             let pillarOpacity = state === 'hint' ? 0.06 : 0;
-            if (blocked) ringOpacity = hover ? 0.6 : 0;
+            if (blocked) ringOpacity = near ? 0.75 * breathe : hover ? 0.6 : 0;
+            if (near) pillarOpacity = 0.05;
             if (hover) pillarOpacity = blocked ? 0.04 : 0.14;
             if (hover && !blocked) ringOpacity = 1;
             ring.material.opacity = ringOpacity;
             pillar.material.opacity = pillarOpacity;
             check.material.opacity = state === 'hint' ? 0.9 : 0;
+            cross.material.opacity = near ? 0.95 : 0;
+            crossLabel.material.opacity = near ? 0.95 : 0;
         }
     }
 
@@ -1039,6 +1056,7 @@ export class LeverView3D {
         document.body.appendChild(ghost);
         this.drag = { source, ghost, ids };
         setDropZone(source.kind === 'weight' ? this.handlers.dropLabel?.(source.id) ?? null : null);
+        this.handlers.onDragStart?.(source);
         this.setGroupOpacity(ids, 0.25);
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
@@ -1076,6 +1094,7 @@ export class LeverView3D {
         ghost.remove();
         this.drag = null;
         setDropZone(null);
+        this.handlers.onDragEnd?.();
         this.press = null;
         this.setGroupOpacity(ids, 1);
         this.setHover(null);
@@ -1087,6 +1106,7 @@ export class LeverView3D {
         ghost.remove();
         this.drag = null;
         setDropZone(null);
+        this.handlers.onDragEnd?.();
         this.press = null;
         this.setGroupOpacity(ids, 1);
         this.setHover(null);

@@ -25,6 +25,7 @@ src/js/
   fx.js                 画面全体の演出（たいせん・もんだいクリア）
   icons.js              SVG アイコン（スプライトを <body> に入れ、icon('名前') で使う。絵文字は使わない）
   keep.js               水平キープのゲージ（つり合ったまま静まると決定）
+  rules-tour.js         たいせんのあそびかた（絵の4ステップ。はじめての対戦の前に自動で開く）
   players.js            プレイヤーの名前・色・記号
   audio.js storage.js   効果音・BGM／localStorage
 __tests__/              Vitest

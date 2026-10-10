@@ -11,6 +11,7 @@ import { icon, installIcons } from './icons.js';
 import { applyVolumes, play, setBgm, unlockAudio } from './audio.js';
 import { save, saveSettings, settings } from './storage.js';
 import { segmented } from './widgets.js';
+import { setupRulesTour } from './rules-tour.js';
 import * as lab from './screens/lab.js';
 import * as puzzles from './screens/puzzles.js';
 import * as battle from './screens/battle.js';
@@ -202,7 +203,9 @@ document.addEventListener('click', e => {
     const openBtn = e.target.closest('[data-open]');
     if (openBtn) {
         play('tap');
-        document.getElementById(openBtn.dataset.open).showModal();
+        const dlg = document.getElementById(openBtn.dataset.open);
+        dlg.showModal();
+        dlg.dispatchEvent(new Event('sheet-open'));
         return;
     }
     if (e.target.closest('#view-toggle')) {
@@ -357,6 +360,7 @@ const readoutObserver = 'ResizeObserver' in window ? new ResizeObserver(([entry]
 readoutObserver?.observe($('#readout'));
 
 bindSettings();
+setupRulesTour();
 setupInstallTip();
 registerServiceWorker();
 go('home');

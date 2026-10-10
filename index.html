@@ -196,10 +196,96 @@
 <!-- たいせんのルール -->
 <dialog id="dlg-rules" class="sheet" aria-labelledby="rules-title">
     <form method="dialog" class="sheet-head">
-        <h2 id="rules-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</h2>
+        <h2 id="rules-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのあそびかた</h2>
         <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
     </form>
     <div class="sheet-body rules">
+        <div class="tour" data-page="0">
+            <section class="tour-page">
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+        <g transform="translate(160 0) scale(1) translate(-160 0)">
+            <path d="M160 70 L148 128 L172 128 Z" class="tw-stand"/>
+            <g transform="rotate(0 160 68)">
+                <rect x="20" y="62" width="280" height="9" rx="4.5" class="tw-beam"/><circle cx="28" cy="73" r="2.4" class="tw-hook"/><circle cx="50" cy="73" r="2.4" class="tw-hook"/><circle cx="72" cy="73" r="2.4" class="tw-hook"/><circle cx="94" cy="73" r="2.4" class="tw-hook"/><circle cx="116" cy="73" r="2.4" class="tw-hook"/><circle cx="138" cy="73" r="2.4" class="tw-hook"/><circle cx="182" cy="73" r="2.4" class="tw-hook"/><circle cx="204" cy="73" r="2.4" class="tw-hook"/><circle cx="226" cy="73" r="2.4" class="tw-hook"/><circle cx="248" cy="73" r="2.4" class="tw-hook"/><circle cx="270" cy="73" r="2.4" class="tw-hook"/><circle cx="292" cy="73" r="2.4" class="tw-hook"/>
+                <line x1="94" y1="73" x2="94" y2="78" class="tw-string"/><rect x="83" y="78" width="22" height="20" rx="5" class="tw-w"/><text x="94" y="89.0" class="tw-wlabel">10g</text><line x1="226" y1="73" x2="226" y2="78" class="tw-string"/><rect x="215" y="78" width="22" height="20" rx="5" class="tw-w"/><text x="226" y="89.0" class="tw-wlabel">10g</text>
+            </g>
+            <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
+        </g>
+        <g class="tw-drop"><rect x="259" y="8" width="22" height="20" rx="5" class="tw-mine"/><path d="M270 32 v20 m-6 -6 l6 6 l6 -6" class="tw-arrow"/></g>
+    </svg>
+                <h3><span class="tour-no">1</span>つるす</h3>
+                <p>自分のおもりを <b>1つ</b>、すきな場所につるす。</p>
+            </section>
+            <section class="tour-page" hidden>
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+        <g transform="translate(160 0) scale(1) translate(-160 0)">
+            <path d="M160 70 L148 128 L172 128 Z" class="tw-stand"/>
+            <g transform="rotate(0 160 68)">
+                <rect x="20" y="62" width="280" height="9" rx="4.5" class="tw-beam"/><circle cx="28" cy="73" r="2.4" class="tw-hook"/><circle cx="50" cy="73" r="2.4" class="tw-hook"/><circle cx="72" cy="73" r="2.4" class="tw-hook"/><circle cx="94" cy="73" r="2.4" class="tw-hook"/><circle cx="116" cy="73" r="2.4" class="tw-hook"/><circle cx="138" cy="73" r="2.4" class="tw-hook"/><circle cx="182" cy="73" r="2.4" class="tw-hook"/><circle cx="204" cy="73" r="2.4" class="tw-hook"/><circle cx="226" cy="73" r="2.4" class="tw-hook"/><circle cx="248" cy="73" r="2.4" class="tw-hook"/><circle cx="270" cy="73" r="2.4" class="tw-hook"/><circle cx="292" cy="73" r="2.4" class="tw-hook"/>
+                <line x1="94" y1="73" x2="94" y2="78" class="tw-string"/><rect x="83" y="78" width="22" height="20" rx="5" class="tw-w"/><text x="94" y="89.0" class="tw-wlabel">10g</text><line x1="226" y1="73" x2="226" y2="78" class="tw-string"/><rect x="215" y="78" width="22" height="20" rx="5" class="tw-w"/><text x="226" y="89.0" class="tw-wlabel">10g</text><line x1="270" y1="73" x2="270" y2="78" class="tw-string"/><rect x="259" y="78" width="22" height="20" rx="5" class="tw-mine"/>
+            </g>
+            <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
+        </g>
+        <line x1="28" y1="73" x2="28" y2="78" class="tw-string"/><rect x="17" y="78" width="22" height="20" rx="5" class="tw-ghost"/>
+        <path d="M90 102 C 76 128, 42 128, 30 104" class="tw-arrow tw-ok"/><path d="M30 104 l-1 9 m1 -9 l8 5" class="tw-arrow tw-ok"/>
+        <text x="12" y="132" class="tw-okmark">OK</text>
+        <text x="72" y="104" class="tw-ng">✕</text><text x="116" y="104" class="tw-ng">✕</text>
+        <text x="94" y="134" class="tw-ngl">となりは✕</text>
+    </svg>
+                <h3><span class="tour-no">2</span>うごかす（1つだけ）</h3>
+                <p>どれか1つ動かして、<b>水平</b>にしよう（だれのおもりでもOK）。<br><em>となりの場所（✕）</em>には動かせない。下にぶら下がったおもりは<b>いっしょに</b>動く。</p>
+            </section>
+            <section class="tour-page" hidden>
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+        <g transform="translate(80 78) scale(0.55) translate(-160 -78)">
+            <path d="M160 70 L148 128 L172 128 Z" class="tw-stand"/>
+            <g transform="rotate(0 160 68)">
+                <rect x="20" y="62" width="280" height="9" rx="4.5" class="tw-beam"/><circle cx="28" cy="73" r="2.4" class="tw-hook"/><circle cx="50" cy="73" r="2.4" class="tw-hook"/><circle cx="72" cy="73" r="2.4" class="tw-hook"/><circle cx="94" cy="73" r="2.4" class="tw-hook"/><circle cx="116" cy="73" r="2.4" class="tw-hook"/><circle cx="138" cy="73" r="2.4" class="tw-hook"/><circle cx="182" cy="73" r="2.4" class="tw-hook"/><circle cx="204" cy="73" r="2.4" class="tw-hook"/><circle cx="226" cy="73" r="2.4" class="tw-hook"/><circle cx="248" cy="73" r="2.4" class="tw-hook"/><circle cx="270" cy="73" r="2.4" class="tw-hook"/><circle cx="292" cy="73" r="2.4" class="tw-hook"/>
+                <line x1="94" y1="73" x2="94" y2="78" class="tw-string"/><rect x="83" y="78" width="22" height="20" rx="5" class="tw-w"/><line x1="226" y1="73" x2="226" y2="78" class="tw-string"/><rect x="215" y="78" width="22" height="20" rx="5" class="tw-w"/>
+            </g>
+            <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
+        </g>
+        <text x="80" y="34" class="tw-safe">SAFE!</text><text x="80" y="128" class="tw-cap">水平で 2秒</text>
+        <g transform="translate(240 78) scale(0.55) translate(-160 -78)">
+            <path d="M160 70 L148 128 L172 128 Z" class="tw-stand"/>
+            <g transform="rotate(10 160 68)">
+                <rect x="20" y="62" width="280" height="9" rx="4.5" class="tw-beam"/><circle cx="28" cy="73" r="2.4" class="tw-hook"/><circle cx="50" cy="73" r="2.4" class="tw-hook"/><circle cx="72" cy="73" r="2.4" class="tw-hook"/><circle cx="94" cy="73" r="2.4" class="tw-hook"/><circle cx="116" cy="73" r="2.4" class="tw-hook"/><circle cx="138" cy="73" r="2.4" class="tw-hook"/><circle cx="182" cy="73" r="2.4" class="tw-hook"/><circle cx="204" cy="73" r="2.4" class="tw-hook"/><circle cx="226" cy="73" r="2.4" class="tw-hook"/><circle cx="248" cy="73" r="2.4" class="tw-hook"/><circle cx="270" cy="73" r="2.4" class="tw-hook"/><circle cx="292" cy="73" r="2.4" class="tw-hook"/>
+                <line x1="94" y1="73" x2="94" y2="78" class="tw-string"/><rect x="83" y="78" width="22" height="20" rx="5" class="tw-w"/><line x1="270" y1="73" x2="270" y2="78" class="tw-string"/><rect x="259" y="78" width="22" height="20" rx="5" class="tw-w"/>
+            </g>
+            <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
+        </g>
+        <text x="240" y="34" class="tw-out">OUT</text><text x="240" y="128" class="tw-cap">かたむいたら</text>
+    </svg>
+                <h3><span class="tour-no">3</span>けってい</h3>
+                <p>水平のまま <b>2秒</b> たつと自動で決まる。<br>かたむいたまま決まると <em>アウト</em>。</p>
+            </section>
+            <section class="tour-page" hidden>
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+        <g transform="translate(160 0) scale(1) translate(-160 0)">
+            <path d="M160 70 L148 128 L172 128 Z" class="tw-stand"/>
+            <g transform="rotate(0 160 68)">
+                <rect x="20" y="62" width="280" height="9" rx="4.5" class="tw-beam"/><circle cx="28" cy="73" r="2.4" class="tw-hook"/><circle cx="50" cy="73" r="2.4" class="tw-hook"/><circle cx="72" cy="73" r="2.4" class="tw-hook"/><circle cx="94" cy="73" r="2.4" class="tw-hook"/><circle cx="116" cy="73" r="2.4" class="tw-hook"/><circle cx="138" cy="73" r="2.4" class="tw-hook"/><circle cx="182" cy="73" r="2.4" class="tw-hook"/><circle cx="204" cy="73" r="2.4" class="tw-hook"/><circle cx="226" cy="73" r="2.4" class="tw-hook"/><circle cx="248" cy="73" r="2.4" class="tw-hook"/><circle cx="270" cy="73" r="2.4" class="tw-hook"/><circle cx="292" cy="73" r="2.4" class="tw-hook"/>
+                <line x1="292" y1="73" x2="292" y2="78" class="tw-string"/><rect x="281" y="78" width="22" height="20" rx="5" class="tw-mine"/><line x1="204" y1="73" x2="204" y2="78" class="tw-string"/><rect x="193" y="78" width="22" height="20" rx="5" class="tw-rival"/><line x1="28" y1="73" x2="28" y2="78" class="tw-string"/><rect x="17" y="78" width="22" height="20" rx="5" class="tw-w"/><line x1="116" y1="73" x2="116" y2="78" class="tw-string"/><rect x="105" y="78" width="22" height="20" rx="5" class="tw-w"/><line x1="138" y1="73" x2="138" y2="78" class="tw-string"/><rect x="127" y="78" width="22" height="20" rx="5" class="tw-w"/>
+            </g>
+            <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
+        </g>
+        <text x="292" y="120" class="tw-score tw-score-mine">6×10=60</text>
+        <text x="204" y="120" class="tw-score">2×10=20</text>
+        <path d="M282 12h12v8a6 6 0 01-12 0z M282 15h-5a4 4 0 004 5 M294 15h5a4 4 0 01-4 5 M288 26v5 M283 34h10" class="tw-trophy"/>
+    </svg>
+                <h3><span class="tour-no">★</span>勝ち</h3>
+                <p>おもりを使い切ったとき、<b>自分のおもりの「きょり×重さ」</b>の合計がいちばん大きい人の勝ち。<br>外側ほど点が高い。でも、つり合わせるのはむずかしい！</p>
+            </section>
+            <div class="tour-nav">
+                <button type="button" class="btn" data-tour="prev">まえへ</button>
+                <span class="tour-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <button type="button" class="btn btn-primary" data-tour="next">つぎへ</button>
+            </div>
+            <p class="tour-status visually-hidden" aria-live="polite"></p>
+        </div>
+        <details class="tour-more">
+            <summary>くわしいルール</summary>
+
         <ol class="steps">
             <li><b>つるす</b><span>自分のおもり（10g）を1つ、好きな場所につるす。</span></li>
             <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。おもりはドラッグで動かす。動かしなおしもOK、てこの外へ出すと元にもどる。<br>・つかんだおもりの<em>下にぶら下がっているおもりも道づれ</em>でいっしょに動く<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
@@ -207,6 +293,8 @@
         </ol>
         <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
         <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。持ち時間は準備画面で変えられます（なし・30〜120秒。はじめは90秒）。</p>
+    
+        </details>
     </div>
 </dialog>
 

@@ -723,6 +723,11 @@ h1, h2, h3, p { margin: 0; }
 .column.is-hint .column-rect { fill: rgba(74, 222, 128, 0.1); stroke: var(--ok); stroke-dasharray: 6 7; }
 .column.is-hint .column-mark { display: block; }
 .column.is-blocked .column-rect { fill: transparent; }
+.column-x, .column-x-label { display: none; fill: var(--danger); font-weight: 900; text-anchor: middle; pointer-events: none; }
+.column-x { font-size: 34px; }
+.column-x-label { font-size: 14px; }
+.column.is-near .column-rect { fill: rgba(251, 113, 133, 0.08); stroke: var(--danger); stroke-dasharray: 5 6; }
+.column.is-near .column-x, .column.is-near .column-x-label { display: block; }
 .column.is-hover .column-rect { fill: rgba(34, 211, 238, 0.16); stroke: var(--accent); stroke-dasharray: none; stroke-width: 3; }
 .column.is-blocked.is-hover .column-rect { fill: rgba(251, 113, 133, 0.1); stroke: var(--danger); }
 
@@ -1223,6 +1228,60 @@ h1, h2, h3, p { margin: 0; }
 .steps b { font-size: 18px; }
 .steps span { line-height: 1.6; color: var(--ink-2); }
 .steps em { color: var(--danger); font-style: normal; font-weight: 800; }
+/* たいせんのあそびかた（絵で4ステップ） */
+.tour { display: grid; gap: 10px; }
+.tour-page { display: grid; gap: 6px; justify-items: center; text-align: center; }
+.tour-page[hidden] { display: none; }
+.tour-art { width: min(100%, 420px); height: auto; }
+.tour-page h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 21px; }
+.tour-page p { margin: 0; line-height: 1.7; color: var(--ink-2); font-size: 16px; }
+.tour-page b { color: var(--ink); }
+.tour-page em { color: var(--danger); font-style: normal; font-weight: 800; }
+.tour-no { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--on-color); font-size: 16px; }
+.tour-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-top: 4px; }
+.tour-nav [data-tour="prev"] { justify-self: start; }
+.tour-nav [data-tour="next"] { justify-self: end; min-width: 120px; }
+.tour-dots { display: flex; gap: 6px; }
+.tour-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.tour-dots i.is-on { background: var(--accent); }
+.tour-more { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.tour-more summary { cursor: pointer; color: var(--ink-2); font-weight: 700; padding: 6px 0; }
+.tour-more[open] summary { margin-bottom: 10px; }
+.tw-beam { fill: #cdd6ee; }
+.tw-stand { fill: #7f8db0; }
+.tw-pivot { fill: var(--gold); }
+.tw-hook { fill: none; stroke: #9aa7c7; stroke-width: 1.4; }
+.tw-string { stroke: #9aa7c7; stroke-width: 1.4; }
+.tw-w { fill: #8e98b3; }
+.tw-mine { fill: var(--p1); }
+.tw-rival { fill: var(--p2); }
+.tw-ghost { fill: rgba(142, 152, 179, 0.15); stroke: var(--ok); stroke-width: 1.6; stroke-dasharray: 3 3; }
+.tw-wlabel { fill: #0b1222; font-size: 8px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
+.tw-arrow { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tw-arrow.tw-ok { stroke: var(--ok); }
+.tw-okmark { fill: var(--ok); font-size: 12px; font-weight: 900; text-anchor: middle; }
+.tw-ng { fill: var(--danger); font-size: 20px; font-weight: 900; text-anchor: middle; }
+.tw-ngl { fill: var(--danger); font-size: 12px; font-weight: 900; text-anchor: middle; }
+.tw-safe, .tw-out { font-size: 18px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); }
+.tw-safe { fill: var(--ok); }
+.tw-out { fill: var(--danger); }
+.tw-cap { fill: var(--ink-2); font-size: 12px; font-weight: 700; text-anchor: middle; }
+.tw-score { fill: var(--p2); font-size: 12px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); }
+.tw-score-mine { fill: var(--p1); }
+.tw-trophy { fill: none; stroke: var(--gold); stroke-width: 2; stroke-linejoin: round; }
+.tw-drop { animation: tw-drop 1.6s ease-in-out infinite; }
+@keyframes tw-drop { 0%, 20% { transform: translateY(-6px); opacity: 0.4; } 60%, 100% { transform: translateY(0); opacity: 1; } }
+
+/* じぶんの番の「いまどこ？」（つるす → うごかす → けってい） */
+.turn-steps { display: flex; gap: 4px; margin: 2px 0 3px; padding: 0; list-style: none; font-size: 12px; font-weight: 800; }
+.turn-steps li { white-space: nowrap; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.turn-steps li.is-done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+.turn-steps li.is-now { color: var(--on-color); background: var(--pc, var(--accent)); border-color: transparent; }
+@media (max-width: 560px) {
+    /* せまい画面では「いまのステップ」だけ */
+    .turn-steps li:not(.is-now) { display: none; }
+}
+
 .rule-goal { padding: 12px; border-radius: 14px; background: var(--warn-soft); line-height: 1.7; margin-bottom: 10px; }
 
 .settings { display: grid; gap: 14px; }

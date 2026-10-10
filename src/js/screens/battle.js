@@ -22,6 +22,7 @@ import { bindTrayDrag, segmented } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
 import { icon } from '../icons.js';
 import { watchKeep } from '../keep.js';
+import { showRulesTour } from '../rules-tour.js';
 
 export const MODE = 'battle';
 
@@ -178,18 +179,23 @@ export function enter(appCtx, params) {
     state = createBattle({ seats, stock: Number(config.stock), firstSeat });
     ui = {
         selected: null, newIds: new Set(), busy: false, fast: false,
-        timer: null, keep: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null, intro: false,
+        timer: null, keep: null, dragging: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null, intro: false,
     };
 
     $('#play-title').innerHTML = `${icon('scale')}たいせん`;
     $('#players').hidden = false;
-    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag, dropLabel, dragGroup };
+    app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag, dropLabel, dragGroup, onDragStart, onDragEnd };
     setBgm('battle', 0);
     render();
     run(async () => {
         ui.busy = true;
         ui.intro = true;
         render();
+        // はじめての対戦なら、始める前に「あそびかた」を絵で見せる
+        if (!load('battleTour', { seen: false }).seen) {
+            await session.wrap(showRulesTour({ first: true }));
+            save('battleTour', { seen: true });
+        }
         const order = state.order.map(id => PLAYER_META[id].name).join(' → ');
         setStatus(`じゅんばん：${order}`);
         play('finalRound');
@@ -684,8 +690,8 @@ function onWeightTap(id, pos) {
         if (rule.ok) {
             ui.selected = { id, rehang: false };
             play('pick');
-            const count = chainOf(state.board, id).length;
-            if (count > 1) toast(`下の${count - 1}こも、いっしょに動くよ`);
+            const count = chainOf(moveBase().board, id).length;
+            toast(count > 1 ? `下の${count - 1}こも、いっしょに動くよ。✕（となり）には動かせない` : '動かす場所をタップ。✕（となり）には動かせないよ');
         } else {
             toast(rule.reason, 'warn');
             play('error');
@@ -776,8 +782,22 @@ function stopKeep() {
 
 function hintTargets() {
     if (state.phase === 'hang') return hangTargets();
-    if (!ui.selected) return new Map();
-    return selectedIsRehang() ? rehangTargets() : moveTargets(ui.selected.id);
+    // タップで選んだおもり、またはドラッグ中のおもり
+    const sel = ui.selected ?? ui.dragging;
+    if (!sel) return new Map();
+    return sel.rehang ? rehangTargets() : moveTargets(sel.id);
+}
+
+/** ドラッグを始めたら、置ける場所・となり（✕）を見せる */
+function onDragStart(source) {
+    if (source.kind !== 'weight' || !isHumanTurn() || state.phase !== 'move') return;
+    ui.dragging = { id: source.id, rehang: isHungWeight(source.id) };
+    render();
+}
+
+function onDragEnd() {
+    if (!ui.dragging) return;
+    ui.dragging = null;
 }
 
 const withHints = () => config.hints === 'on';
@@ -818,9 +838,11 @@ function moveTargets(id) {
     const dests = new Set(moveDestinations(base, id));
     // 動かしたおもりは、元の場所へもどせる
     if (inMovedChain(id)) dests.add(findWeight(base.board, id).pos);
+    const from = findWeight(base.board, id).pos;
     for (const pos of POSITIONS) {
         if (!dests.has(pos)) {
-            map.set(pos, 'blocked');
+            // となりは「✕ となり」とはっきり見せる（ルールで置けない）
+            map.set(pos, isAdjacent(from, pos) ? 'near' : 'blocked');
             continue;
         }
         const after = canMoveTo(base, id, pos) ? moveChain(base.board, id, pos) : base.board;
@@ -924,7 +946,7 @@ function fillDock(dock) {
     const streak = (ui.streak[p.id] ?? 0) >= 2 ? `<span class="streak">${ui.streak[p.id]} 連続セーフ中</span>` : '';
     if (state.phase === 'hang') {
         dock.innerHTML = `
-            <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん ${streak}</b><p>つるす場所をタップ（ドラッグもOK）</p></div></div>
+            <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん ${streak}</b>${turnSteps(0)}<p>つるす場所をタップ（ドラッグもOK）</p></div></div>
             <div class="tray"><button type="button" class="tray-item" data-tray="mine" aria-label="自分のおもり 10g、のこり${p.stock}こ">
                 ${weightIcon({ mass: 10, owner: p.id }, 0.9)}<span class="tray-label">10g ×${p.stock}</span></button></div>`;
         bindTrayDrag(dock, () => app.view, () => ({ id: 'ghost', mass: 10, owner: p.id }));
@@ -939,12 +961,19 @@ function fillDock(dock) {
             : 'おもりを1つ動かせるよ。このままでよければ「けってい」';
     // 「もどす」と「けってい」はキーボード・読み上げ用にのこす（ふだんは、てこを直接さわれば足りる）
     dock.innerHTML = `
-        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b><p>${msg}</p></div></div>
+        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b>${turnSteps(state.moved || (balanced && acted) ? 2 : 1)}<p>${msg}</p></div></div>
         <div class="dock-actions">
             ${acted ? `<button type="button" class="btn" data-act="undo" aria-label="ひとつもどす">${icon('undo')}もどす</button>` : ''}
             <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい` : `${icon('alert')}けってい`}</button>
         </div>`;
     updateTimerView();
+}
+
+/** いまどのステップか（0: つるす、1: うごかす、2: けってい） */
+function turnSteps(now) {
+    const names = ['つるす', 'うごかす', 'けってい'];
+    return `<ol class="turn-steps" aria-label="いまのステップ：${names[now]}">${names.map((n, i) =>
+        `<li class="${i < now ? 'is-done' : i === now ? 'is-now' : ''}">${i + 1} ${n}</li>`).join('')}</ol>`;
 }
 
 /* ---------- 結果 ---------- */

@@ -119,6 +119,9 @@ export class LeverView {
             const col = el('g', { class: 'column' }, this.columns);
             el('rect', { class: 'column-rect', x: x - UNIT / 2 + 3, y: 24, width: UNIT - 6, height: H - 50, rx: 14 }, col);
             el('text', { class: 'column-mark', x, y: H - 40 }, col).textContent = '✓';
+            // となりなどルールで置けない場所
+            el('text', { class: 'column-x', x, y: H - 78 }, col).textContent = '✕';
+            el('text', { class: 'column-x-label', x, y: H - 56 }, col).textContent = 'となり';
             this.columnNodes.set(pos, col);
         }
 
@@ -505,6 +508,7 @@ export class LeverView {
         document.body.appendChild(ghost);
         this.drag = { source, ghost, ids };
         setDropZone(source.kind === 'weight' ? this.handlers.dropLabel?.(source.id) ?? null : null);
+        this.handlers.onDragStart?.(source);
         for (const id of ids) this.weightNodes.get(id)?.classList.add('is-dragging');
         if (source.kind === 'new') {
             window.addEventListener('pointermove', this.onPointerMove);
@@ -561,6 +565,7 @@ export class LeverView {
         ghost.remove();
         this.drag = null;
         setDropZone(null);
+        this.handlers.onDragEnd?.();
         this.press = null;
         for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
         this.setHover(null);
@@ -572,6 +577,7 @@ export class LeverView {
         ghost.remove();
         this.drag = null;
         setDropZone(null);
+        this.handlers.onDragEnd?.();
         this.press = null;
         for (const id of ids) this.weightNodes.get(id)?.classList.remove('is-dragging');
         this.setHover(null);
