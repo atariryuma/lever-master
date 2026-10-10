@@ -120,7 +120,11 @@ let viewPref = '3d';
 
 const ROUTE_BGM = { home: 'menu', puzzles: 'menu', setup: 'menu', lab: 'study', puzzle: 'study', battle: 'battle' };
 
+let currentRoute = 'home';
+
 function go(route, params = {}) {
+    currentRoute = route;
+    syncHistory(route);
     for (const v of Object.values(views)) v?.cancelDrag?.();
     if (active) {
         active.leave();
@@ -156,8 +160,11 @@ function clearOverlays() {
     for (const el of $$('#fx > :not(.fx-vignette)')) el.remove();
 }
 
+/** 開いているダイアログを閉じる @returns {boolean} 閉じたものがあったか */
 function closeDialogs() {
-    for (const d of $$('dialog[open]')) d.close();
+    const open = $$('dialog[open]');
+    for (const d of open) d.close();
+    return open.length > 0;
 }
 
 /**
@@ -209,6 +216,55 @@ document.addEventListener('click', e => {
         play('tap');
         active.back();
     }
+});
+
+/* ---------- ブラウザ・スマホの「戻る」 ----------
+ * ホーム以外にいるあいだは、履歴に「見張り」を1つ積んでおく。
+ * 戻るジェスチャーでそれが外れたら、アプリの「もどる」ボタンと同じことをする
+ * （たいせんなら「やめますか？」をきく）。ホームでの「戻る」だけは、ふつうにアプリを出る。
+ */
+let guarded = false;
+let ignoreNextPop = false;
+
+function pushGuard() {
+    if (guarded) return;
+    try {
+        history.pushState({ lever: 'guard' }, '');
+        guarded = true;
+    } catch {
+        // サンドボックスなどで履歴を使えないときは、何もしない
+    }
+}
+
+function syncHistory(route) {
+    if (route !== 'home') {
+        pushGuard();
+    } else if (guarded) {
+        // アプリのボタンでホームにもどったら見張りを外す（次の「戻る」でアプリを出られるように）
+        guarded = false;
+        ignoreNextPop = true;
+        history.back();
+    }
+}
+
+/** アプリの「もどる」と同じ */
+function goBack() {
+    if (closeDialogs()) return;
+    if (active) active.back();
+    else if (currentRoute !== 'home') go('home');
+}
+
+window.addEventListener('popstate', () => {
+    if (ignoreNextPop) {
+        ignoreNextPop = false;
+        return;
+    }
+    guarded = false;
+    if (currentRoute === 'home') return;
+    play('tap');
+    goBack();
+    // まだホームでなければ（たいせんで「つづける」など）、次の「戻る」にそなえて見張りをもどす
+    if (currentRoute !== 'home') pushGuard();
 });
 
 // ダイアログの外側をタップしたら閉じる
