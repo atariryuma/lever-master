@@ -240,7 +240,9 @@ async function startTurn() {
         await showResult();
         return;
     }
+    const turnNumber = state.turnNumber;
     await updateIntensity();
+    if (state.turnNumber !== turnNumber) return;
     const p = currentPlayer(state);
     ui.selected = null;
     ui.fast = false;
@@ -254,9 +256,14 @@ async function startTurn() {
         await runCpu();
         return;
     }
-    setStatus(p.stock > 0
-        ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
-        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
+    // 帯のあいだに人がもう「けってい」していたら、このターンの続きはしない（次のターンが動いている）
+    if (state.turnNumber !== turnNumber || ui.busy) return;
+    // 帯のあいだにもうつるしていたら、その案内を上書きしない
+    if (!state.hung && !state.moved) {
+        setStatus(p.stock > 0
+            ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
+            : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
+    }
     startTimer();
     render();
 }
