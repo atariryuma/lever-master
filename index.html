@@ -79,19 +79,19 @@
         </header>
         <div class="list-body">
             <div class="seats" id="seats"></div>
-            <div class="setup-options">
-                <fieldset class="option">
-                    <legend>1人のおもりの数</legend>
-                    <div class="seg" id="opt-stock" role="radiogroup" aria-label="1人のおもりの数"></div>
-                </fieldset>
-                <fieldset class="option">
-                    <legend>持ち時間（1ターン）</legend>
-                    <div class="seg" id="opt-timer" role="radiogroup" aria-label="持ち時間（1ターン）"></div>
-                </fieldset>
-                <fieldset class="option">
-                    <legend>つり合うヒント</legend>
-                    <div class="seg" id="opt-hints" role="radiogroup" aria-label="つり合うヒント"></div>
-                </fieldset>
+            <div class="setup-options" role="group" aria-label="ルールの設定">
+                <div class="option">
+                    <span class="option-label" id="lbl-stock">1人のおもりの数</span>
+                    <div class="seg" id="opt-stock" role="radiogroup" aria-labelledby="lbl-stock"></div>
+                </div>
+                <div class="option">
+                    <span class="option-label" id="lbl-timer">持ち時間（1ターン）</span>
+                    <div class="seg" id="opt-timer" role="radiogroup" aria-labelledby="lbl-timer"></div>
+                </div>
+                <div class="option">
+                    <span class="option-label" id="lbl-hints">つり合うヒント</span>
+                    <div class="seg" id="opt-hints" role="radiogroup" aria-labelledby="lbl-hints"></div>
+                </div>
             </div>
             <div class="setup-start">
                 <p class="setup-note" id="setup-note"></p>
@@ -307,10 +307,10 @@
     <div class="sheet-body settings">
         <label class="slider"><span><svg class="i" aria-hidden="true"><use href="#i-sound"></use></svg>こうかおん</span><input type="range" min="0" max="100" step="5" id="set-sfx"><output aria-hidden="true"></output></label>
         <label class="slider"><span><svg class="i" aria-hidden="true"><use href="#i-music"></use></svg>BGM</span><input type="range" min="0" max="100" step="5" id="set-bgm"><output aria-hidden="true"></output></label>
-        <fieldset class="option">
-            <legend>CPUのはやさ</legend>
-            <div class="seg" id="set-speed" role="radiogroup" aria-label="CPUのはやさ"></div>
-        </fieldset>
+        <div class="option">
+            <span class="option-label" id="lbl-speed">CPUのはやさ</span>
+            <div class="seg" id="set-speed" role="radiogroup" aria-labelledby="lbl-speed"></div>
+        </div>
         <button type="button" class="btn btn-ghost" id="btn-reset-progress">もんだいの記録をリセット</button>
     </div>
 </dialog>

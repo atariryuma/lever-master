@@ -3,7 +3,8 @@
    ========================================================= */
 
 :root {
-    --font: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI",
+    /* Apple の考え方：文字はシステムフォント（iPhone・Mac はヒラギノ）。Windows・Chromebook は UD フォント */
+    --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "BIZ UDPGothic", "BIZ UDGothic", "Yu Gothic UI",
         "Meiryo", "Noto Sans JP", system-ui, sans-serif;
     --font-display: "Orbitron", var(--font);
 
@@ -45,6 +46,12 @@
     --glow-right: #f472b6;
 
     --radius: 16px;
+    /* iOS のコントロールの塗り（枠線のかわりに、うすい塗りで区切る） */
+    --fill: rgba(118, 118, 128, 0.24);
+    --fill-2: rgba(118, 118, 128, 0.16);
+    --fill-3: rgba(118, 118, 128, 0.12);
+    --separator: rgba(84, 84, 88, 0.6);
+    --material: rgba(10, 14, 28, 0.72);
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
     --glow: 0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 24px rgba(34, 211, 238, 0.25);
@@ -197,6 +204,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* ---------- ボタン類 ---------- */
 
+/* Apple のボタン：枠線・立体の影はなし。塗り（メインは色、サブはうすいグレー）で区別し、押すとうすくなる */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -204,36 +212,31 @@ h1, h2, h3, p { margin: 0; }
     gap: 6px;
     min-height: var(--tap);
     padding: 0 18px;
-    border: 2px solid var(--line);
-    border-radius: 14px;
-    background: var(--card);
-    font-weight: 700;
-    font-size: 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--fill);
+    font-weight: 600;
+    font-size: 17px;
     white-space: nowrap;
     cursor: pointer;
-    box-shadow: 0 2px 0 var(--line);
-    transition: transform 0.08s, background-color 0.15s, border-color 0.15s;
+    transition: opacity 0.12s, transform 0.12s, background-color 0.15s;
     touch-action: manipulation;
 }
-.btn:hover { background: rgba(44, 58, 100, 0.85); border-color: var(--line-strong); }
-.btn:active { transform: translateY(2px); box-shadow: none; }
-.btn:disabled { opacity: 0.4; cursor: default; transform: none; }
-.btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-color);
-    box-shadow: 0 3px 0 #0e7490, 0 0 20px rgba(34, 211, 238, 0.3);
-}
-.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: var(--on-color); box-shadow: 0 3px 0 #9f1239; }
-.btn-ghost { background: transparent; box-shadow: none; }
-.btn-xl { min-height: 60px; font-size: 20px; padding: 0 40px; border-radius: 18px; }
-.btn-toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.btn:hover { background: rgba(118, 118, 128, 0.32); }
+.btn:active { opacity: 0.6; transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+.btn-primary { background: var(--accent); color: var(--on-color); }
+.btn-primary:hover { background: var(--accent-2); }
+.btn-danger { background: var(--danger); color: var(--on-color); }
+.btn-ghost { background: transparent; color: var(--accent); }
+.btn-ghost:hover { background: var(--fill-3); }
+.btn-xl { min-height: 56px; font-size: 19px; padding: 0 40px; border-radius: 14px; }
+.btn-toggle[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .btn-release.is-ready:not(:disabled) { animation: ready 1.6s ease-in-out infinite; }
 
 @keyframes ready {
-    0%, 100% { box-shadow: 0 3px 0 #0e7490, 0 0 0 0 rgba(34, 211, 238, 0.55); }
-    50% { box-shadow: 0 3px 0 #0e7490, 0 0 0 12px rgba(34, 211, 238, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); }
 }
 
 .icon-btn {
@@ -248,20 +251,24 @@ h1, h2, h3, p { margin: 0; }
     font-size: 22px;
     cursor: pointer;
 }
-.icon-btn:hover { background: rgba(140, 175, 255, 0.12); }
+.icon-btn { color: var(--accent); }
+.icon-btn:hover { background: var(--fill-3); }
+.icon-btn:active { opacity: 0.5; }
 
 .chip-btn {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
     padding: 0 16px;
-    border: 2px solid var(--line);
+    border: 0;
     border-radius: 999px;
-    background: var(--card);
-    font-weight: 700;
+    background: var(--fill-2);
+    color: var(--accent);
+    font-weight: 600;
     cursor: pointer;
 }
-.chip-btn:hover { background: var(--card-2); border-color: var(--line-strong); }
+.chip-btn:hover { background: var(--fill); }
+.chip-btn:active { opacity: 0.6; }
 
 .pill {
     display: inline-block;
@@ -274,26 +281,30 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* セグメント（ラジオ） */
+/* iOS のセグメントコントロール：グレーの溝の中で、えらんだものだけ明るいつまみ */
 .seg {
     display: inline-flex;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 4px;
-    border-radius: 14px;
-    background: var(--card-2);
-    border: 2px solid var(--line);
+    gap: 2px;
+    padding: 2px;
+    border-radius: 10px;
+    background: var(--fill);
 }
 .seg button {
-    min-height: 40px;
+    min-height: 36px;
     padding: 0 14px;
     border: 0;
-    border-radius: 10px;
+    border-radius: 8px;
     background: transparent;
-    font-weight: 700;
+    color: var(--ink);
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.18s;
 }
-.seg button[aria-checked="true"] { background: var(--pc, var(--accent)); color: var(--on-color); box-shadow: 0 0 14px color-mix(in srgb, var(--pc, var(--accent)) 45%, transparent); }
-.seg-sm button { min-height: 34px; padding: 0 10px; font-size: 14px; }
+.seg button[aria-checked="true"] { background: #636366; font-weight: 600; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+/* プレイヤーの席など、色に意味があるときは、その色のつまみ */
+.seat .seg button[aria-checked="true"] { background: var(--pc); color: var(--on-color); }
+.seg-sm button { min-height: 30px; padding: 0 10px; font-size: 14px; }
 
 /* ---------- 上部バー ---------- */
 
@@ -301,8 +312,13 @@ h1, h2, h3, p { margin: 0; }
     display: flex;
     align-items: center;
     gap: 6px;
-    min-height: 60px;
+    min-height: 56px;
     padding: calc(6px + var(--sat)) 10px 6px;
+    /* iOS のナビゲーションバー：うすいすりガラス＋細い区切り線 */
+    background: var(--material);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--separator);
 }
 .topbar-title { flex: 1; min-width: 0; padding: 0 4px; }
 .topbar-title h2 { font-size: 20px; font-weight: 800; outline: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -403,31 +419,15 @@ h1, h2, h3, p { margin: 0; }
     justify-items: center;
     align-content: start;
     gap: 6px;
-    padding: 26px 18px 22px;
-    border: 1px solid var(--line);
-    border-radius: 22px;
-    background:
-        linear-gradient(160deg, color-mix(in srgb, var(--mode) 16%, transparent), transparent 55%),
-        var(--card);
-    backdrop-filter: blur(10px);
-    box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    padding: 24px 18px 20px;
+    border: 0;
+    border-radius: 18px;
+    background: rgba(28, 28, 38, 0.92); /* 動く 3D の上でぼかし（backdrop-filter）は重いので、ほぼ不透明の塗りに */
     cursor: pointer;
-    transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+    transition: transform 0.18s, background-color 0.18s;
 }
-.mode-card::before {
-    content: "";
-    position: absolute;
-    inset: 0 22px auto;
-    height: 3px;
-    border-radius: 0 0 4px 4px;
-    background: var(--mode);
-    box-shadow: 0 0 16px var(--mode);
-}
-.mode-card:hover {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--mode) 60%, transparent);
-    box-shadow: var(--shadow-lg), 0 0 30px color-mix(in srgb, var(--mode) 30%, transparent);
-}
+.mode-card:hover { background: rgba(44, 44, 58, 0.9); }
+.mode-card:active { transform: scale(0.98); }
 .mode-card:active { transform: translateY(0); }
 .mode-lab { --mode: var(--m10); }
 .mode-puzzle { --mode: var(--m20); }
@@ -442,11 +442,12 @@ h1, h2, h3, p { margin: 0; }
     color: var(--mode);
     letter-spacing: 0.12em;
 }
-.mode-icon { display: grid; place-items: center; width: 64px; height: 64px; color: var(--mode); }
-.mode-icon .i { width: 56px; height: 56px; stroke-width: 1.6; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--mode) 70%, transparent)); }
+/* アプリのアイコンのような、色の角丸の四角にアイコン */
+.mode-icon { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 14px; background: var(--mode); color: #0b1020; }
+.mode-icon .i { width: 36px; height: 36px; stroke-width: 2; }
 .mode-card:hover .mode-icon .i { animation: icon-bob 0.6s ease; }
 @keyframes icon-bob { 40% { transform: translateY(-5px) rotate(-6deg); } 70% { transform: translateY(1px) rotate(3deg); } }
-.mode-name { font-size: 26px; font-weight: 900; }
+.mode-name { font-size: 22px; font-weight: 700; }
 .mode-desc { color: var(--ink-2); font-size: 15px; line-height: 1.5; }
 .mode-progress { margin-top: 4px; color: var(--gold); font-weight: 800; }
 .mode-progress:empty { display: none; }
@@ -492,18 +493,20 @@ h1, h2, h3, p { margin: 0; }
     flex-wrap: wrap;
     gap: 4px 10px;
     margin-bottom: 10px;
-    font-size: 19px;
+    font-size: 20px;
+    font-weight: 700;
 }
 .chapter h3 small { color: var(--muted); font-size: 14px; font-weight: 400; }
 .chapter-no {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--ink);
-    color: var(--on-color);
-    font-size: 15px;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: var(--fill);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
 }
 .puzzle-grid {
     display: grid;
@@ -512,11 +515,11 @@ h1, h2, h3, p { margin: 0; }
 }
 /* 横に広い画面（タブレット横・PC）：章を2列にならべて、スクロールなしで一覧できるように */
 @media (min-width: 1000px) {
-    .list-body { width: min(1280px, 100%); display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; align-content: start; }
-    .list-body .puzzle-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #puzzle-list { width: min(1280px, 100%); display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; align-content: start; }
+    #puzzle-list .puzzle-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (min-width: 1000px) and (max-width: 1279px) {
-    .list-body .pz-title { font-size: 15px; }
+    #puzzle-list .pz-title { font-size: 15px; }
 }
 .puzzle-card {
     position: relative;
@@ -525,15 +528,17 @@ h1, h2, h3, p { margin: 0; }
     gap: 4px;
     min-height: 96px;
     padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--card);
+    border: 0;
+    border-radius: 12px;
+    background: rgba(28, 28, 38, 0.9);
     text-align: left;
     cursor: pointer;
+    transition: transform 0.12s, background-color 0.15s;
 }
-.puzzle-card:hover { border-color: var(--line-strong); background: var(--card-2); }
+.puzzle-card:active { transform: scale(0.97); }
+.puzzle-card:hover { background: rgba(44, 44, 58, 0.95); }
 .puzzle-card.is-cleared { background: linear-gradient(160deg, rgba(74, 222, 128, 0.08), var(--card)); }
-.puzzle-card.is-next { border-color: var(--accent); box-shadow: var(--glow); }
+.puzzle-card.is-next { box-shadow: inset 0 0 0 2px var(--accent); }
 .pz-no { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--muted); }
 .pz-title { font-size: 17px; font-weight: 800; line-height: 1.3; }
 .pz-stars { display: flex; gap: 2px; font-size: 16px; }
@@ -561,14 +566,12 @@ h1, h2, h3, p { margin: 0; }
     align-content: start;
     gap: 10px;
     padding: 14px;
-    border: 1px solid var(--line);
-    border-top: 4px solid var(--pc);
-    border-radius: 18px;
-    background: linear-gradient(170deg, var(--pc-soft), transparent 60%), var(--card);
-    box-shadow: var(--shadow);
+    border: 0;
+    border-radius: 14px;
+    background: rgba(28, 28, 38, 0.9);
     transition: opacity 0.2s;
 }
-.seat.is-off { opacity: 0.5; border-top-color: var(--line); }
+.seat.is-off { opacity: 0.5; }
 .seat-head { display: flex; align-items: center; gap: 8px; font-size: 20px; }
 .seat-chip {
     display: grid;
@@ -584,14 +587,25 @@ h1, h2, h3, p { margin: 0; }
 .seat .seg { display: flex; flex-wrap: nowrap; }
 .seat .seg button { flex: 1 1 0; padding: 0 6px; white-space: nowrap; }
 
+/* iOS の設定画面のような「グループ」：左に名前、右に切りかえ。行のあいだは細い線 */
 .setup-options {
+    display: grid;
+    margin-top: 16px;
+    padding: 0 16px;
+    border-radius: 14px;
+    background: rgba(28, 28, 38, 0.9);
+}
+.option {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px 28px;
-    margin-top: 20px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    min-height: 56px;
+    padding: 10px 0;
 }
-.option { margin: 0; padding: 0; border: 0; }
-.option legend { margin-bottom: 6px; font-weight: 800; }
+.option + .option { border-top: 0.5px solid var(--separator); }
+.option-label { font-size: 17px; font-weight: 500; }
 .setup-start {
     /* 「はじめる」は、スクロールしなくても押せるように下に固定 */
     position: sticky;
@@ -1233,7 +1247,8 @@ h1, h2, h3, p { margin: 0; }
     position: fixed;
     left: 50%;
     width: max-content; /* left:50% だと幅が画面の半分までになるので */
-    bottom: calc(110px + var(--sab));
+    /* iOS の通知と同じく上に（下の計算式・ボタンをかくさない）。上のバー・プレイヤー表示の下 */
+    top: calc(116px + var(--sat));
     z-index: 50;
     max-width: calc(100% - 32px);
     padding: 10px 18px;
@@ -1259,14 +1274,14 @@ h1, h2, h3, p { margin: 0; }
     width: min(680px, calc(100% - 24px - var(--sal) - var(--sar)));
     max-height: min(calc(100dvh - 24px - var(--sat) - var(--sab)), 820px);
     padding: 0;
-    border: 1px solid var(--line);
-    border-radius: 22px;
-    background: var(--card-solid);
+    border: 0;
+    border-radius: 14px;
+    background: #1c1c26; /* iOS の「もちあがった」背景 */
     color: var(--ink);
-    box-shadow: var(--shadow-lg), 0 0 40px rgba(34, 211, 238, 0.08);
+    box-shadow: var(--shadow-lg);
 }
 .sheet-sm { width: min(480px, calc(100% - 24px - var(--sal) - var(--sar))); }
-.sheet::backdrop { background: rgba(2, 5, 14, 0.66); backdrop-filter: blur(4px); }
+.sheet::backdrop { background: rgba(0, 0, 0, 0.5); }
 .sheet[open] { animation: sheet-in 0.22s cubic-bezier(0.2, 1.2, 0.4, 1); }
 @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
 .sheet-head {
@@ -1275,14 +1290,63 @@ h1, h2, h3, p { margin: 0; }
     z-index: 1;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px 12px 8px 20px;
-    background: var(--card);
+    justify-content: center;
+    min-height: 52px;
+    padding: 12px 52px 10px;
+    background: #1c1c26;
+    border-bottom: 0.5px solid var(--separator);
 }
-.sheet-head h2 { font-size: 21px; }
+/* iOS の閉じるボタン：グレーの丸に × */
+.sheet-head .icon-btn {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    background: var(--fill);
+    color: var(--ink-2);
+    transform: translateY(-50%);
+}
+.sheet-head .icon-btn .i { width: 15px; height: 15px; stroke-width: 2.6; }
+.sheet-head h2 { font-size: 17px; font-weight: 600; text-align: center; }
 .sheet-body { padding: 4px 20px 22px; }
 .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 0 20px 20px; }
 .confirm-title { padding-top: 18px; font-size: 19px; line-height: 1.5; }
+
+/* 確認（はい/いいえ）は iOS のアラート：まんなかに小さく、ボタンは横ならびで線で区切る */
+#dlg-confirm { width: min(300px, calc(100% - 48px)); border-radius: 14px; background: rgba(40, 40, 52, 0.96); }
+#dlg-confirm .sheet-body { padding: 20px 16px 16px; text-align: center; }
+#dlg-confirm .confirm-title { padding: 0; font-size: 17px; font-weight: 600; line-height: 1.45; }
+#dlg-confirm .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 0; border-top: 0.5px solid var(--separator); }
+#dlg-confirm .sheet-actions .btn { min-height: 46px; border-radius: 0; background: transparent; color: var(--accent); font-weight: 400; transform: none; }
+#dlg-confirm .sheet-actions .btn + .btn { border-left: 0.5px solid var(--separator); }
+#dlg-confirm .sheet-actions .btn-danger { color: #ff453a; font-weight: 600; }
+#dlg-confirm .sheet-actions .btn:active { background: var(--fill-3); opacity: 1; }
+
+/* スマホでは、シートは下から出す（iOS と同じ）。上のつまみで「下にさげられる」ことがわかる */
+@media (max-width: 560px) {
+    .sheet:not(#dlg-confirm):not(#dlg-result) {
+        width: 100%;
+        max-width: none;
+        max-height: calc(100dvh - 40px - var(--sat));
+        margin: auto 0 0;
+        border-radius: 14px 14px 0 0;
+        padding-bottom: var(--sab);
+    }
+    .sheet:not(#dlg-confirm):not(#dlg-result)[open] { animation: sheet-up 0.32s cubic-bezier(0.2, 0.9, 0.3, 1); }
+    .sheet:not(#dlg-confirm):not(#dlg-result) .sheet-head::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        width: 36px;
+        height: 5px;
+        border-radius: 3px;
+        background: rgba(235, 235, 245, 0.3);
+        transform: translateX(-50%);
+    }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } }
 
 .learn section + section { margin-top: 22px; }
 .learn h3, .rules h3 { margin-bottom: 8px; font-size: 18px; }
@@ -1622,8 +1686,8 @@ h1, h2, h3, p { margin: 0; }
    スマホの下側：枠をへらして「ひとつのパネル」にまとめる
    （モバイルゲームの定番：常に出す情報は1か所に、枠の入れ子をつくらない）
    ========================================================= */
-@media (max-width: 560px), (max-height: 500px) and (orientation: landscape) {
-    /* 計算式と操作エリアを、同じ背景の1枚のパネルに */
+@media all {
+    /* 計算式と操作エリアを、同じ背景の1枚のパネルに（Apple の考え方で、すべての画面サイズで） */
     .play > .readout {
         background: linear-gradient(180deg, rgba(14, 20, 40, 0.88), rgba(14, 20, 40, 0.94));
         border-top: 1px solid var(--line);
