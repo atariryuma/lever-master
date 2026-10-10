@@ -35,5 +35,8 @@
   },
   "config": {
     "gasDeploymentId": "AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w"
+  },
+  "engines": {
+    "node": ">=20.12"
   }
 }

@@ -1270,6 +1270,13 @@ h1, h2, h3, p { margin: 0; }
 }
 
 @media (max-height: 620px) and (orientation: landscape) {
+    /* スマホ横向き：ボタンを1行にまとめて、てこの場所を確保する */
+    .dock { row-gap: 4px; padding-top: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+    .dock-actions { width: auto; margin-left: auto; }
+    .dock-actions .btn { flex: 0 0 auto; min-height: 40px; padding: 0 10px; font-size: 14px; }
+    .tray-item { min-height: 44px; }
+    .mission-text { font-size: 14px; }
+    .stage-note { font-size: 11px; padding: 2px 8px; opacity: 0.85; }
     .topbar { min-height: 48px; padding-top: calc(2px + env(safe-area-inset-top)); padding-bottom: 2px; }
     .topbar-title h2 { font-size: 16px; }
     .topbar-sub { font-size: 12px; }
@@ -1289,6 +1296,17 @@ h1, h2, h3, p { margin: 0; }
     .btn { min-height: 44px; }
 }
 
+/* とても低い横画面（小さいスマホの横向き）：サブのボタンはアイコンだけにして、てこを大きく */
+@media (max-height: 400px) and (orientation: landscape) {
+    .dock-actions .btn:not(.btn-primary) { font-size: 0; min-width: 44px; padding: 0 10px; }
+    .dock-actions .btn:not(.btn-primary) .i { width: 20px; height: 20px; margin: 0; }
+    .side .bar { display: none; }
+    .topbar-sub { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    /* 演出の文字は「最後のコマ」（画面の外・透明）に飛ばず、動かさずに表示する。消すのは fx.js の spawn */
+    .fx-sweep-band { animation: none !important; transform: rotate(-4deg); }
+    .fx-slam-text, .fx-slam-sub, .fx-pop { animation: none !important; opacity: 1; }
 }

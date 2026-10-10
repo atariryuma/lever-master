@@ -50,6 +50,16 @@ if (setup.v !== SETUP_DEFAULT.v) {
     setup.v = SETUP_DEFAULT.v;
 }
 if (!TIMER_OPTIONS.some(([v]) => v === setup.timer)) setup.timer = SETUP_DEFAULT.timer;
+// こわれた保存データでも準備画面が開けるように、形をととのえる
+if (!['3', '4', '5'].includes(String(setup.stock))) setup.stock = SETUP_DEFAULT.stock;
+setup.stock = String(setup.stock);
+if (!['on', 'off'].includes(setup.hints)) setup.hints = SETUP_DEFAULT.hints;
+setup.seats = SETUP_DEFAULT.seats.map((def, i) => {
+    const seat = Array.isArray(setup.seats) ? setup.seats[i] : null;
+    const kind = ['human', 'cpu', 'none'].includes(seat?.kind) ? seat.kind : def.kind;
+    const level = Object.hasOwn(CPU_LEVELS, seat?.level) ? seat.level : 'normal';
+    return { kind, level };
+});
 let session;
 let config;
 let state;
@@ -165,7 +175,7 @@ export function enter(appCtx, params) {
     state = createBattle({ seats, stock: Number(config.stock), firstSeat });
     ui = {
         selected: null, newIds: new Set(), busy: false, fast: false,
-        timer: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null,
+        timer: null, streak: {}, intensity: 0, finalShown: false, cpuCursor: null, intro: false,
     };
 
     $('#play-title').innerHTML = `${icon('scale')}たいせん`;
@@ -180,7 +190,6 @@ export function enter(appCtx, params) {
         setStatus(`じゅんばん：${order}`);
         play('finalRound');
         await session.wrap(fx.slam('BATTLE!', { tone: 'gold', sub: `じゅんばん ${order}`, ms: 1700 }));
-        ui.busy = false;
         await startTurn();
     });
 }
@@ -240,30 +249,28 @@ async function startTurn() {
         await showResult();
         return;
     }
-    const turnNumber = state.turnNumber;
-    await updateIntensity();
-    if (state.turnNumber !== turnNumber) return;
+    // ターンの始まりの演出（FINAL ROUND・TURN の帯）のあいだは操作できない
     const p = currentPlayer(state);
+    ui.busy = true;
+    ui.intro = true;
     ui.selected = null;
     ui.fast = false;
     ui.pointsBefore = pointsOf(state, p.id);
     render();
+    await updateIntensity();
     play('turn', seatOf(p.id));
     app.view.fx?.('turn', { color: cssVar(`--${p.id}`) });
     const sub = p.kind === 'cpu' ? 'CPU のばん' : p.stock > 0 ? 'おもりをつるせ！' : 'おもりはもうない。動かすか、けってい';
     await session.wrap(fx.turnSweep(`${PLAYER_META[p.id].name} TURN`, `${nameOf(p.id)} ─ ${sub}`, `c-${p.id}`));
+    ui.intro = false;
     if (p.kind === 'cpu') {
         await runCpu();
         return;
     }
-    // 帯のあいだに人がもう「けってい」していたら、このターンの続きはしない（次のターンが動いている）
-    if (state.turnNumber !== turnNumber || ui.busy) return;
-    // 帯のあいだにもうつるしていたら、その案内を上書きしない
-    if (!state.hung && !state.moved) {
-        setStatus(p.stock > 0
-            ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
-            : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
-    }
+    ui.busy = false;
+    setStatus(p.stock > 0
+        ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
+        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
     startTimer();
     render();
 }
@@ -371,7 +378,6 @@ async function showSafe(result) {
     }
     await session.wrap(slamDone);
     state = result.state;
-    ui.busy = false;
     render();
     await startTurn();
 }
@@ -392,7 +398,6 @@ async function showOut(result) {
     // てこをターン前にもどす
     play('rewind');
     state = result.state;
-    ui.busy = false;
     render();
     await session.sleep(500);
     await startTurn();
@@ -521,6 +526,7 @@ function rehang(pos) {
         return;
     }
     state = hang(base, pos);
+    ui.selected = null; // つるしなおすと id が変わるので、選択はのこさない
     hangEffects(pos, currentPlayer(state).id);
     setStatus(`${positionLabel(pos)} につるしなおした`);
 }
@@ -581,7 +587,9 @@ function onWeightTap(id, pos) {
         return;
     }
     // 選んでいるおもりがあり、別の場所のおもりをタップ → その場所へ
-    if (ui.selected && ui.selected.id !== id && findWeight(state.board, ui.selected.id).pos !== pos) {
+    const selectedPos = ui.selected ? findWeight(state.board, ui.selected.id)?.pos : undefined;
+    if (ui.selected && selectedPos === undefined) ui.selected = null;
+    if (ui.selected && ui.selected.id !== id && selectedPos !== pos) {
         onHookTap(pos);
         return;
     }
@@ -734,7 +742,7 @@ function renderDock() {
         return;
     }
     if (ui.busy) {
-        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>判定中…</p></div></div>`;
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>${ui.intro ? 'まもなくスタート…' : '判定中…'}</p></div></div>`;
         return;
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';

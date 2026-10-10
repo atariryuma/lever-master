@@ -1,10 +1,10 @@
 /* てこマスター Service Worker
  * - インストール時に全ファイルをキャッシュ（初回からオフラインで遊べる）
- * - ページはネットワーク優先、それ以外はキャッシュ優先＋裏で更新
+ * - ページもファイルもネットワーク優先（新旧が混ざらない）。オフラインのときはキャッシュ
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.5.1';
+const VERSION = '2.6.0';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -78,14 +78,11 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // JS・CSS もネットワーク優先。キャッシュ優先だと、リリース直後に新しい index.html と
+    // 古いモジュールが組み合わさることがある。オフラインならキャッシュを使う
     event.respondWith(
-        caches.match(request).then(hit => {
-            const network = fetch(request).then(res => putInCache(request, res));
-            if (hit) {
-                network.catch(() => {});
-                return hit;
-            }
-            return network;
-        }),
+        fetch(request)
+            .then(res => putInCache(request, res))
+            .catch(() => caches.match(request).then(hit => hit || Response.error())),
     );
 });

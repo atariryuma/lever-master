@@ -194,7 +194,8 @@ function onClearClick(e) {
         if (id < PUZZLES.length) app.go('puzzle', { id: id + 1 });
         else {
             app.go('puzzles');
-            toast('ぜんぶクリア！ きみはてこマスターだ！', 'success');
+            const all = PUZZLES.every(p => progress.stars[p.id]);
+            toast(all ? 'ぜんぶクリア！ きみはてこマスターだ！' : 'まだ ★ がついていないもんだいに、ちょうせんしよう', all ? 'success' : 'info');
         }
     }
 }

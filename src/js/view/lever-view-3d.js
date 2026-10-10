@@ -606,6 +606,20 @@ export class LeverView3D {
         this.resetGlow();
         this.focusGoal = 0;
         this.dangerGoal = 0;
+        this.shake = 0;
+        this.zoom = 0;
+        this.hover = null;
+        for (const p of this.particles) {
+            this.scene.remove(p.sprite);
+            p.sprite.material.dispose();
+        }
+        for (const w of this.waves) {
+            this.scene.remove(w.ring);
+            w.ring.geometry.dispose();
+            w.ring.material.dispose();
+        }
+        this.particles = [];
+        this.waves = [];
         this.selectedId = null;
         this.selectedGroup = new Set();
         this.cancelDrag();

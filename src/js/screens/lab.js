@@ -44,7 +44,6 @@ export function leave() {
 }
 
 export function back() {
-    play('tap');
     app.go('home');
 }
 
@@ -89,7 +88,12 @@ function onDockClick(e) {
         announce('おもりをぜんぶはずしました');
     } else if (act === 'hold') {
         state.held = !state.held;
-        if (!state.held) play('release');
+        if (!state.held) {
+            play('release');
+            // 手をはなした瞬間につり合っていたら、ここで結果を見せる
+            const m = momentOf(state.board);
+            if (m.diff === 0 && m.left > 0) celebrate(m);
+        }
     } else if (act === 'hide') {
         state.hidden = !state.hidden;
     }
@@ -100,16 +104,18 @@ function update(board, newId) {
     const wasBalanced = isBalanced(state.board);
     state.board = board;
     if (newId) state.newIds.add(newId);
-    announce(formulaText(board));
-    // 左右どちらにもおもりがあって、つり合ったとき
+    // 式をかくしているときは数を読み上げない
+    announce(state.hidden ? 'おもりを動かしました' : formulaText(board));
+    // 左右どちらにもおもりがあって、つり合ったとき（ささえているあいだは結果を見せない）
     const m = momentOf(board);
-    if (!wasBalanced && m.diff === 0 && m.left > 0) celebrate(m);
+    if (!wasBalanced && m.diff === 0 && m.left > 0 && !state.held) celebrate(m);
 }
 
 function celebrate(m) {
     play('balance');
     app.view.fx?.('safe');
-    fx.popup(`つり合った！ 左 ${m.left} ＝ 右 ${m.right}`, window.innerWidth / 2, window.innerHeight * 0.32, 'combo');
+    const text = state.hidden ? 'つり合った！' : `つり合った！ 左 ${m.left} ＝ 右 ${m.right}`;
+    fx.popup(text, window.innerWidth / 2, window.innerHeight * 0.32, 'combo');
 }
 
 function hangNew(pos, mass) {
@@ -185,7 +191,7 @@ function render() {
     }
     app.view.render({ board, held: state.held, selectedId: state.selectedId, targets, newIds: state.newIds });
     state.newIds = new Set();
-    renderReadout($('#readout'), board, { hidden: state.hidden, area: true });
+    renderReadout($('#readout'), board, { hidden: state.hidden, area: true, verdictHidden: state.held });
 
     const dock = $('#dock');
     for (const b of dock.querySelectorAll('[data-tray]')) {

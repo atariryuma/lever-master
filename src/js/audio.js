@@ -227,8 +227,14 @@ const SOUNDS = {
 };
 
 export function play(name, arg) {
-    if (!(settings.sfxVolume > 0) || !context() || ctx.state !== 'running') return;
-    SOUNDS[name]?.(arg);
+    if (!(settings.sfxVolume > 0) || !context()) return;
+    if (ctx.state === 'running') {
+        SOUNDS[name]?.(arg);
+    } else if (ctx.state === 'suspended' && navigator.userActivation?.isActive) {
+        // タップの直後は resume が終わっていないので、終わってから鳴らす
+        // （タップの中だけ。操作の前に鳴らそうとした音をためて、あとでまとめて鳴らさない）
+        ctx.resume().then(() => SOUNDS[name]?.(arg)).catch(() => {});
+    }
 }
 
 /* ---------- BGM ---------- */

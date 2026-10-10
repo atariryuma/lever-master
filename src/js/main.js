@@ -6,7 +6,7 @@
 import { LeverView } from './view/lever-view.js';
 import { LeverView3D, webglAvailable } from './view/lever-view-3d.js';
 import { createBoard, hang } from './engine/lever.js';
-import { $, $$, showScreen } from './ui.js';
+import { $, $$, hideBanner, showScreen } from './ui.js';
 import { icon, installIcons } from './icons.js';
 import { applyVolumes, play, setBgm, unlockAudio } from './audio.js';
 import { save, saveSettings, settings } from './storage.js';
@@ -47,6 +47,7 @@ function createViews() {
 function setViewKind(kind, { refresh = true } = {}) {
     const next = kind === '2d' || !views.v3d ? views.v2d : views.v3d;
     if (next !== view) {
+        view.cancelDrag?.();
         next.handlers = view.handlers;
         view.handlers = {};
         view = next;
@@ -121,6 +122,7 @@ function go(route, params = {}) {
         active = null;
     }
     closeDialogs();
+    clearOverlays();
     setBgm(ROUTE_BGM[route] ?? 'menu');
     routes[route](params);
 }
@@ -141,14 +143,26 @@ function enterPlay(mode, params) {
     mode.enter(app, params);
 }
 
+/** 前の画面のバナー・演出（帯・たたきつけ・紙吹雪）を残さない */
+function clearOverlays() {
+    hideBanner();
+    for (const el of $$('#fx > :not(.fx-vignette)')) el.remove();
+}
+
 function closeDialogs() {
     for (const d of $$('dialog[open]')) d.close();
 }
 
-/** はい/いいえの確認 */
-function confirm(title) {
+/**
+ * はい/いいえの確認。ボタンの文字は質問に合わせる（ふだんは「たいせんをやめる？」用）
+ * @param {string} title
+ * @param {{ yes?: string, no?: string }} [labels]
+ */
+function confirm(title, { yes = 'やめる', no = 'つづける' } = {}) {
     const dlg = $('#dlg-confirm');
     $('#confirm-title').textContent = title;
+    $('#confirm-yes').textContent = yes;
+    $('#confirm-no').textContent = no;
     dlg.returnValue = '';
     dlg.showModal();
     return new Promise(resolve => {
@@ -236,7 +250,7 @@ function bindSettings() {
     });
     $('#btn-reset-progress').addEventListener('click', async () => {
         $('#dlg-settings').close();
-        if (await confirm('もんだいの記録（★）をぜんぶ消しますか？')) {
+        if (await confirm('もんだいの記録（★）をぜんぶ消しますか？', { yes: 'けす', no: 'けさない' })) {
             save('progress', { stars: {} });
             puzzles.reloadProgress();
             refreshHome();
