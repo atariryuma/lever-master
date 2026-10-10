@@ -175,19 +175,19 @@ h1, h2, h3, p { margin: 0; }
 @keyframes screen-in { from { opacity: 0; transform: translateY(14px) scale(0.99); } }
 
 /* ホーム：ロゴとカードの登場 */
-.home.is-entering .logo-en { animation: logo-in 0.9s cubic-bezier(0.2, 1.2, 0.3, 1) both, logo-glow 3s 1s ease-in-out infinite; }
-.home .logo-en { animation: logo-glow 3s ease-in-out infinite; }
+.home.is-entering .logo-en { animation: logo-in 0.9s cubic-bezier(0.2, 1.2, 0.3, 1) backwards; }
 .home.is-entering .logo-ja, .home.is-entering .tagline, .home.is-entering .pill { animation: rise 0.6s 0.35s ease both; }
 .home.is-entering .mode-card { animation: rise 0.6s ease both; }
 .home.is-entering .mode-card:nth-child(1) { animation-delay: 0.45s; }
 .home.is-entering .mode-card:nth-child(2) { animation-delay: 0.55s; }
 .home.is-entering .mode-card:nth-child(3) { animation-delay: 0.65s; }
 .home.is-entering .home-foot { animation: rise 0.6s 0.8s ease both; }
+/* 登場は「うすい・小さい」から。文字が消えないよう filter や letter-spacing は動かさない */
 @keyframes logo-in {
-    from { opacity: 0; letter-spacing: 0.5em; filter: blur(10px) drop-shadow(0 0 18px rgba(34, 211, 238, 0.45)); }
+    from { opacity: 0; transform: scale(0.92); }
 }
 @keyframes logo-glow {
-    50% { filter: drop-shadow(0 0 28px rgba(244, 114, 182, 0.55)); }
+    50% { opacity: 0.55; }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
 
@@ -357,15 +357,35 @@ h1, h2, h3, p { margin: 0; }
 }
 .home h1 { display: grid; gap: 2px; outline: none; line-height: 1.05; }
 .logo-en {
+    position: relative;
+    isolation: isolate;
     font-family: var(--font-display);
     font-size: clamp(38px, 7.4vw, 76px);
     font-weight: 900;
     letter-spacing: 0.08em;
-    background: linear-gradient(90deg, var(--glow-left), #e0f2fe 45%, var(--glow-right));
-    -webkit-background-clip: text;
-    background-clip: text;
+    color: #e0f2fe; /* グラデーションが使えないときも、文字は必ず見える */
+}
+/* グラデーションの文字。iPhone（Safari）では、この文字に filter（ぼかし・光）をかけると
+   文字が消えることがあるので、光は下の ::before に分けて、文字そのものには filter をかけない */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .logo-en {
+        background: linear-gradient(90deg, var(--glow-left), #e0f2fe 45%, var(--glow-right));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+    }
+}
+.logo-en::before {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     color: transparent;
-    filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.45));
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 18px rgba(34, 211, 238, 0.55), 0 0 36px rgba(244, 114, 182, 0.25);
+    pointer-events: none;
+    animation: logo-glow 3s ease-in-out infinite;
 }
 .logo-ja { font-size: clamp(18px, 2.6vw, 24px); font-weight: 800; letter-spacing: 0.3em; color: var(--ink-2); }
 .tagline { font-size: clamp(15px, 2.2vw, 19px); color: var(--ink-2); }
