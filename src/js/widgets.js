@@ -1,19 +1,21 @@
 /** 小さな UI ウィジェット */
 
 import { escapeHtml } from './ui.js';
+import { icon } from './icons.js';
 import { play } from './audio.js';
 
 /**
  * セグメントボタン（ラジオグループ）
  * @param {HTMLElement} root
- * @param {{ options: [string, string][], value: string, onChange: (v:string)=>void, name?: string }} cfg
+ * @param {{ options: [string, string, string?][], value: string, onChange: (v:string)=>void, name?: string }} cfg
+ *   options の3つ目はアイコン名（省略可）
  */
 export function segmented(root, { options, value, onChange }) {
     let current = value;
     const render = () => {
-        root.innerHTML = options.map(([v, label]) => `
+        root.innerHTML = options.map(([v, label, ic]) => `
             <button type="button" role="radio" aria-checked="${v === current}" data-value="${escapeHtml(v)}"
-                tabindex="${v === current ? 0 : -1}">${escapeHtml(label)}</button>`).join('');
+                tabindex="${v === current ? 0 : -1}">${ic ? icon(ic) : ''}${escapeHtml(label)}</button>`).join('');
     };
     render();
     const choose = v => {
@@ -41,7 +43,7 @@ export function segmented(root, { options, value, onChange }) {
 /**
  * トレイのボタンからてこへドラッグできるようにする（タップは通常の click として届く）
  * @param {HTMLElement} container
- * @param {import('./view/lever-view.js').LeverView} view
+ * @param {object|(() => object)} view てこのビュー（3D/図の切りかえに追従するため関数でもよい）
  * @param {(btn: HTMLElement) => object|null} getWeight ドラッグするおもり（null ならドラッグしない）
  */
 const trayBindings = new WeakMap();
@@ -63,7 +65,7 @@ export function bindTrayDrag(container, view, getWeight) {
             if (!weight) return;
             btn.dataset.dragged = '1';
             play('pick');
-            view.startDrag({ kind: 'new', weight, trayId: btn.dataset.tray }, ev);
+            (typeof view === 'function' ? view() : view).startDrag({ kind: 'new', weight, trayId: btn.dataset.tray }, ev);
         };
         const cleanup = () => {
             window.removeEventListener('pointermove', move);

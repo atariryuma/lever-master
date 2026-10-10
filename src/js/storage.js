@@ -20,12 +20,17 @@ export function save(key, value) {
 }
 
 export const DEFAULT_SETTINGS = Object.freeze({
-    sfx: true,
-    bgm: true,
+    sfxVolume: 0.8,
+    bgmVolume: 0.6,
     cpuSpeed: 'normal',
 });
 
 export const settings = load('settings', { ...DEFAULT_SETTINGS });
+// 以前の ON/OFF 設定からの移行
+if (settings.sfx === false) settings.sfxVolume = 0;
+if (settings.bgm === false) settings.bgmVolume = 0;
+delete settings.sfx;
+delete settings.bgm;
 
 export function saveSettings() {
     save('settings', settings);

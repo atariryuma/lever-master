@@ -19,6 +19,7 @@ import * as fx from '../fx.js';
 import { load, save, settings } from '../storage.js';
 import { bindTrayDrag, segmented } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
+import { icon } from '../icons.js';
 
 export const MODE = 'battle';
 
@@ -52,7 +53,7 @@ export function renderSetup(appCtx) {
     root.innerHTML = SEAT_IDS.map((id, i) => `
         <div class="seat c-${id}" data-seat="${i}">
             <div class="seat-head">
-                <span class="seat-chip" aria-hidden="true">${PLAYER_META[id].symbol}</span>
+                <span class="seat-chip" aria-hidden="true">${icon(id)}</span>
                 <b>${PLAYER_META[id].name}</b><span class="seat-color">${PLAYER_META[id].color}</span>
             </div>
             <div class="seg seat-kind" role="radiogroup" aria-label="${PLAYER_META[id].name} の参加"></div>
@@ -71,7 +72,7 @@ export function renderSetup(appCtx) {
             save('battleSetup', setup);
         };
         segmented(seatEl.querySelector('.seat-kind'), {
-            options: [['human', '🙂 ひと'], ['cpu', '🤖 CPU'], ['none', 'なし']],
+            options: [['human', 'ひと', 'user'], ['cpu', 'CPU', 'robot'], ['none', 'なし']],
             value: seat.kind,
             onChange: v => {
                 seat.kind = v;
@@ -157,7 +158,7 @@ export function enter(appCtx, params) {
         timer: null, streak: {}, intensity: 0, finalShown: false,
     };
 
-    $('#play-title').textContent = '⚖️ たいせん';
+    $('#play-title').innerHTML = `${icon('scale')}たいせん`;
     $('#players').hidden = false;
     app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag };
     setBgm('battle', 0);
@@ -174,6 +175,10 @@ export function enter(appCtx, params) {
     });
 }
 
+export function refresh() {
+    render();
+}
+
 export function leave() {
     stopTimer();
     session?.end();
@@ -181,7 +186,7 @@ export function leave() {
     fx.setDanger(0);
     app.view.setDanger?.(0);
     app.view.fx?.('judgeEnd');
-    setBgm('calm');
+    setBgm('menu');
     app.view.handlers = {};
 }
 
@@ -256,7 +261,7 @@ async function runCpu() {
     ui.busy = true;
     const p = currentPlayer(state);
     const name = nameOf(p.id);
-    setStatus(`🤖 ${name}がかんがえ中…`);
+    setStatus(`${name}がかんがえ中…`);
     render();
     await wait(700);
     const plan = planTurn(state, p.level);
@@ -633,7 +638,7 @@ function renderPlayers() {
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}"
                 aria-label="${PLAYER_META[id].name} ${sub}、のこり${p.stock}こ、はたらき${p.out ? 'アウト' : pointsOf(state, id)}${id === turnId ? '、いまのばん' : ''}">
-                <span class="pchip-sym" aria-hidden="true">${PLAYER_META[id].symbol}</span>
+                <span class="pchip-sym" aria-hidden="true">${icon(id)}</span>
                 <span class="pchip-name">${PLAYER_META[id].name}<small>${sub}</small></span>
                 <span class="pchip-stock" aria-hidden="true">${stock}</span>
                 <span class="pchip-pts">${p.out ? 'OUT' : `<small>はたらき</small>${pointsOf(state, id)}`}</span>
@@ -649,11 +654,11 @@ function renderDock() {
         return;
     }
     const p = currentPlayer(state);
-    const chip = `<span class="turn-chip c-${p.id}" aria-hidden="true">${PLAYER_META[p.id].symbol}</span>`;
+    const chip = `<span class="turn-chip c-${p.id}" aria-hidden="true">${icon(p.id)}</span>`;
     if (p.kind === 'cpu') {
         dock.innerHTML = `
-            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>🤖 かんがえ中…</p></div></div>
-            <div class="dock-actions"><button type="button" class="btn" data-act="fast" ${ui.fast ? 'disabled' : ''}>⏩ はやおくり</button></div>`;
+            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}かんがえ中…</p></div></div>
+            <div class="dock-actions"><button type="button" class="btn" data-act="fast" ${ui.fast ? 'disabled' : ''}>${icon('fast')}はやおくり</button></div>`;
         return;
     }
     if (ui.busy) {
@@ -667,21 +672,21 @@ function renderDock() {
             <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん ${streak}</b><p>つるす場所をタップ（ドラッグもOK）</p></div></div>
             <div class="tray"><button type="button" class="tray-item" data-tray="mine" aria-label="自分のおもり 10g、のこり${p.stock}こ">
                 ${weightIcon({ mass: 10, owner: p.id }, 0.9)}<span class="tray-label">10g ×${p.stock}</span></button></div>`;
-        bindTrayDrag(dock, app.view, () => ({ id: 'ghost', mass: 10, owner: p.id }));
+        bindTrayDrag(dock, () => app.view, () => ({ id: 'ghost', mass: 10, owner: p.id }));
         updateTimerView();
         return;
     }
     const balanced = isBalanced(state.board);
     const msg = !balanced
-        ? '⚠ かたむいている！ このままけっていするとアウト'
+        ? `${icon('alert')}かたむいている！ このままけっていするとアウト`
         : state.moved ? 'つり合ってる！ けっていしよう'
             : state.hung ? 'おもりを1つ動かせるよ（となりはNG）。そのままでもOK' : 'おもりを1つ動かせるよ。そのままでもOK';
     dock.innerHTML = `
         <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'うごかす？' : 'ピンチ！'} ${streak}</b><p>${msg}</p></div></div>
         <div class="dock-actions">
-            ${state.hung ? '<button type="button" class="btn" data-act="undo-hang">↩ つるしなおす</button>' : ''}
-            ${state.moved ? '<button type="button" class="btn" data-act="undo-move">↩ 動かしたのをもどす</button>' : ''}
-            <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? '✓ けってい！' : '⚠ けってい'}</button>
+            ${state.hung ? `<button type="button" class="btn" data-act="undo-hang">${icon('undo')}つるしなおす</button>` : ''}
+            ${state.moved ? `<button type="button" class="btn" data-act="undo-move">${icon('undo')}動かしたのをもどす</button>` : ''}
+            <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい！` : `${icon('alert')}けってい`}</button>
         </div>`;
     updateTimerView();
 }
@@ -708,7 +713,7 @@ async function showResult() {
     else if (single && humanWon) title = 'あなたの勝ち！';
     else title = `${PLAYER_META[winners[0]].name} の勝ち！`;
     const lastOne = alivePlayers(state).length === 1;
-    $('#result-emoji').textContent = humanWon || noHumans ? '🏆' : '🤖';
+    $('#result-emoji').innerHTML = icon(humanWon || noHumans ? 'trophy' : 'robot');
     $('#result-title').textContent = title;
     $('#result-sub').textContent = lastOne
         ? 'さいごまで生き残った！'
@@ -716,7 +721,7 @@ async function showResult() {
     $('#result-ranking').innerHTML = rows.map(r => `
         <li class="rank-row c-${r.playerId}${r.out ? ' is-out' : ''}">
             <span class="rank-no">${r.rank}</span>
-            <span class="rank-chip" aria-hidden="true">${PLAYER_META[r.playerId].symbol}</span>
+            <span class="rank-chip" aria-hidden="true">${icon(r.playerId)}</span>
             <span class="rank-name">${escapeHtml(nameOf(r.playerId))}</span>
             <span class="rank-score">${r.out
         ? `OUT<small>ターン${r.outAt}</small>`
@@ -732,7 +737,7 @@ async function showResult() {
     };
     fx.setDanger(0);
     app.view.setDanger?.(0);
-    setBgm('calm');
+    setBgm('menu');
     if (humanWon || noHumans) {
         play('win');
         fx.confetti();

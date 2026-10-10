@@ -7,37 +7,59 @@ import { LeverView } from './view/lever-view.js';
 import { LeverView3D, webglAvailable } from './view/lever-view-3d.js';
 import { createBoard, hang } from './engine/lever.js';
 import { $, $$, showScreen } from './ui.js';
-import { play, startBgm, stopBgm, unlockAudio } from './audio.js';
+import { icon, installIcons } from './icons.js';
+import { applyVolumes, play, setBgm, unlockAudio } from './audio.js';
 import { save, saveSettings, settings } from './storage.js';
 import { segmented } from './widgets.js';
 import * as lab from './screens/lab.js';
 import * as puzzles from './screens/puzzles.js';
 import * as battle from './screens/battle.js';
 
+installIcons();
+
 /** GAS（Google Apps Script）版として配信されているか（build-gas.mjs が設定） */
 const IS_GAS = Boolean(window.LEVER_GAS);
 
-const view = createView();
+/** 2D（SVG）は常に用意。WebGL が使えれば 3D も作り、ふだんは 3D を使う */
+const views = createViews();
+let view = views.v3d ?? views.v2d;
 let active = null; // いまプレイ画面を使っているモード
 
-/** WebGL が使えれば 3D、使えなければ SVG（2D）で表示する */
-function createView() {
+function createViews() {
+    const v2d = new LeverView($('#lever'));
+    let v3d = null;
     try {
         if (webglAvailable() && !new URLSearchParams(location.search).has('2d')) {
-            const canvas = $('#lever3d');
-            canvas.hidden = false;
+            v3d = new LeverView3D($('#lever3d'), {}, { a11yRoot: $('#lever-a11y') });
             document.documentElement.classList.add('is-3d');
             startHero(LeverView3D);
-            return new LeverView3D(canvas, {}, { a11yRoot: $('#lever-a11y') });
         }
     } catch (err) {
         console.warn('3D view unavailable, falling back to 2D:', err);
-        $('#lever3d').hidden = true;
+        v3d = null;
         document.documentElement.classList.remove('is-3d');
     }
-    $('#lever').removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
-    $('#lever-a11y').hidden = true;
-    return new LeverView($('#lever'));
+    if (!v3d) $('#lever3d').hidden = true;
+    return { v2d, v3d };
+}
+
+/** 3D と 図（2D）の切りかえ。handlers を引きついで、画面を描き直す */
+function setViewKind(kind, { refresh = true } = {}) {
+    const next = kind === '2d' || !views.v3d ? views.v2d : views.v3d;
+    if (next !== view) {
+        next.handlers = view.handlers;
+        view.handlers = {};
+        view = next;
+    }
+    const is3d = view === views.v3d;
+    $('#lever3d').hidden = !is3d;
+    $('#lever-a11y').hidden = !is3d;
+    if (is3d) $('#lever').setAttribute('hidden', '');
+    else $('#lever').removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
+    const toggle = $('#view-toggle');
+    toggle.innerHTML = is3d ? `${icon('chart')}<span>図で見る</span>` : `${icon('cube')}<span>3Dで見る</span>`;
+    toggle.setAttribute('aria-label', is3d ? '図（2D）で見る' : '3D で見る');
+    if (refresh) active?.refresh?.();
 }
 
 /** ホーム画面の 3D デモ（つり合う例を順番に見せる） */
@@ -58,7 +80,9 @@ function startHero(LeverView3D) {
 }
 
 const app = {
-    view,
+    get view() {
+        return view;
+    },
     go,
     confirm,
 };
@@ -81,22 +105,30 @@ const routes = {
     battle: params => enterPlay(battle, params),
 };
 
+let viewPref = '3d';
+
+const ROUTE_BGM = { home: 'menu', puzzles: 'menu', setup: 'menu', lab: 'study', puzzle: 'study', battle: 'battle' };
+
 function go(route, params = {}) {
     if (active) {
         active.leave();
         active = null;
     }
     closeDialogs();
+    setBgm(ROUTE_BGM[route] ?? 'menu');
     routes[route](params);
 }
 
 function enterPlay(mode, params) {
     active = mode;
+    const canToggle = Boolean(views.v3d) && mode.MODE !== 'battle';
+    $('#view-toggle').hidden = !canToggle;
+    setViewKind(mode.MODE === 'battle' ? '3d' : viewPref, { refresh: false });
     $('#screen-play').dataset.mode = mode.MODE;
     const help = $('#play-help');
     const rules = mode.MODE === 'battle';
     help.dataset.open = rules ? 'dlg-rules' : 'dlg-learn';
-    help.textContent = rules ? '❓' : '📖';
+    help.innerHTML = icon(rules ? 'help' : 'book');
     help.setAttribute('aria-label', rules ? 'たいせんのルール' : 'てこのきほん');
     showScreen('screen-play');
     mode.enter(app, params);
@@ -120,7 +152,7 @@ function confirm(title) {
 function refreshHome() {
     const { total, earned, max } = puzzles.progressSummary();
     $('[data-puzzle-count]').textContent = total;
-    $('[data-puzzle-progress]').textContent = earned ? `★ ${earned} / ${max}` : '';
+    $('[data-puzzle-progress]').innerHTML = earned ? `${icon('star', 'star is-on')} ${earned} / ${max}` : '';
 }
 
 /* ---------- イベント ---------- */
@@ -136,6 +168,12 @@ document.addEventListener('click', e => {
     if (openBtn) {
         play('tap');
         document.getElementById(openBtn.dataset.open).showModal();
+        return;
+    }
+    if (e.target.closest('#view-toggle')) {
+        play('tap');
+        viewPref = view === views.v3d ? '2d' : '3d';
+        setViewKind(viewPref);
         return;
     }
     const backBtn = e.target.closest('[data-action="back"]');
@@ -162,25 +200,24 @@ window.addEventListener('keydown', unlockAudio, { once: true, capture: true });
 /* ---------- せってい ---------- */
 
 function bindSettings() {
-    const sfx = $('#set-sfx');
-    const bgm = $('#set-bgm');
-    sfx.checked = settings.sfx;
-    bgm.checked = settings.bgm;
-    sfx.addEventListener('change', () => {
-        settings.sfx = sfx.checked;
-        saveSettings();
-        play('tap');
-    });
-    bgm.addEventListener('change', () => {
-        settings.bgm = bgm.checked;
-        saveSettings();
-        if (settings.bgm) {
+    const bindVolume = (input, key, onChange) => {
+        input.value = String(Math.round(settings[key] * 100));
+        const label = input.closest('.slider').querySelector('output');
+        const show = () => {
+            label.textContent = input.value === '0' ? 'OFF' : input.value;
+        };
+        show();
+        input.addEventListener('input', () => {
+            settings[key] = Number(input.value) / 100;
+            show();
             unlockAudio();
-            startBgm();
-        } else {
-            stopBgm();
-        }
-    });
+            applyVolumes();
+            onChange?.();
+        });
+        input.addEventListener('change', saveSettings);
+    };
+    bindVolume($('#set-sfx'), 'sfxVolume', () => play('tap'));
+    bindVolume($('#set-bgm'), 'bgmVolume');
     segmented($('#set-speed'), {
         name: 'speed',
         options: [['slow', 'ゆっくり'], ['normal', 'ふつう'], ['fast', 'はやい']],
@@ -208,7 +245,7 @@ function setupInstallTip() {
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (IS_GAS || standalone || !isIOS) return;
     const tip = $('#install-tip');
-    tip.innerHTML = '📲 共有ボタン →「ホーム画面に追加」で、アプリのように全画面で遊べます';
+    tip.innerHTML = `${icon('phone')}共有ボタン →「ホーム画面に追加」で、アプリのように全画面で遊べます`;
     tip.hidden = false;
 }
 

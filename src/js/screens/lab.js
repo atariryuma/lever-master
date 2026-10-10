@@ -4,9 +4,12 @@
 
 import { MASSES, POSITIONS, canHang, createBoard, findWeight, hang, moveWeight, positionLabel, removeWeight } from '../engine/lever.js';
 import { $, announce, formulaText, renderReadout, toast } from '../ui.js';
+import * as fx from '../fx.js';
+import { isBalanced, momentOf } from '../engine/lever.js';
 import { play } from '../audio.js';
 import { bindTrayDrag } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
+import { icon } from '../icons.js';
 
 export const MODE = 'lab';
 
@@ -24,11 +27,15 @@ export function enter(appCtx) {
         next: 1,
         newIds: new Set(),
     };
-    $('#play-title').textContent = '🧪 じっけん';
+    $('#play-title').innerHTML = `${icon('flask')}じっけん`;
     $('#play-sub').textContent = 'おもりをえらんで、つるす場所をタップ（ドラッグでもOK）';
     $('#players').hidden = true;
     app.view.handlers = { onHookTap, onWeightTap, onDrop, canDrag: () => true };
     buildDock();
+    render();
+}
+
+export function refresh() {
     render();
 }
 
@@ -51,13 +58,13 @@ function buildDock() {
                 </button>`).join('')}
         </div>
         <div class="dock-actions">
-            <button type="button" class="btn" data-act="remove">🗑 はずす</button>
-            <button type="button" class="btn" data-act="clear">ぜんぶはずす</button>
-            <button type="button" class="btn btn-toggle" data-act="hold" aria-pressed="false">✋ ささえる</button>
-            <button type="button" class="btn btn-toggle" data-act="hide" aria-pressed="false">🙈 式をかくす</button>
+            <button type="button" class="btn" data-act="remove">${icon('trash')}はずす</button>
+            <button type="button" class="btn" data-act="clear">${icon('clear')}ぜんぶはずす</button>
+            <button type="button" class="btn btn-toggle" data-act="hold" aria-pressed="false">${icon('hand')}ささえる</button>
+            <button type="button" class="btn btn-toggle" data-act="hide" aria-pressed="false">${icon('eyeOff')}式をかくす</button>
         </div>`;
     dock.onclick = onDockClick;
-    bindTrayDrag(dock, app.view, btn => ({ id: 'ghost', mass: Number(btn.dataset.mass) }));
+    bindTrayDrag(dock, () => app.view, btn => ({ id: 'ghost', mass: Number(btn.dataset.mass) }));
 }
 
 function onDockClick(e) {
@@ -90,9 +97,19 @@ function onDockClick(e) {
 }
 
 function update(board, newId) {
+    const wasBalanced = isBalanced(state.board);
     state.board = board;
     if (newId) state.newIds.add(newId);
     announce(formulaText(board));
+    // 左右どちらにもおもりがあって、つり合ったとき
+    const m = momentOf(board);
+    if (!wasBalanced && m.diff === 0 && m.left > 0) celebrate(m);
+}
+
+function celebrate(m) {
+    play('balance');
+    app.view.fx?.('safe');
+    fx.popup(`つり合った！ 左 ${m.left} ＝ 右 ${m.right}`, window.innerWidth / 2, window.innerHeight * 0.32, 'combo');
 }
 
 function hangNew(pos, mass) {
@@ -168,7 +185,7 @@ function render() {
     }
     app.view.render({ board, held: state.held, selectedId: state.selectedId, targets, newIds: state.newIds });
     state.newIds = new Set();
-    renderReadout($('#readout'), board, { hidden: state.hidden });
+    renderReadout($('#readout'), board, { hidden: state.hidden, area: true });
 
     const dock = $('#dock');
     for (const b of dock.querySelectorAll('[data-tray]')) {
@@ -177,5 +194,5 @@ function render() {
     dock.querySelector('[data-act="remove"]').disabled = !state.selectedId;
     dock.querySelector('[data-act="hold"]').setAttribute('aria-pressed', String(state.held));
     dock.querySelector('[data-act="hide"]').setAttribute('aria-pressed', String(state.hidden));
-    $('#stage-note').textContent = state.held ? '✋ ささえ中…もう一度おすと、てこが動くよ' : '';
+    $('#stage-note').innerHTML = state.held ? `${icon('hand')}ささえ中…もう一度おすと、てこが動くよ` : '';
 }

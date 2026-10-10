@@ -12,6 +12,9 @@ export const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({
 export function showScreen(id) {
     for (const s of $$('.screen')) s.hidden = s.id !== id;
     const screen = document.getElementById(id);
+    screen.classList.remove('is-entering');
+    void screen.offsetWidth;
+    screen.classList.add('is-entering');
     screen.scrollTop = 0;
     const heading = screen.querySelector('[data-autofocus]') ?? screen.querySelector('h1, h2');
     heading?.focus?.({ preventScroll: true });
@@ -95,15 +98,54 @@ export function createSession() {
 export class SessionEnded extends Error {}
 
 /** 左右の計算式パネル */
-export function renderReadout(root, board, { hidden = false, reveal = 'all', verdictHidden = false } = {}) {
+/**
+ * はたらきの面積図：横＝きょり、縦＝重さ の長方形。面積がはたらき。
+ * 左右で同じ縮尺にするので、面積を見比べればつり合いがわかる。
+ */
+function areaSvg(terms, side, scale) {
+    const { kx, ky, height } = scale;
+    let x = 0;
+    const rects = terms.map(t => {
+        const w = t.distance * kx;
+        const h = t.mass * ky;
+        const r = { x, w, h, t };
+        x += w + 2;
+        return r;
+    });
+    const width = Math.max(1, x);
+    const flip = side === 'left';
+    const body = rects.map(({ x: rx, w, h, t }) => {
+        const px = flip ? width - rx - w : rx;
+        const label = w > 26 && h > 13 ? `<text x="${px + w / 2}" y="${height - h / 2}">${t.distance}×${t.mass}</text>` : '';
+        return `<rect x="${px}" y="${height - h}" width="${w}" height="${h}" rx="2"/>${label}`;
+    }).join('');
+    return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="area-${side}">${body}</svg>`;
+}
+
+function areaScale(board, maxWidth = 260, height = 56) {
+    const all = [...termsOf(board, 'left'), ...termsOf(board, 'right')];
+    const maxMass = Math.max(30, ...all.map(t => t.mass));
+    const sumDist = side => termsOf(board, side).reduce((a, t) => a + t.distance, 0);
+    const maxDist = Math.max(6, sumDist('left'), sumDist('right'));
+    return { kx: Math.min(44, maxWidth / maxDist), ky: (height - 2) / maxMass, height };
+}
+
+const verdictOf = diff => (diff === 0 ? 'equal' : diff > 0 ? 'left' : 'right');
+
+export function renderReadout(root, board, { hidden = false, reveal = 'all', verdictHidden = false, area = false } = {}) {
     const m = momentOf(board);
     const max = Math.max(m.left, m.right, 1);
+    root.classList.toggle('has-area', area);
+    const boxWidth = root.querySelector('.side-left')?.clientWidth ?? 300;
+    const scale = area ? areaScale(board, Math.max(120, Math.min(320, boxWidth - 40))) : null;
     for (const side of ['left', 'right']) {
         const box = root.querySelector(`.side-${side}`);
         const terms = termsOf(board, side);
         const total = m[side];
         const formula = box.querySelector('.formula');
         const bar = box.querySelector('.bar > span');
+        const areaBox = box.querySelector('.area');
+        if (areaBox) areaBox.innerHTML = area && !hidden ? areaSvg(terms, side, scale) : '';
         if (hidden) {
             formula.innerHTML = '<span class="q">？</span>';
             bar.style.width = '0%';
@@ -118,10 +160,7 @@ export function renderReadout(root, board, { hidden = false, reveal = 'all', ver
         box.setAttribute('aria-label', `${side === 'left' ? '左' : '右'}うで：${terms.map(t => `${t.distance}かける${t.mass}`).join('たす') || 'なし'}、合計 ${total}`);
     }
     const verdict = root.querySelector('.verdict');
-    let state;
-    if ((hidden && reveal !== 'side') || verdictHidden) state = 'unknown';
-    else if (m.diff === 0) state = 'equal';
-    else state = m.diff > 0 ? 'left' : 'right';
+    const state = (hidden && reveal !== 'side') || verdictHidden ? 'unknown' : verdictOf(m.diff);
     const labels = {
         unknown: ['？', 'どっちかな'],
         equal: ['＝', 'つり合う'],

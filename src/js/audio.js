@@ -2,9 +2,11 @@
  * Web Audio で合成する効果音と BGM（音声ファイル不要・オフラインOK）
  * 最初にユーザーが画面にふれたときに AudioContext を有効にします（iOS対策）。
  *
- * BGM は2種類:
- *   calm   … ホーム・じっけん・もんだい（ゆったりしたパッド）
+ * BGM は3種類:
+ *   menu   … ホーム・一覧・準備（軽いビートのシンセポップ）
+ *   study  … じっけん・もんだい（考えるじゃまをしない、ゆったりしたパッドとベル）
  *   battle … たいせん（キック・ハット・ベース・アルペジオ）。intensity で速さと音数が上がる
+ * 音量は settings.sfxVolume / settings.bgmVolume（0〜1）。0 なら鳴らさない。
  */
 
 import { settings } from './storage.js';
@@ -25,7 +27,7 @@ function context() {
     master.ratio.value = 4;
     master.connect(ctx.destination);
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = 0.9;
+    sfxBus.gain.value = settings.sfxVolume;
     sfxBus.connect(master);
     bgmBus = ctx.createGain();
     bgmBus.gain.value = 0;
@@ -40,7 +42,19 @@ export function unlockAudio() {
     const c = context();
     if (!c) return;
     if (c.state === 'suspended') c.resume().catch(() => {});
-    if (settings.bgm) startBgm();
+    if (settings.bgmVolume > 0) startBgm();
+}
+
+/** 音量を反映（せってい画面から） */
+export function applyVolumes() {
+    if (!ctx) return;
+    sfxBus.gain.setTargetAtTime(settings.sfxVolume, now(), 0.05);
+    if (settings.bgmVolume > 0) {
+        startBgm();
+        bgmBus.gain.setTargetAtTime(bgmLevel(), now(), 0.2);
+    } else {
+        stopBgm();
+    }
 }
 
 const now = () => ctx.currentTime;
@@ -167,6 +181,28 @@ const SOUNDS = {
         noise({ dur: 0.5, vol: 0.18, freq: 4000, to: 400, q: 2 });
         tone(1200, { dur: 0.5, to: 200, type: 'sawtooth', vol: 0.04 });
     },
+    /** じっけん：つり合った（やさしいチャイム） */
+    balance: () => {
+        chord([659.25, 783.99, 1046.5], { dur: 0.7, type: 'sine', vol: 0.1, spread: 0.07 });
+        tone(2093, { at: 0.2, dur: 0.5, type: 'sine', vol: 0.03 });
+    },
+    /** もんだい：かたむいた（責めない音） */
+    miss: () => {
+        tone(392, { dur: 0.25, type: 'triangle', vol: 0.12 });
+        tone(311.13, { at: 0.18, dur: 0.4, type: 'triangle', vol: 0.12 });
+        noise({ dur: 0.3, vol: 0.06, type: 'lowpass', freq: 800 });
+    },
+    starPop: (n = 0) => {
+        const f = [1046.5, 1318.5, 1568][n % 3];
+        tone(f, { dur: 0.3, type: 'square', vol: 0.05 });
+        tone(f * 2, { dur: 0.2, type: 'sine', vol: 0.06 });
+        noise({ dur: 0.12, vol: 0.06, type: 'highpass', freq: 7000 });
+    },
+    clear: () => {
+        kick(0, 0.7);
+        chord([523.25, 659.25, 783.99, 1046.5], { dur: 0.9, type: 'triangle', vol: 0.11, spread: 0.06 });
+        noise({ dur: 0.8, vol: 0.1, type: 'highpass', freq: 6000 });
+    },
     points: () => chord([1318.5, 1760], { dur: 0.14, type: 'square', vol: 0.04, spread: 0.06 }),
     combo: () => chord([783.99, 987.77, 1174.66, 1567.98], { dur: 0.22, type: 'square', vol: 0.05, spread: 0.05 }),
     finalRound: () => {
@@ -191,24 +227,42 @@ const SOUNDS = {
 };
 
 export function play(name, arg) {
-    if (!settings.sfx || !context() || ctx.state !== 'running') return;
+    if (!(settings.sfxVolume > 0) || !context() || ctx.state !== 'running') return;
     SOUNDS[name]?.(arg);
 }
 
 /* ---------- BGM ---------- */
 
-let bgmMode = 'calm';
+let bgmMode = 'menu';
 let intensity = 0;
 let schedulerTimer = null;
 let nextNoteTime = 0;
 let step16 = 0;
 
-const CALM_CHORDS = [
+const STUDY_CHORDS = [
     [261.63, 329.63, 392.0],
     [220.0, 261.63, 329.63],
     [174.61, 220.0, 261.63],
     [196.0, 246.94, 293.66],
 ];
+const STUDY_BELLS = [784, 659.25, 587.33, 523.25, 587.33, 659.25, 784, 880];
+
+// C - Am - F - G（メニュー）
+const MENU_ROOTS = [130.81, 110, 87.31, 98];
+const MENU_CHORDS = [
+    [261.63, 329.63, 392],
+    [220, 261.63, 329.63],
+    [174.61, 220, 261.63],
+    [196, 246.94, 293.66],
+];
+// ペンタトニックのメロディ（16分音符×16 で1小節、0 は休み）
+const MENU_MELODY = [
+    [784, 0, 659.25, 0, 587.33, 0, 523.25, 0, 587.33, 0, 0, 659.25, 0, 0, 0, 0],
+    [523.25, 0, 587.33, 0, 659.25, 0, 0, 784, 0, 0, 659.25, 0, 0, 0, 0, 0],
+    [698.46, 0, 659.25, 0, 523.25, 0, 0, 440, 0, 0, 523.25, 0, 0, 0, 0, 0],
+    [587.33, 0, 659.25, 0, 784, 0, 0, 880, 0, 784, 0, 0, 0, 0, 0, 0],
+];
+
 // Am - F - C - G（たいせん）
 const BATTLE_ROOTS = [110, 87.31, 130.81, 98];
 const BATTLE_ARP = [
@@ -218,15 +272,37 @@ const BATTLE_ARP = [
     [196, 246.94, 293.66, 392],
 ];
 
-function scheduleCalm(t, s) {
-    if (s % 32 !== 0) return;
-    const c = CALM_CHORDS[(s / 32) % 4];
-    c.forEach((f, k) => tone(f / 2, { at: t - now() + k * 0.05, dur: 3.6, vol: 0.45, out: bgmBus, attack: 0.6 }));
-    tone(c[(s / 32) % 3] * 2, { at: t - now() + 0.6, dur: 1.6, type: 'triangle', vol: 0.3, out: bgmBus });
+function scheduleStudy(at, s) {
+    const bar = Math.floor(s / 16) % 4;
+    const i = s % 16;
+    if (i === 0) {
+        STUDY_CHORDS[bar].forEach((f, k) => tone(f / 2, { at: at + k * 0.05, dur: 3.2, vol: 0.4, out: bgmBus, attack: 0.6 }));
+    }
+    if (i % 8 === 4) {
+        const f = STUDY_BELLS[(Math.floor(s / 8)) % STUDY_BELLS.length];
+        tone(f, { at, dur: 1.6, type: 'sine', vol: 0.14, out: bgmBus, attack: 0.01 });
+        tone(f * 2, { at, dur: 0.8, type: 'sine', vol: 0.03, out: bgmBus, attack: 0.01 });
+    }
 }
 
-function scheduleBattle(t, s) {
-    const at = t - now();
+function scheduleMenu(at, s) {
+    const bar = Math.floor(s / 16) % 4;
+    const i = s % 16;
+    if (i === 0 || i === 8 || i === 11) kick(at, 0.35, bgmBus);
+    if (i === 4 || i === 12) noise({ at, dur: 0.08, vol: 0.12, freq: 2400, q: 1, out: bgmBus });
+    if (i % 2 === 0) noise({ at, dur: 0.025, vol: 0.035, type: 'highpass', freq: 8000, out: bgmBus });
+    if (i % 4 === 0 || i === 6 || i === 14) {
+        tone(MENU_ROOTS[bar], { at, dur: 0.22, type: 'triangle', vol: 0.28, out: bgmBus, attack: 0.005 });
+    }
+    if (i === 0) MENU_CHORDS[bar].forEach(f => tone(f, { at, dur: 1.7, type: 'sine', vol: 0.06, out: bgmBus, attack: 0.08 }));
+    const m = MENU_MELODY[bar][i];
+    if (m && Math.floor(s / 64) % 2 === 1) {
+        tone(m, { at, dur: 0.28, type: 'square', vol: 0.03, out: bgmBus });
+        tone(m, { at, dur: 0.35, type: 'triangle', vol: 0.06, out: bgmBus });
+    }
+}
+
+function scheduleBattle(at, s) {
     const bar = Math.floor(s / 16) % 4;
     const i = s % 16;
     if (i % 4 === 0) kick(at, 0.55, bgmBus);
@@ -243,25 +319,29 @@ function scheduleBattle(t, s) {
     if (intensity >= 2 && i === 0) noise({ at, dur: 0.8, vol: 0.08, type: 'highpass', freq: 5000, out: bgmBus });
 }
 
-function tempo() {
-    return bgmMode === 'battle' ? [118, 128, 140][intensity] : 70;
-}
+const TRACKS = {
+    menu: { bpm: () => 104, level: 0.24, schedule: scheduleMenu },
+    study: { bpm: () => 72, level: 0.16, schedule: scheduleStudy },
+    battle: { bpm: () => [118, 128, 140][intensity], level: 0.3, schedule: scheduleBattle },
+};
+
+const bgmLevel = () => TRACKS[bgmMode].level * 2 * settings.bgmVolume;
 
 function scheduler() {
     if (ctx.state !== 'running') return;
+    const track = TRACKS[bgmMode];
     while (nextNoteTime < now() + 0.15) {
-        if (bgmMode === 'battle') scheduleBattle(nextNoteTime, step16);
-        else scheduleCalm(nextNoteTime, step16);
-        nextNoteTime += 60 / tempo() / 4;
+        track.schedule(nextNoteTime - now(), step16);
+        nextNoteTime += 60 / track.bpm() / 4;
         step16 += 1;
     }
 }
 
 export function startBgm() {
-    if (!context() || schedulerTimer) return;
+    if (!context() || schedulerTimer || !(settings.bgmVolume > 0)) return;
     nextNoteTime = now() + 0.1;
     step16 = 0;
-    bgmBus.gain.setTargetAtTime(bgmMode === 'battle' ? 0.32 : 0.12, now(), 0.4);
+    bgmBus.gain.setTargetAtTime(bgmLevel(), now(), 0.4);
     schedulerTimer = setInterval(scheduler, 40);
 }
 
@@ -271,14 +351,22 @@ export function stopBgm() {
     if (bgmBus) bgmBus.gain.setTargetAtTime(0, now(), 0.1);
 }
 
-/** BGM の種類と盛り上がり（0〜2）を変える */
+/** BGM の種類（menu / study / battle）と盛り上がり（0〜2）を変える */
 export function setBgm(mode, level = 0) {
     const changed = mode !== bgmMode;
-    bgmMode = mode;
+    bgmMode = TRACKS[mode] ? mode : 'menu';
     intensity = Math.max(0, Math.min(2, level));
     if (!ctx || !schedulerTimer) return;
-    if (changed) step16 = 0;
-    bgmBus.gain.setTargetAtTime(mode === 'battle' ? 0.32 : 0.12, now(), 0.4);
+    if (changed) {
+        // 小節の頭から：一瞬しぼってから新しい曲へ
+        step16 = 0;
+        nextNoteTime = now() + 0.25;
+        bgmBus.gain.cancelScheduledValues(now());
+        bgmBus.gain.setTargetAtTime(0, now(), 0.05);
+        bgmBus.gain.setTargetAtTime(bgmLevel(), now() + 0.25, 0.3);
+    } else {
+        bgmBus.gain.setTargetAtTime(bgmLevel(), now(), 0.3);
+    }
 }
 
 document.addEventListener('visibilitychange', () => {

@@ -22,7 +22,8 @@ src/js/
     weight-art.js       おもりの絵（2D・ドラッグ中の表示）
   screens/              モードごとの画面ロジック（lab / puzzles / battle）
   ui.js widgets.js      共通 UI 部品（計算式パネル・バナー・トースト・セグメント等）
-  fx.js                 画面全体の演出（たいせん）
+  fx.js                 画面全体の演出（たいせん・もんだいクリア）
+  icons.js              SVG アイコン（スプライトを <body> に入れ、icon('名前') で使う。絵文字は使わない）
   audio.js storage.js   効果音・BGM／localStorage
 __tests__/              Vitest
 src/vendor/three.js     同梱した Three.js（使う部品だけ。`npm run vendor` で作り直す）
@@ -42,6 +43,9 @@ gas/Code.js             GAS の doGet（手書き。gas/index.html は自動生�
 - **アウトの扱い**：かたむけたプレイヤーはアウトになり、てこはそのターンの前の状態にもどる（次の人が不利にならない）。
 - **モード共通のプレイ画面**：`main.js` が `enter / leave / back` を持つモードモジュールを切りかえる。てこのビューは1つを使い回し、`handlers` を差しかえる。
 - **3D と 2D は同じ使い方**：`LeverView3D` と `LeverView` はどちらも `render / settle / startDrag / positionAt / handlers` を持つので、画面側は区別しない。3D ではキーボード・読み上げ用に透明なボタンを 3D の位置に重ねている。
+- **3D と図（2D）の切りかえ**：`main.js` は 2D を常に、3D を使えるときだけ作る。じっけん・もんだいの「図で見る」で `setViewKind()` が handlers を引きついで切りかえ、モードの `refresh()` で描き直す。たいせんは常に 3D。
+- **面積図**：`renderReadout(..., { area: true })` で、横＝きょり・縦＝重さの長方形を左右同じ縮尺で描く（面積＝はたらき）。
+- **BGM**：`audio.js` の `TRACKS`（menu / study / battle）。`main.js` の `ROUTE_BGM` で画面ごとに切りかえ。音量は `settings.sfxVolume / bgmVolume`。
 - **色は CSS が正**：プレイヤーやおもりの色は `styles.css` の CSS 変数で定義し、3D 側もそれを読む。
 - **Three.js の更新**：`package.json` の three を上げて `npm run vendor` → `src/vendor/three.js` をコミット。新しい部品を import したときも `npm run vendor` を実行する。
 

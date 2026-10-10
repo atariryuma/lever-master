@@ -6,10 +6,12 @@
 import { CHAPTERS, PUZZLES, allowedPositions, puzzleBoard, starsFor, trayWeights } from '../engine/puzzles.js';
 import { POSITIONS, canHang, findWeight, hang, isBalanced, momentOf, moveWeight, removeWeight } from '../engine/lever.js';
 import { $, SessionEnded, announce, banner, createSession, escapeHtml, formulaText, renderReadout, toast } from '../ui.js';
+import * as fx from '../fx.js';
 import { play } from '../audio.js';
 import { load, save } from '../storage.js';
 import { bindTrayDrag } from '../widgets.js';
 import { weightIcon } from '../view/weight-art.js';
+import { icon, stars as starIcons } from '../icons.js';
 
 export const MODE = 'puzzle';
 
@@ -27,14 +29,14 @@ export function progressSummary() {
     return { total: PUZZLES.length, earned, max: PUZZLES.length * 3 };
 }
 
-const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+const starText = n => starIcons(n);
 
 /* ---------- 一覧 ---------- */
 
 export function renderList(appCtx) {
     app = appCtx;
     const { earned, max } = progressSummary();
-    $('#puzzle-total').textContent = `★ ${earned} / ${max}`;
+    $('#puzzle-total').innerHTML = `${icon('star', 'star is-on')} ${earned} / ${max}`;
     const nextId = PUZZLES.find(p => !progress.stars[p.id])?.id;
     const root = $('#puzzle-list');
     root.innerHTML = CHAPTERS.map(ch => `
@@ -81,7 +83,7 @@ export function enter(appCtx, { id }) {
         newIds: new Set(),
     };
     const chapter = CHAPTERS.find(c => c.id === puzzle.chapter);
-    $('#play-title').textContent = `🧩 もんだい ${puzzle.id}「${puzzle.title}」`;
+    $('#play-title').innerHTML = `${icon('puzzle')}もんだい ${puzzle.id}「${escapeHtml(puzzle.title)}」`;
     $('#play-sub').textContent = `第${chapter.id}章 ${chapter.title}`;
     $('#players').hidden = true;
     app.view.handlers = {
@@ -91,6 +93,11 @@ export function enter(appCtx, { id }) {
     buildDock();
     render();
     announce(`もんだい${puzzle.id}。${puzzle.text}`);
+}
+
+export function refresh() {
+    if (state.phase !== 'cleared') render();
+    else app.view.render({ board: state.board, held: false, targets: new Map(), interactive: false });
 }
 
 export function leave() {
@@ -119,7 +126,7 @@ function buildDock() {
                 <div class="dock-actions">
                     <button type="button" class="btn" data-act="list">一覧</button>
                     <button type="button" class="btn" data-act="retry">もういちど</button>
-                    <button type="button" class="btn btn-primary" data-act="next">${last ? 'おわり' : 'つぎへ →'}</button>
+                    <button type="button" class="btn btn-primary" data-act="next">${last ? 'おわり' : `つぎへ${icon('next')}`}</button>
                 </div>
             </div>`;
         dock.onclick = onClearClick;
@@ -129,16 +136,16 @@ function buildDock() {
     dock.innerHTML = `
         <div class="mission">
             <p class="mission-text">${escapeHtml(state.puzzle.text)}</p>
-            <p class="mission-hint" hidden>💡 ${escapeHtml(state.puzzle.hint)}</p>
+            <p class="mission-hint" hidden>${icon('bulb')}${escapeHtml(state.puzzle.hint)}</p>
         </div>
         <div class="tray" id="pz-tray" role="group" aria-label="つるすおもり"></div>
         <div class="dock-actions">
-            <button type="button" class="btn" data-act="hint">💡 ヒント</button>
-            <button type="button" class="btn" data-act="reset">↺ やりなおし</button>
-            <button type="button" class="btn btn-primary btn-release" data-act="release">✋ 手をはなす</button>
+            <button type="button" class="btn" data-act="hint">${icon('bulb')}ヒント</button>
+            <button type="button" class="btn" data-act="reset">${icon('reset')}やりなおし</button>
+            <button type="button" class="btn btn-primary btn-release" data-act="release">${icon('hand')}手をはなす</button>
         </div>`;
     dock.onclick = onDockClick;
-    bindTrayDrag(dock, app.view, btn => state.tray.find(w => w.id === btn.dataset.tray) ?? null);
+    bindTrayDrag(dock, () => app.view, btn => state.tray.find(w => w.id === btn.dataset.tray) ?? null);
 }
 
 function onDockClick(e) {
@@ -291,22 +298,12 @@ async function releaseHands() {
     await Promise.all([session.wrap(app.view.settle()), session.sleep(700)]);
 
     if (isBalanced(state.board)) {
-        const stars = starsFor(state.tries);
-        if (stars > (progress.stars[state.puzzle.id] ?? 0)) {
-            progress.stars[state.puzzle.id] = stars;
-            save('progress', progress);
-        }
-        play('safe');
-        state.phase = 'cleared';
-        render();
-        buildDock();
-        announce(`つり合った！ ${formulaText(state.board)}。星${stars}`);
-        await session.wrap(banner('つり合った！', { tone: 'success', sub: starText(stars) }));
-        play('star');
+        await showClear();
         return;
     }
 
-    play('out');
+    play('miss');
+    fx.shake('soft');
     const heavier = momentOf(state.board).diff > 0 ? '左' : '右';
     state.revealSide = true;
     render();
@@ -315,6 +312,47 @@ async function releaseHands() {
     state.held = true;
     state.phase = 'placing';
     render();
+}
+
+const chapterDone = chapter => PUZZLES.filter(p => p.chapter === chapter).every(p => progress.stars[p.id]);
+
+async function showClear() {
+    const stars = starsFor(state.tries);
+    const chapter = state.puzzle.chapter;
+    const wasChapterDone = chapterDone(chapter);
+    const wasAllDone = PUZZLES.every(p => progress.stars[p.id]);
+    if (stars > (progress.stars[state.puzzle.id] ?? 0)) {
+        progress.stars[state.puzzle.id] = stars;
+        save('progress', progress);
+    }
+    state.phase = 'cleared';
+    render();
+    buildDock();
+    announce(`つり合った！ ${formulaText(state.board)}。星${stars}`);
+    play('clear');
+    app.view.fx?.('safe');
+    fx.flash('ok');
+    const m = momentOf(state.board);
+    const slamDone = fx.slam('CLEAR!', { tone: 'ok', sub: `左 ${m.left} ＝ 右 ${m.right}`, ms: 1500 });
+    // 星を1つずつ光らせる
+    const starEls = [...document.querySelectorAll('#dock .clear-stars .star')];
+    starEls.forEach(el => el.classList.remove('is-on'));
+    for (let i = 0; i < stars; i++) {
+        await session.sleep(320);
+        starEls[i]?.classList.add('is-on', 'is-pop');
+        play('starPop', i);
+    }
+    if (stars === 3) fx.confetti();
+    await session.wrap(slamDone);
+    if (!wasAllDone && PUZZLES.every(p => progress.stars[p.id])) {
+        play('win');
+        fx.confetti();
+        await session.wrap(fx.slam('ALL CLEAR!', { tone: 'gold', sub: 'きみはてこマスターだ！', ms: 2200 }));
+    } else if (!wasChapterDone && chapterDone(chapter)) {
+        play('finalRound');
+        const title = CHAPTERS.find(c => c.id === chapter).title;
+        await session.wrap(fx.turnSweep('CHAPTER CLEAR!', `第${chapter}章「${title}」クリア`, 'c-p2'));
+    }
 }
 
 function render() {
@@ -333,8 +371,9 @@ function render() {
         hidden: puzzle.hideNumbers && !cleared,
         reveal: state.revealSide ? 'side' : 'all',
         verdictHidden: state.held && !state.revealSide,
+        area: true,
     });
-    $('#stage-note').textContent = state.held ? '✋ 手でささえているよ' : '';
+    $('#stage-note').innerHTML = state.held ? `${icon('hand')}手でささえているよ` : '';
 
     if (cleared) return;
     const dock = $('#dock');

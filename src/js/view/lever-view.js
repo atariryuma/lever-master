@@ -135,6 +135,7 @@ export class LeverView {
             el('path', { class: 'hook', 'data-pos': pos, d: `M${x} ${PY + 11} v5 a5 5 0 1 0 5 5` }, this.beam);
             el('text', { class: 'beam-num', x, y: PY - 20 }, this.beam).textContent = Math.abs(pos);
         }
+        this.rulers = el('g', { class: 'rulers' }, this.beam);
         el('circle', { class: 'pivot', cx: PX, cy: PY, r: 9 }, this.beam);
 
         // キーボード・スクリーンリーダー用の位置ボタン（透明・ポインターは素通し）
@@ -182,6 +183,7 @@ export class LeverView {
         this.targetStates = view.targets ?? new Map();
         this.renderColumns(view.hover ?? null);
         this.renderWeights(view.newIds ?? new Set());
+        this.renderRulers();
         this.updateTarget();
         this.place();
     }
@@ -195,6 +197,28 @@ export class LeverView {
             const t = this.targetNodes.get(pos);
             t.setAttribute('aria-disabled', String(!this.interactive || state === 'blocked'));
         }
+    }
+
+    /** 図：支点からのきょりを、ものさしのように示す（うでといっしょに傾く） */
+    renderRulers() {
+        let html = '';
+        for (const side of [-1, 1]) {
+            const used = POSITIONS.filter(p => Math.sign(p) === side && this.board[p].length)
+                .sort((a, b) => Math.abs(a) - Math.abs(b));
+            used.forEach((pos, k) => {
+                const y = PY - 44 - k * 16;
+                const x0 = PX + side * 40;
+                const x1 = PX + pos * UNIT;
+                const mid = (x0 + x1) / 2;
+                html += `<g class="ruler ruler-${side < 0 ? 'left' : 'right'}">
+                    <line x1="${PX}" y1="${y}" x2="${x1}" y2="${y}"/>
+                    <line x1="${x1}" y1="${y - 5}" x2="${x1}" y2="${y + 5}"/>
+                    <line x1="${x1}" y1="${y + 5}" x2="${x1}" y2="${PY - 11}" class="ruler-drop"/>
+                    <text x="${mid}" y="${y - 5}">きょり ${Math.abs(pos)}</text>
+                </g>`;
+            });
+        }
+        this.rulers.innerHTML = html;
     }
 
     setHover(pos) {

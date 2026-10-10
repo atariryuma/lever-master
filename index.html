@@ -34,29 +34,29 @@
         <nav class="modes" aria-label="あそびかたをえらぶ">
             <button type="button" class="mode-card mode-lab" data-go="lab">
                 <span class="mode-step">STEP 1</span>
-                <span class="mode-icon" aria-hidden="true">🧪</span>
+                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-flask"></use></svg></span>
                 <span class="mode-name">じっけん</span>
                 <span class="mode-desc">おもりを自由につるして、つり合うしくみを調べよう</span>
             </button>
             <button type="button" class="mode-card mode-puzzle" data-go="puzzles">
                 <span class="mode-step">STEP 2</span>
-                <span class="mode-icon" aria-hidden="true">🧩</span>
+                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-puzzle"></use></svg></span>
                 <span class="mode-name">もんだい</span>
                 <span class="mode-desc">予想してから手をはなそう。全<span data-puzzle-count></span>問</span>
                 <span class="mode-progress" data-puzzle-progress></span>
             </button>
             <button type="button" class="mode-card mode-battle" data-go="setup">
                 <span class="mode-step">STEP 3</span>
-                <span class="mode-icon" aria-hidden="true">⚖️</span>
+                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-scale"></use></svg></span>
                 <span class="mode-name">たいせん</span>
                 <span class="mode-desc">2〜4人・CPUとも。持ち時間内につり合わせろ。かたむけたらアウト！</span>
             </button>
         </nav>
 
         <footer class="home-foot">
-            <button type="button" class="chip-btn" data-open="dlg-learn">📖 てこのきほん</button>
-            <button type="button" class="chip-btn" data-open="dlg-rules">❓ たいせんのルール</button>
-            <button type="button" class="chip-btn" data-open="dlg-settings">⚙️ せってい</button>
+            <button type="button" class="chip-btn" data-open="dlg-learn"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>てこのきほん</button>
+            <button type="button" class="chip-btn" data-open="dlg-rules"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</button>
+            <button type="button" class="chip-btn" data-open="dlg-settings"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-gear"></use></svg>せってい</button>
         </footer>
         <p class="install-tip" id="install-tip" hidden></p>
     </section>
@@ -64,7 +64,7 @@
     <!-- もんだい一覧 -->
     <section id="screen-puzzles" class="screen list" hidden>
         <header class="topbar">
-            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる">←</button>
+            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
             <div class="topbar-title"><h2 tabindex="-1">もんだい</h2><p class="topbar-sub" id="puzzle-total"></p></div>
         </header>
         <div class="list-body" id="puzzle-list"></div>
@@ -73,9 +73,9 @@
     <!-- たいせんの準備 -->
     <section id="screen-setup" class="screen list" hidden>
         <header class="topbar">
-            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる">←</button>
+            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
             <div class="topbar-title"><h2 tabindex="-1">たいせんの準備</h2><p class="topbar-sub">だれが参加する？</p></div>
-            <button type="button" class="icon-btn" data-open="dlg-rules" aria-label="たいせんのルール">❓</button>
+            <button type="button" class="icon-btn" data-open="dlg-rules" aria-label="たいせんのルール"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
         </header>
         <div class="list-body">
             <div class="seats" id="seats"></div>
@@ -103,17 +103,18 @@
     <!-- プレイ画面（じっけん・もんだい・たいせん共通） -->
     <section id="screen-play" class="screen play" hidden>
         <header class="topbar">
-            <button type="button" class="icon-btn" data-action="back" aria-label="もどる">←</button>
+            <button type="button" class="icon-btn" data-action="back" aria-label="もどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
             <div class="topbar-title">
                 <h2 id="play-title" tabindex="-1"></h2>
                 <p class="topbar-sub" id="play-sub"></p>
             </div>
-            <button type="button" class="icon-btn" id="play-help" data-open="dlg-learn" aria-label="てこのきほん">📖</button>
-            <button type="button" class="icon-btn" data-open="dlg-settings" aria-label="せってい">⚙️</button>
+            <button type="button" class="chip-btn view-toggle" id="view-toggle" hidden></button>
+            <button type="button" class="icon-btn" id="play-help" data-open="dlg-learn" aria-label="てこのきほん"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg></button>
+            <button type="button" class="icon-btn" data-open="dlg-settings" aria-label="せってい"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-gear"></use></svg></button>
         </header>
         <div class="players" id="players" hidden></div>
         <div class="stage" id="stage">
-            <canvas id="lever3d" class="lever lever-3d" hidden></canvas>
+            <canvas id="lever3d" class="lever lever-3d"></canvas>
             <div class="lever-a11y" id="lever-a11y" role="group" aria-label="実験用てこ"></div>
             <svg id="lever" class="lever" role="group" aria-label="実験用てこ" hidden></svg>
             <p class="stage-note" id="stage-note"></p>
@@ -124,12 +125,14 @@
                 <div class="side-name">左うで <small>のはたらき</small></div>
                 <div class="formula"></div>
                 <div class="bar"><span></span></div>
+                <div class="area" aria-hidden="true"></div>
             </div>
             <div class="verdict" data-state="equal"></div>
             <div class="side side-right" role="status">
                 <div class="side-name">右うで <small>のはたらき</small></div>
                 <div class="formula"></div>
                 <div class="bar"><span></span></div>
+                <div class="area" aria-hidden="true"></div>
             </div>
         </div>
         <div class="dock" id="dock"></div>
@@ -139,8 +142,8 @@
 <!-- てこのきほん -->
 <dialog id="dlg-learn" class="sheet" aria-labelledby="learn-title">
     <form method="dialog" class="sheet-head">
-        <h2 id="learn-title">📖 てこのきほん</h2>
-        <button class="icon-btn" aria-label="とじる">✕</button>
+        <h2 id="learn-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>てこのきほん</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
     </form>
     <div class="sheet-body learn">
         <section>
@@ -189,8 +192,8 @@
 <!-- たいせんのルール -->
 <dialog id="dlg-rules" class="sheet" aria-labelledby="rules-title">
     <form method="dialog" class="sheet-head">
-        <h2 id="rules-title">❓ たいせんのルール</h2>
-        <button class="icon-btn" aria-label="とじる">✕</button>
+        <h2 id="rules-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
     </form>
     <div class="sheet-body rules">
         <ol class="steps">
@@ -198,7 +201,7 @@
             <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
             <li><b>けってい</b><span>判定！ かたむいていたら<em>アウト</em>（てこは元にもどる）。<br>持ち時間を使い切っても<em>アウト</em>。</span></li>
         </ol>
-        <p class="rule-goal">🏆 全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
+        <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
         <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。持ち時間は準備画面で変えられます（なし・30秒・15秒）。</p>
     </div>
 </dialog>
@@ -206,12 +209,12 @@
 <!-- せってい -->
 <dialog id="dlg-settings" class="sheet sheet-sm" aria-labelledby="settings-title">
     <form method="dialog" class="sheet-head">
-        <h2 id="settings-title">⚙️ せってい</h2>
-        <button class="icon-btn" aria-label="とじる">✕</button>
+        <h2 id="settings-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-gear"></use></svg>せってい</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
     </form>
     <div class="sheet-body settings">
-        <label class="switch"><span>こうかおん</span><input type="checkbox" id="set-sfx"><i aria-hidden="true"></i></label>
-        <label class="switch"><span>BGM</span><input type="checkbox" id="set-bgm"><i aria-hidden="true"></i></label>
+        <label class="slider"><span><svg class="i" aria-hidden="true"><use href="#i-sound"></use></svg>こうかおん</span><input type="range" min="0" max="100" step="5" id="set-sfx"><output aria-hidden="true"></output></label>
+        <label class="slider"><span><svg class="i" aria-hidden="true"><use href="#i-music"></use></svg>BGM</span><input type="range" min="0" max="100" step="5" id="set-bgm"><output aria-hidden="true"></output></label>
         <fieldset class="option">
             <legend>CPUのはやさ</legend>
             <div class="seg" id="set-speed" role="radiogroup"></div>
@@ -223,7 +226,7 @@
 <!-- 結果 -->
 <dialog id="dlg-result" class="sheet sheet-sm result" aria-labelledby="result-title">
     <div class="result-head">
-        <div class="result-emoji" id="result-emoji" aria-hidden="true">🏆</div>
+        <div class="result-emoji" id="result-emoji" aria-hidden="true"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg></div>
         <h2 id="result-title"></h2>
         <p id="result-sub" class="muted"></p>
     </div>
