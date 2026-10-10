@@ -223,7 +223,8 @@ document.addEventListener('click', e => {
  * 戻るジェスチャーでそれが外れたら、アプリの「もどる」ボタンと同じことをする
  * （たいせんなら「やめますか？」をきく）。ホームでの「戻る」だけは、ふつうにアプリを出る。
  */
-let guarded = false;
+// 再読みこみしたときは、前の見張りが履歴に残っていることがある（それも見張りとして使う）
+let guarded = history.state?.lever === 'guard';
 let ignoreNextPop = false;
 
 function pushGuard() {
