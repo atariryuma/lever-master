@@ -1201,6 +1201,7 @@ h1, h2, h3, p { margin: 0; }
 .toast {
     position: fixed;
     left: 50%;
+    width: max-content; /* left:50% だと幅が画面の半分までになるので */
     bottom: calc(110px + env(safe-area-inset-bottom));
     z-index: 50;
     max-width: calc(100% - 32px);
@@ -1481,6 +1482,92 @@ h1, h2, h3, p { margin: 0; }
     .side-name { display: none; }
     .mission-hint { font-size: 13px; }
 }
+
+/* =========================================================
+   スマホ（たて向き）の最適化：てこ以外の部品を小さく・すっきり
+   ========================================================= */
+@media (max-width: 560px) {
+    /* 上のバー */
+    .topbar { min-height: 52px; padding-top: calc(4px + env(safe-area-inset-top)); padding-bottom: 4px; }
+    .topbar-title h2 { font-size: 18px; }
+    .topbar-sub { font-size: 12px; }
+    #screen-play[data-mode="lab"] .topbar-sub { display: none; }
+    .view-toggle { min-height: 36px; padding: 0 10px; }
+    .view-toggle span { display: none; }
+    .stage-note { top: 4px; left: 8px; padding: 2px 10px; font-size: 12px; }
+
+    /* 計算式のパネル */
+    .readout { gap: 6px; padding: 2px 8px 4px; }
+    .side { gap: 2px; padding: 5px 8px; border-radius: 12px; }
+    .side-name { display: none; }
+    .formula { font-size: 16px; }
+    .area { height: 40px; }
+    .verdict { min-width: 54px; padding: 2px 4px; border-radius: 14px; }
+    .verdict-sign { font-size: 22px; }
+    .verdict-text { font-size: 10px; }
+
+    /* 下の操作エリア */
+    .dock { gap: 6px 8px; padding-top: 6px; }
+    .tray { gap: 6px; }
+    .tray-item { min-width: 58px; min-height: 58px; padding: 2px 6px; border-radius: 12px; }
+    .tray-item .weight-icon { width: 30px; }
+    .tray-label { font-size: 13px; }
+    .btn { min-height: 44px; }
+    .turn-info { gap: 8px; }
+    .turn-info b { font-size: 16px; }
+    .turn-info p { font-size: 13px; line-height: 1.4; }
+    .timer { width: 42px; height: 42px; font-size: 15px; }
+    .turn-chip { width: 32px; height: 32px; }
+    .turn-chip .i { width: 18px; height: 18px; }
+
+    /* クリアのパネル */
+    .clear-panel { gap: 6px 12px; }
+    .clear-stars { font-size: 30px; }
+    .clear-text b { font-size: 17px; }
+    .clear-text p { font-size: 13px; }
+
+    /* おしらせ（トースト）は上に出して、下のボタンをかくさない */
+    .toast { top: calc(124px + env(safe-area-inset-top)); bottom: auto; padding: 8px 14px; font-size: 14px; }
+
+    /* もんだい一覧 */
+    .chapter { margin-top: 12px; }
+    .chapter h3 { font-size: 17px; margin-bottom: 6px; }
+    .chapter h3 small { font-size: 12px; }
+    .puzzle-grid { gap: 8px; }
+    .puzzle-card { min-height: 0; gap: 2px; padding: 8px 10px; border-radius: 12px; }
+    .pz-title { font-size: 15px; }
+    .pz-stars { font-size: 13px; }
+
+    /* たいせんの準備 */
+    .seat { gap: 8px; padding: 10px 12px; border-radius: 14px; }
+    .seat-head { font-size: 17px; }
+}
+
+/* スマホよこ向き（たてが短い）：ホームはロゴを小さくして、モードがすぐ見えるように */
+@media (max-height: 500px) and (orientation: landscape) {
+    .home { gap: 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
+    .home-hero { height: 150px; }
+    .home-head { gap: 4px; margin-top: 70px; }
+    .logo-en { font-size: 36px; }
+    .logo-ja { font-size: 15px; }
+    .tagline { font-size: 13px; }
+    .home-head .pill { display: none; }
+    .modes { gap: 10px; }
+    .mode-card { gap: 2px; padding: 22px 12px 12px; border-radius: 16px; }
+    .mode-icon { width: 40px; height: 40px; }
+    .mode-icon .i { width: 34px; height: 34px; }
+    .mode-name { font-size: 20px; }
+    .mode-desc { font-size: 13px; }
+    /* おしらせは上に（下の計算式・ボタンをかくさない） */
+    .toast { top: calc(90px + env(safe-area-inset-top)); bottom: auto; padding: 6px 14px; font-size: 14px; }
+}
+
+/* よこ向きのおすすめは、画面に入ったときに少しだけ出して消す */
+@media (orientation: portrait) and (max-width: 600px) {
+    .stage::after { opacity: 0; }
+    .screen.is-entering .stage::after { animation: hint-show 6s ease forwards; }
+}
+@keyframes hint-show { 0% { opacity: 0; } 8%, 80% { opacity: 1; } 100% { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

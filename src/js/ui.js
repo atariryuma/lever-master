@@ -132,6 +132,9 @@ function areaScale(board, maxWidth = 260, height = 56) {
     return { kx: Math.min(44, Math.max(1, maxWidth - gaps) / maxDist), ky: (height - 2) / maxMass, height };
 }
 
+/** 面積図の高さは CSS で決める（スマホでは低くする） */
+const areaHeightOf = root => root.querySelector('.area')?.clientHeight || 56;
+
 /** 面積図に使える幅（左右のパネルのうち、せまいほうの中身の幅） */
 function areaWidth(root) {
     const inner = el => {
@@ -149,7 +152,7 @@ export function renderReadout(root, board, { hidden = false, reveal = 'all', ver
     const m = momentOf(board);
     const max = Math.max(m.left, m.right, 1);
     root.classList.toggle('has-area', area);
-    const scale = area ? areaScale(board, areaWidth(root)) : null;
+    const scale = area ? areaScale(board, areaWidth(root), areaHeightOf(root)) : null;
     for (const side of ['left', 'right']) {
         const box = root.querySelector(`.side-${side}`);
         const terms = termsOf(board, side);
