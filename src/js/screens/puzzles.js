@@ -117,6 +117,11 @@ export function enter(appCtx, { id }) {
     playPendingCelebration();
 }
 
+/** 画面の大きさが変わったとき（面積図を描きなおす） */
+export function refresh() {
+    if (state) render();
+}
+
 export function leave() {
     stopKeep();
     session?.end();

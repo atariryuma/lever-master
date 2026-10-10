@@ -285,6 +285,20 @@ function registerServiceWorker() {
     else window.addEventListener('load', register, { once: true });
 }
 
+// 画面の幅が変わったら（回転・リサイズ）、面積図などを今の幅で描きなおす
+let readoutWidth = 0;
+let refreshFrame = 0;
+const readoutObserver = 'ResizeObserver' in window ? new ResizeObserver(([entry]) => {
+    const width = Math.round(entry.contentRect.width);
+    if (width === readoutWidth) return;
+    readoutWidth = width;
+    cancelAnimationFrame(refreshFrame);
+    refreshFrame = requestAnimationFrame(() => {
+        if (active && active.MODE !== 'battle') active.refresh?.();
+    });
+}) : null;
+readoutObserver?.observe($('#readout'));
+
 bindSettings();
 setupInstallTip();
 registerServiceWorker();

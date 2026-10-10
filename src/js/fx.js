@@ -54,7 +54,9 @@ export function slam(text, { tone = 'ok', sub = '', ms = 1400 } = {}) {
 /** 得点などのポップアップ（画面座標） */
 export function popup(text, x, y, tone = 'ok') {
     const el = spawn(`fx-pop is-${tone}`, escapeHtml(text), 1300);
-    el.style.left = `${x}px`;
+    // 画面の外に出ないように（中央ぞろえなので、はしから少しはなす）
+    const margin = Math.min(90, window.innerWidth / 4);
+    el.style.left = `${Math.max(margin, Math.min(window.innerWidth - margin, x))}px`;
     el.style.top = `${y}px`;
 }
 

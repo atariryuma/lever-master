@@ -355,6 +355,7 @@ function hangEffects(pos, owner) {
 /** @param {{ auto?: boolean }} [opts] auto … 水平キープで決まったとき（ドラムロールは短く） */
 async function judge({ auto = false } = {}) {
     stopTimer();
+    app.view.cancelDrag?.(); // 押したままの指が、次の人の手番で効かないように
     ui.busy = true;
     ui.selected = null;
     const p = currentPlayer(state);
@@ -455,7 +456,7 @@ function startTimer() {
         if (!session.alive || !ui.timer) return;
         const t = performance.now();
         // 「やめますか？」・ルール・せっていを開いているあいだは時間を止める
-        if (document.querySelector('dialog[open]')) paused += t - lastTick;
+        if (document.querySelector('dialog[open]') || document.hidden) paused += t - lastTick;
         lastTick = t;
         const elapsed = t - startedAt - paused;
         const left = Math.max(0, total - elapsed);
@@ -726,6 +727,13 @@ function onDockClick(e) {
     }
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
+    if (state.phase === 'over' && ['home', 'again', 'result'].includes(act)) {
+        play('tap');
+        if (act === 'home') app.go('home');
+        else if (act === 'again') app.go('battle', { config });
+        else if (!$('#dlg-result').open) $('#dlg-result').showModal();
+        return;
+    }
     if (act === 'fast') {
         ui.fast = true;
         play('tap');
@@ -861,6 +869,15 @@ function renderPlayers() {
                 <span class="pchip-pts">${p.out ? 'OUT' : `<small>はたらき</small>${pointsOf(state, id)}`}</span>
             </div>`;
     }).join('');
+    // 手番の人が横スクロールの外にいたら見えるところへ（スマホでは全員は入りきらない）
+    const active = $('#players .pchip.is-turn');
+    if (active) {
+        const box = $('#players');
+        const left = active.getBoundingClientRect().left - box.getBoundingClientRect().left + box.scrollLeft;
+        if (left < box.scrollLeft || left + active.offsetWidth > box.scrollLeft + box.clientWidth) {
+            box.scrollLeft = Math.max(0, left - 12);
+        }
+    }
 }
 
 function renderDock() {
@@ -878,7 +895,13 @@ function renderDock() {
 function fillDock(dock) {
     dock.onclick = onDockClick;
     if (state.phase === 'over') {
-        dock.innerHTML = '';
+        // 結果のダイアログを閉じてしまっても、ここから続けられるように
+        dock.innerHTML = `
+            <div class="dock-actions">
+                <button type="button" class="btn" data-act="home">${icon('back')}ホームへ</button>
+                <button type="button" class="btn" data-act="again">${icon('reset')}もういちど</button>
+                <button type="button" class="btn btn-primary" data-act="result">${icon('trophy')}けっかを見る</button>
+            </div>`;
         return;
     }
     const p = currentPlayer(state);
