@@ -18,7 +18,7 @@ function doGet() {
         // mobile-web-app-capable / google-site-verification の4種のみ。
         .addMetaTag(
             'viewport',
-            'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
+            'width=device-width, initial-scale=1.0, viewport-fit=cover',
         )
         .addMetaTag('apple-mobile-web-app-capable', 'yes')
         .addMetaTag('mobile-web-app-capable', 'yes')

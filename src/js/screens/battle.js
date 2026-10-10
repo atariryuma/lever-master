@@ -44,11 +44,13 @@ const TIMER_OPTIONS = [['none', 'なし'], ['30', '30秒'], ['60', '60秒'], ['9
 const SPEED = { slow: 1.6, normal: 1, fast: 0.45 };
 
 let app;
-const setup = load('battleSetup', structuredClone(SETUP_DEFAULT));
+// v は既定値に入れない（入れると、保存データに v がなくても既定値の v が見えてしまう）
+const { v: SETUP_VERSION, ...SETUP_BASE } = SETUP_DEFAULT;
+const setup = load('battleSetup', structuredClone(SETUP_BASE));
 // v1（30秒/15秒が標準だったころ）の設定は、新しい標準の 90 秒にそろえる
-if (setup.v !== SETUP_DEFAULT.v) {
+if (setup.v !== SETUP_VERSION) {
     setup.timer = SETUP_DEFAULT.timer;
-    setup.v = SETUP_DEFAULT.v;
+    setup.v = SETUP_VERSION;
 }
 if (!TIMER_OPTIONS.some(([v]) => v === setup.timer)) setup.timer = SETUP_DEFAULT.timer;
 // こわれた保存データでも準備画面が開けるように、形をととのえる
@@ -186,6 +188,7 @@ export function enter(appCtx, params) {
     render();
     run(async () => {
         ui.busy = true;
+        ui.intro = true;
         render();
         const order = state.order.map(id => PLAYER_META[id].name).join(' → ');
         setStatus(`じゅんばん：${order}`);
@@ -220,7 +223,11 @@ function run(fn) {
     });
 }
 
-const wait = ms => session.sleep(ms * (SPEED[settings.cpuSpeed] ?? 1) * (ui.fast ? 0.3 : 1));
+/** CPU の待ち時間。ダイアログ（やめますか？・ルールなど）を開いているあいだは進めない */
+async function wait(ms) {
+    await session.sleep(ms * (SPEED[settings.cpuSpeed] ?? 1) * (ui.fast ? 0.3 : 1));
+    while (document.querySelector('dialog[open]:not(#dlg-result)')) await session.sleep(200);
+}
 
 function setStatus(text) {
     $('#play-sub').textContent = text;
@@ -242,6 +249,7 @@ async function updateIntensity() {
         ui.finalShown = true;
         play('finalRound');
         fx.flash('danger');
+        announce('ファイナルラウンド。これがラストの1周！');
         await session.wrap(fx.turnSweep('FINAL ROUND', 'これがラストの1周！', 'c-final'));
     }
 }
@@ -369,6 +377,7 @@ async function showSafe(result) {
     ui.streak[id] = (ui.streak[id] ?? 0) + 1;
     const gained = pointsOf(state, id) - (ui.pointsBefore ?? 0);
     const sub = `左 ${left} ＝ 右 ${right}`;
+    setStatus(`${nameOf(id)}はセーフ（左 ${left} ＝ 右 ${right}）`);
     const slamDone = fx.slam('SAFE!', { tone: 'ok', sub, ms: 1300 });
     await session.sleep(350);
     const chip = document.querySelector(`#players .pchip.c-${id}`)?.getBoundingClientRect();
@@ -382,6 +391,7 @@ async function showSafe(result) {
     }
     await session.wrap(slamDone);
     state = result.state;
+    ui.intro = true; // 次のターンの準備中（前の人の「判定中」を出さない）
     render();
     await startTurn();
 }
@@ -402,6 +412,7 @@ async function showOut(result) {
     // てこをターン前にもどす
     play('rewind');
     state = result.state;
+    ui.intro = true;
     render();
     await session.sleep(500);
     await startTurn();
@@ -629,7 +640,7 @@ function tryMove(id, to) {
     state = move(base, id, to);
     play('move');
     const what = chain.length > 1 ? `${chain.length}こまとめて` : '';
-    setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした`);
+    setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした（${isBalanced(state.board) ? 'つり合っている' : 'かたむいている'}）`);
     if (pulledBack) toast('動かせるのは1つ。さっき動かしたおもりは元にもどって、いっしょに動いたよ');
     else if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
 }
@@ -706,6 +717,13 @@ function undoLast() {
 }
 
 function onDockClick(e) {
+    // 自分のおもり（トレイ）を押したら、つるす場所へフォーカス（キーボードでは矢印で選んで Enter）
+    if (e.target.closest('[data-tray]') && isHumanTurn() && state.phase === 'hang') {
+        const first = POSITIONS.find(pos => canHang(state.board, pos));
+        app.view.focusPosition?.(first);
+        toast('つるす場所をえらんでね');
+        return;
+    }
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     if (act === 'fast') {
@@ -736,7 +754,7 @@ function startKeep() {
         label: '水平キープ',
         // 自分で何かしたあと（つるした・動かした）、つり合ったまま静まっていて、さわっていないとき
         isActive: () => isHumanTurn() && state.phase === 'move' && Boolean(state.hung || state.moved)
-            && !ui.selected && !app.view.drag && isBalanced(state.board) && app.view.isCalm?.() === true,
+            && !ui.selected && !app.view.drag && !app.view.press && isBalanced(state.board) && app.view.isCalm?.() === true,
         onDone: () => run(() => judge({ auto: true })),
     });
 }
@@ -832,7 +850,7 @@ function renderPlayers() {
     $('#players').innerHTML = state.order.map(id => {
         const p = playerById(state, id);
         const stock = Array.from({ length: Number(config.stock) }, (_, i) =>
-            `<i class="${i < p.stock ? 'is-left' : ''}"></i>`).join('');
+            `<i class="${!p.out && i < p.stock ? 'is-left' : ''}"></i>`).join('');
         const sub = p.kind === 'cpu' ? `CPU・${CPU_LEVELS[p.level]?.label ?? ''}` : (humanCount() === 1 ? 'あなた' : 'ひと');
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}"
@@ -846,7 +864,18 @@ function renderPlayers() {
 }
 
 function renderDock() {
+    // 作りなおしてもキーボードのフォーカスを失わないように、押していたボタンを覚えておく
     const dock = $('#dock');
+    const focused = dock.contains(document.activeElement) ? document.activeElement.dataset.act ?? 'tray' : null;
+    fillDock(dock);
+    if (focused) {
+        const again = dock.querySelector(focused === 'tray' ? '[data-tray]' : `[data-act="${focused}"]`)
+            ?? dock.querySelector('button:not([disabled])');
+        (again ?? $('#play-title')).focus?.({ preventScroll: true });
+    }
+}
+
+function fillDock(dock) {
     dock.onclick = onDockClick;
     if (state.phase === 'over') {
         dock.innerHTML = '';
@@ -854,6 +883,10 @@ function renderDock() {
     }
     const p = currentPlayer(state);
     const chip = `<span class="turn-chip c-${p.id}" aria-hidden="true">${icon(p.id)}</span>`;
+    if (ui.intro) {
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>まもなくスタート…</p></div></div>`;
+        return;
+    }
     if (p.kind === 'cpu') {
         dock.innerHTML = `
             <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}かんがえ中…</p></div></div>
@@ -861,7 +894,7 @@ function renderDock() {
         return;
     }
     if (ui.busy) {
-        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>${ui.intro ? 'まもなくスタート…' : '判定中…'}</p></div></div>`;
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>判定中…</p></div></div>`;
         return;
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';

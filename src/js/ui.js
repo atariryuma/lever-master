@@ -127,13 +127,20 @@ function areaScale(board, maxWidth = 260, height = 56) {
     const maxMass = Math.max(30, ...all.map(t => t.mass));
     const sumDist = side => termsOf(board, side).reduce((a, t) => a + t.distance, 0);
     const maxDist = Math.max(6, sumDist('left'), sumDist('right'));
-    return { kx: Math.min(44, maxWidth / maxDist), ky: (height - 2) / maxMass, height };
+    // 長方形のあいだのすき間（2px）のぶんを先に引いておく（はみ出さないように）
+    const gaps = 2 * Math.max(termsOf(board, 'left').length, termsOf(board, 'right').length);
+    return { kx: Math.min(44, Math.max(1, maxWidth - gaps) / maxDist), ky: (height - 2) / maxMass, height };
 }
 
-/** 面積図に使える幅（パネルの幅から） */
+/** 面積図に使える幅（左右のパネルのうち、せまいほうの中身の幅） */
 function areaWidth(root) {
-    const boxWidth = root.querySelector('.side-left')?.clientWidth || 300;
-    return Math.max(120, Math.min(320, boxWidth - 40));
+    const inner = el => {
+        if (!el) return 300;
+        const cs = getComputedStyle(el);
+        return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    };
+    const width = Math.min(inner(root.querySelector('.side-left')), inner(root.querySelector('.side-right')));
+    return Math.max(40, Math.min(320, width - 4));
 }
 
 const verdictOf = diff => (diff === 0 ? 'equal' : diff > 0 ? 'left' : 'right');

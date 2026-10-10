@@ -521,6 +521,14 @@ export class LeverView {
         g.style.transform = `translate(${x}px, ${y}px)`;
     }
 
+    /** うでをすぐに水平にする */
+    level() {
+        this.target = 0;
+        this.angle = 0;
+        this.velocity = 0;
+        this.place();
+    }
+
     /** 次の描画では反動をつけない（別の画面・別の表示から来たとき、前の盤面とくらべないように） */
     skipKick() {
         this.noKick = true;

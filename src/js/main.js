@@ -67,7 +67,7 @@ function setViewKind(kind, { refresh = true } = {}) {
     if (refresh) active?.refresh?.();
 }
 
-/** ホーム画面の 3D デモ（つり合う例を順番に見せる） */
+/** ホーム画面の 3D デモ（つり合う例と、かたむく例を順番に見せる） */
 function startHero(LeverView3D) {
     const demo = [
         [[-3, 20], [2, 30]],

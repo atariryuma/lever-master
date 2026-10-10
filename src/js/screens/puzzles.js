@@ -66,6 +66,7 @@ export function renderList(appCtx) {
     }).join('')}
             </div>
         </section>`).join('');
+    playPendingCelebration();
     root.onclick = e => {
         const card = e.target.closest('.puzzle-card');
         if (!card) return;
@@ -108,6 +109,7 @@ export function enter(appCtx, { id }) {
     render();
     startAutoCheck();
     announce(`もんだい${puzzle.id}。${puzzle.text}`);
+    playPendingCelebration();
 }
 
 export function leave() {
@@ -262,6 +264,9 @@ function onHookTap(pos) {
             boardChanged();
             state.selected = null;
             play('move');
+        } else {
+            toast('そこはいっぱいだよ', 'warn');
+            play('error');
         }
     }
     render();
@@ -299,6 +304,7 @@ function onDrop(source, pos) {
             boardChanged();
             play('move');
         } else {
+            toast(allowed(pos) ? 'そこはいっぱいだよ' : `このもんだいは${sideName()}につるそう`, 'warn');
             play('error');
         }
     }
@@ -376,6 +382,7 @@ async function releaseHands() {
     if (app.has3d) {
         app.setView('2d');
         state.where = '2d';
+        app.view.level?.(); // 図は傾かない（3D の傾きを引きつがない）
         render();
         play('whoosh');
         await session.wrap(fx.turnSweep('図で考えよう', 'どこに動かせば つり合うかな？', 'c-think'));
@@ -409,6 +416,9 @@ async function showClear() {
         progress.stars[state.puzzle.id] = stars;
         save('progress', progress);
     }
+    // 章クリア・全クリアは、この場で見る前に「つぎへ」を押しても、次の画面で見せる（先に決めておく）
+    if (!wasAllDone && PUZZLES.every(p => progress.stars[p.id])) pendingCelebration = { kind: 'all' };
+    else if (!wasChapterDone && chapterDone(chapter)) pendingCelebration = { kind: 'chapter', chapter };
     state.phase = 'cleared';
     render();
     buildDock();
@@ -428,14 +438,23 @@ async function showClear() {
     }
     if (stars === 3) fx.confetti();
     await session.wrap(slamDone);
-    if (!wasAllDone && PUZZLES.every(p => progress.stars[p.id])) {
+    await playPendingCelebration();
+}
+
+/** 章クリア・全クリアの演出（まだ見せていなければ） */
+let pendingCelebration = null;
+async function playPendingCelebration() {
+    const c = pendingCelebration;
+    if (!c) return;
+    pendingCelebration = null;
+    if (c.kind === 'all') {
         play('win');
         fx.confetti();
-        await session.wrap(fx.slam('ALL CLEAR!', { tone: 'gold', sub: 'きみはてこマスターだ！', ms: 2200 }));
-    } else if (!wasChapterDone && chapterDone(chapter)) {
+        await fx.slam('ALL CLEAR!', { tone: 'gold', sub: 'きみはてこマスターだ！', ms: 2200 });
+    } else {
         play('finalRound');
-        const title = CHAPTERS.find(c => c.id === chapter).title;
-        await session.wrap(fx.turnSweep('CHAPTER CLEAR!', `第${chapter}章「${title}」クリア`, 'c-p2'));
+        const title = CHAPTERS.find(ch => ch.id === c.chapter).title;
+        await fx.turnSweep('CHAPTER CLEAR!', `第${c.chapter}章「${title}」クリア`, 'c-p2');
     }
 }
 
@@ -468,11 +487,14 @@ function render() {
     if (cleared) return;
     const dock = $('#dock');
     const trayBox = dock.querySelector('#pz-tray');
+    const focusedTray = trayBox.contains(document.activeElement) ? document.activeElement.dataset.tray : null;
     trayBox.innerHTML = state.tray.length
         ? state.tray.map(w => `
             <button type="button" class="tray-item" data-tray="${w.id}" aria-pressed="${state.selected?.kind === 'tray' && state.selected.id === w.id}"
                 aria-label="${w.mass}gのおもり">${weightIcon(w, 0.9)}<span class="tray-label">${w.mass}g</span></button>`).join('')
         : '<p class="tray-empty">ぜんぶつるした！</p>';
+    // 作りなおしてもキーボードのフォーカスを失わない
+    if (focusedTray) (trayBox.querySelector(`[data-tray="${focusedTray}"]`) ?? trayBox.querySelector('[data-tray]'))?.focus();
     dock.querySelector('.mission-hint').hidden = !state.showHint;
     const release = dock.querySelector('[data-act="release"]');
     release.disabled = !placing;

@@ -671,7 +671,7 @@ h1, h2, h3, p { margin: 0; }
 
 @media (orientation: portrait) and (max-width: 600px) {
     .stage::after {
-        content: "📱↻ よこ向きにすると、てこが大きく見やすいよ";
+        content: "よこ向きにすると、てこが大きく見やすいよ";
         position: absolute;
         left: 50%;
         bottom: 10px;
@@ -836,7 +836,8 @@ h1, h2, h3, p { margin: 0; }
 .bar { display: flex; height: 8px; border-radius: 99px; background: rgba(140, 175, 255, 0.12); overflow: hidden; }
 .side-left .bar { justify-content: flex-end; }
 .bar span { display: block; width: 0; border-radius: 99px; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width 0.35s; }
-.area { display: none; height: 56px; }
+.area { display: none; height: 56px; min-width: 0; overflow: hidden; }
+.area:empty { display: none !important; }
 .readout.has-area .area { display: flex; align-items: flex-end; }
 .readout.has-area .bar { display: none; }
 .side-left .area { justify-content: flex-end; }
@@ -1348,6 +1349,13 @@ h1, h2, h3, p { margin: 0; }
     .dock-actions .btn:not(.btn-primary) .i { width: 20px; height: 20px; margin: 0; }
     .side .bar { display: none; }
     .topbar-sub { display: none; }
+}
+
+/* たてに短い画面：てこの場所を確保する */
+@media (max-height: 640px) and (orientation: portrait) {
+    .stage::after { display: none; }
+    .side-name { display: none; }
+    .mission-hint { font-size: 13px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
