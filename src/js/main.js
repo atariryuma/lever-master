@@ -80,6 +80,8 @@ function startHero(LeverView3D) {
     try {
         const hero = new LeverView3D($('#hero3d'), {}, { showcase: true });
         hero.setShowcase(demo);
+        // 最初の絵がかけてから見せる（まっ黒→急に出る、をなくす）
+        requestAnimationFrame(() => requestAnimationFrame(() => $('#hero3d').classList.add('is-ready')));
     } catch (err) {
         console.warn('hero disabled:', err);
     }
@@ -365,6 +367,8 @@ function watchForUpdate() {
     const hadController = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!hadController) return; // はじめてのインストールでは読みなおさない
+        // 開いてすぐ（20秒以内）なら、このページはもうネットから取った新しい版なので読みなおさない
+        if (performance.now() < 20000) return;
         updateReady = true;
         reloadIfIdle();
     });
