@@ -73,6 +73,16 @@ html,
 body { height: 100%; margin: 0; }
 /* ページ全体はスクロールさせない（各画面の中だけスクロール） */
 body { overflow: hidden; }
+/* スマホ：ダブルタップでの拡大をしない（ピンチでの拡大はできる）。
+   ゲームの部分は、長おしで文字が選ばれたり、iPhone のメニューが出たりしないように */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.home, .play, .topbar, .players, .dock, .readout, .tray, button, .seat, .puzzle-card {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+/* おもりをトレイからドラッグするとき、画面がスクロールしないように */
+.tray-item { touch-action: none; }
 
 body {
     font-family: var(--font);
@@ -144,7 +154,10 @@ h1, h2, h3, p { margin: 0; }
 
 .screen {
     height: 100%;
-    overflow: auto;
+    /* たてにだけスクロール。よこにはずれない（スマホで画面が横に動かないように） */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
 }
@@ -624,6 +637,28 @@ h1, h2, h3, p { margin: 0; }
 .pchip-pts small { font-size: 10px; font-weight: 400; color: var(--ink-2); }
 .pchip.is-turn { background: var(--pc-soft); border-color: var(--pc); box-shadow: 0 0 10px color-mix(in srgb, var(--pc) 50%, transparent); }
 .pchip.is-out { opacity: 0.45; filter: grayscale(0.8); border-style: dashed; }
+
+/* スマホたて向き：プレイヤーを横スクロールさせず、1行にならべる */
+@media (max-width: 560px) {
+    .players { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; padding-left: 8px; padding-right: 8px; overflow-x: hidden; }
+    .pchip {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-areas: "sym name" "sym pts" "stock stock";
+        align-items: center;
+        gap: 2px 6px;
+        min-width: 0;
+        padding: 4px 6px 5px;
+        border-radius: 14px;
+    }
+    .pchip-sym { grid-area: sym; width: 24px; height: 24px; }
+    .pchip-name { grid-area: name; font-size: 14px; }
+    .pchip-name small { display: none; }
+    .pchip-pts { grid-area: pts; min-width: 0; text-align: left; font-size: 15px; }
+    .pchip-pts small { display: none; }
+    .pchip-stock { grid-area: stock; gap: 2px; }
+    .pchip-stock i { width: 7px; height: 7px; border-width: 1.5px; }
+}
 
 /* ステージ */
 .stage { position: relative; min-height: 0; padding: 0 6px; overflow: hidden; overflow: clip; }

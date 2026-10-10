@@ -4,7 +4,7 @@
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.8.1';
+const VERSION = '2.8.2';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -71,9 +71,11 @@ self.addEventListener('fetch', event => {
     const { request } = event;
     if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
+    // GitHub Pages は 10 分キャッシュさせるので、ブラウザのキャッシュは使わずに毎回たしかめる（no-cache）。
+    // そうしないと、ホーム画面に追加したアプリ（とくに iPhone）で古い版がしばらく出つづける
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request)
+            fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
                 .then(res => putInCache(request, res))
                 .catch(() => caches.match(request).then(hit => hit || caches.match('index.html'))),
         );
@@ -83,7 +85,7 @@ self.addEventListener('fetch', event => {
     // JS・CSS もネットワーク優先。キャッシュ優先だと、リリース直後に新しい index.html と
     // 古いモジュールが組み合わさることがある。オフラインならキャッシュを使う
     event.respondWith(
-        fetch(request)
+        fetch(request, { cache: 'no-cache' })
             .then(res => putInCache(request, res))
             .catch(() => caches.match(request).then(hit => hit || Response.error())),
     );

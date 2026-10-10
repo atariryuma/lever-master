@@ -135,6 +135,8 @@ function go(route, params = {}) {
     clearOverlays();
     setBgm(ROUTE_BGM[route] ?? 'menu');
     routes[route](params);
+    // 新しい版が届いていたら、遊んでいないときに切りかえる
+    if (updateReady) setTimeout(reloadIfIdle, 300);
 }
 
 function enterPlay(mode, params) {
@@ -340,9 +342,36 @@ function setupInstallTip() {
 function registerServiceWorker() {
     // GAS 版はサンドボックス iframe 配信のため Service Worker を登録できない
     if (IS_GAS || !('serviceWorker' in navigator) || location.protocol === 'file:') return;
-    const register = () => navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+    // sw.js 自体もブラウザのキャッシュを使わない（新しい版にすぐ気づけるように）
+    const register = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(reg => {
+            // ホーム画面のアプリは開きっぱなしで再開されることが多いので、前に出てくるたびに新しい版をたしかめる
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) reg.update().catch(() => {});
+            });
+        })
+        .catch(err => console.warn('SW registration failed:', err));
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register, { once: true });
+    watchForUpdate();
+}
+
+/**
+ * 新しい版の Service Worker に切りかわったら、ページを読みなおして新しい版にする。
+ * 遊んでいる途中は待って、ホーム（か一覧）にいるときに読みなおす
+ */
+let updateReady = false;
+function watchForUpdate() {
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) return; // はじめてのインストールでは読みなおさない
+        updateReady = true;
+        reloadIfIdle();
+    });
+}
+
+function reloadIfIdle() {
+    if (updateReady && !active && !document.querySelector('dialog[open]')) location.reload();
 }
 
 // 画面の幅が変わったら（回転・リサイズ）、面積図などを今の幅で描きなおす
