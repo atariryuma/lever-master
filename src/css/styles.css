@@ -129,6 +129,9 @@ h1, h2, h3, p { margin: 0; }
 
 .c-p1 { --pc: var(--p1); --pc-soft: rgba(56, 189, 248, 0.16); }
 .c-p2 { --pc: var(--p2); --pc-soft: rgba(250, 204, 21, 0.14); }
+/* もんだいの切りかえの帯：じっけん（3D）／図で考える */
+.c-exp { --pc: var(--accent); }
+.c-think { --pc: var(--m20); }
 .c-p3 { --pc: var(--p3); --pc-soft: rgba(251, 113, 133, 0.15); }
 .c-p4 { --pc: var(--p4); --pc-soft: rgba(74, 222, 128, 0.14); }
 .c-final { --pc: var(--danger); --pc-soft: rgba(251, 113, 133, 0.15); }

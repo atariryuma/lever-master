@@ -83,6 +83,7 @@ export function enter(appCtx, { id }) {
         revealSide: false,
         showHint: false,
         newIds: new Set(),
+        where: '2d', // 図で予想中か、3D でたしかめ中か
     };
     const chapter = CHAPTERS.find(c => c.id === puzzle.chapter);
     $('#play-title').innerHTML = `${icon('puzzle')}もんだい ${puzzle.id}「${escapeHtml(puzzle.title)}」`;
@@ -313,21 +314,28 @@ async function releaseHands() {
     state.revealSide = true;
     render();
     announce(`かたむいた。${heavier}がおもいよ`);
-    await session.wrap(banner('かたむいた…', { tone: 'warn', sub: `${heavier}がおもいみたい。図にもどって考えよう`, duration: 1600 }));
+    await session.wrap(banner('かたむいた…', { tone: 'warn', sub: `${heavier}がおもいみたい`, duration: 1300 }));
     state.held = true;
+    if (app.has3d) {
+        app.setView('2d');
+        state.where = '2d';
+        render();
+        play('whoosh');
+        await session.wrap(fx.turnSweep('図で考えよう', 'どこに動かせば つり合うかな？', 'c-think'));
+    }
     state.phase = 'placing';
-    app.setView('2d');
     render();
 }
 
-/** 図で予想した形のまま 3D へ。ささえたまま一息おいてから手をはなす */
+/** 図で予想した形のまま 3D へ。「じっけん！」の帯のあいだはささえておき、そのあと手をはなす */
 async function enter3d() {
     state.held = true;
     app.setView('3d');
-    play('whoosh');
+    state.where = '3d';
     render();
     app.view.level?.();
-    await session.sleep(550);
+    play('whoosh');
+    await session.wrap(fx.turnSweep('じっけん！', '3Dのてこで たしかめよう', 'c-exp'));
 }
 
 const chapterDone = chapter => PUZZLES.filter(p => p.chapter === chapter).every(p => progress.stars[p.id]);
@@ -373,7 +381,7 @@ async function showClear() {
 
 function stageNote() {
     if (!state.held) return '';
-    if (app.has3d && state.phase === 'placing') return `${icon('chart')}図で予想しよう（図はかたむかないよ）`;
+    if (app.has3d && state.where === '2d') return `${icon('chart')}図で予想しよう（図はかたむかないよ）`;
     return `${icon('hand')}手でささえているよ`;
 }
 
