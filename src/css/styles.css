@@ -69,6 +69,14 @@
 *::before,
 *::after { box-sizing: border-box; }
 
+/* iPhone のノッチ・ホームバーをよけるための余白（テストでは値を上書きして確かめる） */
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+}
+
 html,
 body { height: 100%; margin: 0; }
 /* ページ全体はスクロールさせない（各画面の中だけスクロール） */
@@ -158,8 +166,8 @@ h1, h2, h3, p { margin: 0; }
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    padding-left: var(--sal);
+    padding-right: var(--sar);
 }
 
 /* 画面の切りかえ */
@@ -294,7 +302,7 @@ h1, h2, h3, p { margin: 0; }
     align-items: center;
     gap: 6px;
     min-height: 60px;
-    padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
+    padding: calc(6px + var(--sat)) 10px 6px;
 }
 .topbar-title { flex: 1; min-width: 0; padding: 0 4px; }
 .topbar-title h2 { font-size: 20px; font-weight: 800; outline: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -318,7 +326,8 @@ h1, h2, h3, p { margin: 0; }
     align-items: center;
     justify-content: safe center;
     gap: clamp(16px, 3vh, 30px);
-    padding: calc(20px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+    /* ノッチ（よこ向きの左右・たて向きの上）とホームバーをよける */
+    padding: calc(20px + var(--sat)) calc(20px + var(--sar)) calc(24px + var(--sab)) calc(20px + var(--sal));
     text-align: center;
     isolation: isolate;
 }
@@ -453,7 +462,7 @@ h1, h2, h3, p { margin: 0; }
 .list-body {
     width: min(1000px, 100%);
     margin: 0 auto;
-    padding: 4px 16px calc(32px + env(safe-area-inset-bottom));
+    padding: 4px 16px calc(32px + var(--sab));
 }
 
 .chapter { margin-top: 18px; }
@@ -574,7 +583,7 @@ h1, h2, h3, p { margin: 0; }
     justify-content: flex-end;
     gap: 8px 16px;
     margin: 28px -16px 0;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    padding: 12px 16px calc(12px + var(--sab));
     background: linear-gradient(transparent, var(--paper) 30%);
 }
 .setup-note { color: var(--ink-2); }
@@ -964,7 +973,7 @@ h1, h2, h3, p { margin: 0; }
     align-items: center;
     gap: 10px 14px;
     min-height: 84px;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 14px calc(10px + var(--sab));
     background: linear-gradient(180deg, rgba(14, 20, 40, 0.92), rgba(8, 12, 26, 0.96));
     border-top: 1px solid var(--line);
     backdrop-filter: blur(12px);
@@ -1014,7 +1023,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .clear-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; width: 100%; }
-.clear-stars { display: flex; gap: 6px; font-size: 40px; }
+.clear-stars { display: flex; gap: 0; font-size: 32px; }
 .clear-stars .star { stroke-width: 1.4; }
 .clear-text { flex: 1 1 260px; }
 .clear-text b { font-size: 20px; color: var(--ok); }
@@ -1202,7 +1211,7 @@ h1, h2, h3, p { margin: 0; }
     position: fixed;
     left: 50%;
     width: max-content; /* left:50% だと幅が画面の半分までになるので */
-    bottom: calc(110px + env(safe-area-inset-bottom));
+    bottom: calc(110px + var(--sab));
     z-index: 50;
     max-width: calc(100% - 32px);
     padding: 10px 18px;
@@ -1225,8 +1234,8 @@ h1, h2, h3, p { margin: 0; }
    ========================================================= */
 
 .sheet {
-    width: min(680px, calc(100% - 24px));
-    max-height: min(88dvh, 820px);
+    width: min(680px, calc(100% - 24px - var(--sal) - var(--sar)));
+    max-height: min(calc(100dvh - 24px - var(--sat) - var(--sab)), 820px);
     padding: 0;
     border: 1px solid var(--line);
     border-radius: 22px;
@@ -1234,7 +1243,7 @@ h1, h2, h3, p { margin: 0; }
     color: var(--ink);
     box-shadow: var(--shadow-lg), 0 0 40px rgba(34, 211, 238, 0.08);
 }
-.sheet-sm { width: min(480px, calc(100% - 24px)); }
+.sheet-sm { width: min(480px, calc(100% - 24px - var(--sal) - var(--sar))); }
 .sheet::backdrop { background: rgba(2, 5, 14, 0.66); backdrop-filter: blur(4px); }
 .sheet[open] { animation: sheet-in 0.22s cubic-bezier(0.2, 1.2, 0.4, 1); }
 @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
@@ -1417,7 +1426,7 @@ h1, h2, h3, p { margin: 0; }
     .verdict { min-width: 64px; padding: 4px 6px; }
     .verdict-sign { font-size: 24px; }
     .verdict-text { font-size: 11px; }
-    .dock { gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+    .dock { gap: 8px; padding: 8px 10px calc(8px + var(--sab)); }
     .dock-actions { margin-left: 0; width: 100%; }
     .dock-actions .btn { flex: 1 1 auto; padding: 0 10px; font-size: 15px; }
     .pchip-name small { display: none; }
@@ -1426,13 +1435,13 @@ h1, h2, h3, p { margin: 0; }
 
 @media (max-height: 620px) and (orientation: landscape) {
     /* スマホ横向き：ボタンを1行にまとめて、てこの場所を確保する */
-    .dock { row-gap: 4px; padding-top: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+    .dock { row-gap: 4px; padding-top: 4px; padding-bottom: calc(4px + var(--sab)); }
     .dock-actions { width: auto; margin-left: auto; }
     .dock-actions .btn { flex: 0 0 auto; min-height: 40px; padding: 0 10px; font-size: 14px; }
     .tray-item { min-height: 44px; }
     .mission-text { font-size: 14px; }
     .stage-note { font-size: 11px; padding: 2px 8px; opacity: 0.85; }
-    .topbar { min-height: 48px; padding-top: calc(2px + env(safe-area-inset-top)); padding-bottom: 2px; }
+    .topbar { min-height: 48px; padding-top: calc(2px + var(--sat)); padding-bottom: 2px; }
     .topbar-title h2 { font-size: 16px; }
     .topbar-sub { font-size: 12px; }
     .players { padding-bottom: 4px; }
@@ -1444,7 +1453,7 @@ h1, h2, h3, p { margin: 0; }
     .side-name { display: none; }
     .formula { font-size: 16px; }
     .verdict-sign { font-size: 22px; }
-    .dock { min-height: 64px; padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+    .dock { min-height: 64px; padding-top: 6px; padding-bottom: calc(6px + var(--sab)); }
     .tray-item { min-height: 56px; min-width: 60px; }
     .tray-item .weight-icon { width: 30px; }
     .mission-text, .turn-info b { font-size: 16px; }
@@ -1462,14 +1471,14 @@ h1, h2, h3, p { margin: 0; }
 /* スマホたて向き：下のボタンを1行にまとめて、てこの場所を広くする */
 @media (max-width: 520px) {
     .dock-actions { flex-wrap: nowrap; }
-    .dock-actions .btn { flex: 1 1 auto; min-width: 0; padding: 0 8px; font-size: 14px; white-space: nowrap; }
-    .dock-actions .btn:not(.btn-primary) .i { display: none; }
+    .dock-actions .btn { flex: 1 1 auto; min-width: 0; padding: 0 6px; font-size: 14px; letter-spacing: -0.02em; white-space: nowrap; }
+    .dock-actions .btn .i { width: 18px; height: 18px; margin-right: 3px; }
     .mission-text { font-size: 16px; }
     .mission-hint { font-size: 14px; }
 }
 @media (max-width: 360px) {
-    .dock-actions .btn { padding: 0 6px; font-size: 13px; }
-    .dock-actions .btn-primary .i { display: none; }
+    .dock-actions .btn { padding: 0 4px; font-size: 12.5px; }
+    .dock-actions .btn .i { width: 16px; height: 16px; margin-right: 2px; }
 }
 
 /* たてに短い画面：てこの場所を確保する */
@@ -1488,7 +1497,7 @@ h1, h2, h3, p { margin: 0; }
    ========================================================= */
 @media (max-width: 560px) {
     /* 上のバー */
-    .topbar { min-height: 52px; padding-top: calc(4px + env(safe-area-inset-top)); padding-bottom: 4px; }
+    .topbar { min-height: 52px; padding-top: calc(4px + var(--sat)); padding-bottom: 4px; }
     .topbar-title h2 { font-size: 18px; }
     .topbar-sub { font-size: 12px; }
     #screen-play[data-mode="lab"] .topbar-sub { display: none; }
@@ -1522,12 +1531,12 @@ h1, h2, h3, p { margin: 0; }
 
     /* クリアのパネル */
     .clear-panel { gap: 6px 12px; }
-    .clear-stars { font-size: 30px; }
+    .clear-stars { font-size: 24px; }
     .clear-text b { font-size: 17px; }
     .clear-text p { font-size: 13px; }
 
     /* おしらせ（トースト）は上に出して、下のボタンをかくさない */
-    .toast { top: calc(124px + env(safe-area-inset-top)); bottom: auto; padding: 8px 14px; font-size: 14px; }
+    .toast { top: calc(124px + var(--sat)); bottom: auto; padding: 8px 14px; font-size: 14px; }
 
     /* もんだい一覧 */
     .chapter { margin-top: 12px; }
@@ -1545,7 +1554,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* スマホよこ向き（たてが短い）：ホームはロゴを小さくして、モードがすぐ見えるように */
 @media (max-height: 500px) and (orientation: landscape) {
-    .home { gap: 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
+    .home { gap: 12px; padding-top: calc(10px + var(--sat)); }
     .home-hero { height: 150px; }
     .home-head { gap: 4px; margin-top: 70px; }
     .logo-en { font-size: 36px; }
@@ -1558,8 +1567,12 @@ h1, h2, h3, p { margin: 0; }
     .mode-icon .i { width: 34px; height: 34px; }
     .mode-name { font-size: 20px; }
     .mode-desc { font-size: 13px; }
+    /* あそびかた：絵を小さくして、ボタンまで1画面に */
+    .tour-art { max-height: 96px; }
+    .tour-page p { font-size: 14px; line-height: 1.5; }
+    .tour-page h3 { font-size: 18px; }
     /* おしらせは上に（下の計算式・ボタンをかくさない） */
-    .toast { top: calc(90px + env(safe-area-inset-top)); bottom: auto; padding: 6px 14px; font-size: 14px; }
+    .toast { top: calc(90px + var(--sat)); bottom: auto; padding: 6px 14px; font-size: 14px; }
 }
 
 /* よこ向きのおすすめは、画面に入ったときに少しだけ出して消す */
