@@ -147,8 +147,8 @@ function buildDock() {
                     <p class="clear-formula">左 ${m.left} ＝ 右 ${m.right}</p>
                 </div>
                 <div class="dock-actions">
-                    <button type="button" class="btn" data-act="list">一覧</button>
-                    <button type="button" class="btn" data-act="retry">もういちど</button>
+                    <button type="button" class="btn" data-act="list" aria-label="一覧">${icon('puzzle')}一覧</button>
+                    <button type="button" class="btn" data-act="retry" aria-label="もういちど">${icon('reset')}もういちど</button>
                     <button type="button" class="btn btn-primary" data-act="next">${last ? 'おわり' : `つぎへ${icon('next')}`}</button>
                 </div>
             </div>`;
