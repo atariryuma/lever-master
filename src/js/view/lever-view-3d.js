@@ -576,6 +576,14 @@ export class LeverView3D {
         return new Promise(resolve => this.settleResolvers.push(resolve));
     }
 
+    /** うでをすぐに水平にする（図から切りかえた直後に、前の傾きが残らないように） */
+    level() {
+        this.target = 0;
+        this.angle = 0;
+        this.velocity = 0;
+        this.beam.rotation.z = 0;
+    }
+
     /* ======================== ループ ======================== */
 
     isVisible() {

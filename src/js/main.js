@@ -83,6 +83,12 @@ const app = {
     get view() {
         return view;
     },
+    /** 3D が使えるか（もんだいの「図で予想 → 3D でたしかめる」用） */
+    get has3d() {
+        return Boolean(views.v3d);
+    },
+    /** モードから表示を切りかえる（描き直しはモード側で行う） */
+    setView: kind => setViewKind(kind, { refresh: false }),
     go,
     confirm,
 };
@@ -121,9 +127,9 @@ function go(route, params = {}) {
 
 function enterPlay(mode, params) {
     active = mode;
-    const canToggle = Boolean(views.v3d) && mode.MODE !== 'battle';
-    $('#view-toggle').hidden = !canToggle;
-    setViewKind(mode.MODE === 'battle' ? '3d' : viewPref, { refresh: false });
+    // じっけんだけ自由に切りかえ。たいせんは 3D、もんだいは「図で予想 → 3D でたしかめる」でモードが決める
+    $('#view-toggle').hidden = !views.v3d || mode.MODE !== 'lab';
+    setViewKind({ battle: '3d', puzzle: '2d' }[mode.MODE] ?? viewPref, { refresh: false });
     $('#screen-play').dataset.mode = mode.MODE;
     const help = $('#play-help');
     const rules = mode.MODE === 'battle';

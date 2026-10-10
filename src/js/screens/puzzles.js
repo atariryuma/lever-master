@@ -1,6 +1,8 @@
 /**
  * もんだいモード：一覧とプレイ
- * 手でささえたままおもりをつるし、「手をはなす」でつり合うかたしかめる
+ * 図（2D）の上でおもりをつるして予想し、「3Dでたしかめる」で実験する。
+ * 図はかたむかないので考えることに集中でき、3D で手をはなす瞬間が答え合わせになる。
+ * WebGL が使えないときは図のまま手をはなす。
  */
 
 import { CHAPTERS, PUZZLES, allowedPositions, puzzleBoard, starsFor, trayWeights } from '../engine/puzzles.js';
@@ -142,7 +144,7 @@ function buildDock() {
         <div class="dock-actions">
             <button type="button" class="btn" data-act="hint">${icon('bulb')}ヒント</button>
             <button type="button" class="btn" data-act="reset">${icon('reset')}やりなおし</button>
-            <button type="button" class="btn btn-primary btn-release" data-act="release">${icon('hand')}手をはなす</button>
+            <button type="button" class="btn btn-primary btn-release" data-act="release">${app.has3d ? `${icon('cube')}3Dでたしかめる` : `${icon('hand')}手をはなす`}</button>
         </div>`;
     dock.onclick = onDockClick;
     bindTrayDrag(dock, () => app.view, btn => state.tray.find(w => w.id === btn.dataset.tray) ?? null);
@@ -194,6 +196,8 @@ function onClearClick(e) {
     }
 }
 
+const releaseLabel = () => (app.has3d ? '「3Dでたしかめる」でじっけんしよう' : '「手をはなす」でたしかめよう');
+
 const allowed = pos => allowedPositions(state.puzzle).includes(pos);
 const sideName = () => (state.puzzle.side === 'right' ? '右うで' : '左うで');
 
@@ -215,7 +219,7 @@ function placeFromTray(trayId, pos) {
     state.selected = null;
     state.revealSide = false;
     play('drop');
-    announce(state.tray.length ? `つるしました。のこり${state.tray.length}こ` : 'ぜんぶつるしました。手をはなしてたしかめよう');
+    announce(state.tray.length ? `つるしました。のこり${state.tray.length}こ` : `ぜんぶつるしました。${releaseLabel()}`);
 }
 
 function returnToTray(id) {
@@ -230,7 +234,7 @@ function onHookTap(pos) {
     if (state.phase !== 'placing') return;
     const sel = state.selected ?? (state.tray.length ? { kind: 'tray', id: state.tray[0].id } : null);
     if (!sel) {
-        toast('ぜんぶつるしたよ。「手をはなす」でたしかめよう');
+        toast(`ぜんぶつるしたよ。${releaseLabel()}`);
     } else if (sel.kind === 'tray') {
         placeFromTray(sel.id, pos);
     } else {
@@ -291,8 +295,9 @@ async function releaseHands() {
     }
     state.phase = 'checking';
     state.selected = null;
-    state.held = false;
     state.tries += 1;
+    if (app.has3d) await enter3d();
+    state.held = false;
     play('release');
     render();
     await Promise.all([session.wrap(app.view.settle()), session.sleep(700)]);
@@ -308,10 +313,21 @@ async function releaseHands() {
     state.revealSide = true;
     render();
     announce(`かたむいた。${heavier}がおもいよ`);
-    await session.wrap(banner('かたむいた…', { tone: 'warn', sub: `${heavier}がおもいみたい。もう一度考えよう`, duration: 1600 }));
+    await session.wrap(banner('かたむいた…', { tone: 'warn', sub: `${heavier}がおもいみたい。図にもどって考えよう`, duration: 1600 }));
     state.held = true;
     state.phase = 'placing';
+    app.setView('2d');
     render();
+}
+
+/** 図で予想した形のまま 3D へ。ささえたまま一息おいてから手をはなす */
+async function enter3d() {
+    state.held = true;
+    app.setView('3d');
+    play('whoosh');
+    render();
+    app.view.level?.();
+    await session.sleep(550);
 }
 
 const chapterDone = chapter => PUZZLES.filter(p => p.chapter === chapter).every(p => progress.stars[p.id]);
@@ -355,6 +371,12 @@ async function showClear() {
     }
 }
 
+function stageNote() {
+    if (!state.held) return '';
+    if (app.has3d && state.phase === 'placing') return `${icon('chart')}図で予想しよう（図はかたむかないよ）`;
+    return `${icon('hand')}手でささえているよ`;
+}
+
 function render() {
     const { board, puzzle } = state;
     const targets = new Map();
@@ -373,7 +395,7 @@ function render() {
         verdictHidden: state.held && !state.revealSide,
         area: true,
     });
-    $('#stage-note').innerHTML = state.held ? `${icon('hand')}手でささえているよ` : '';
+    $('#stage-note').innerHTML = stageNote();
 
     if (cleared) return;
     const dock = $('#dock');
