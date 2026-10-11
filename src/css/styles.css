@@ -1176,6 +1176,14 @@ h1, h2, h3, p { margin: 0; }
 }
 .fx-pop.is-ok { color: var(--gold); text-shadow: 0 0 16px rgba(250, 204, 21, 0.9), 0 3px 0 #6b5200; }
 .fx-pop.is-combo { color: var(--accent); text-shadow: 0 0 16px rgba(34, 211, 238, 0.9); font-size: 24px; }
+/* プレイヤーのチップから出すときは、下へ（チップの文字にかぶらない） */
+.fx-pop.is-down { animation-name: pop-down; }
+@keyframes pop-down {
+    0% { opacity: 0; transform: translate(-50%, -40%) scale(0.4); }
+    20% { opacity: 1; transform: translate(-50%, 0) scale(1.2); }
+    70% { opacity: 1; transform: translate(-50%, 30%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, 70%) scale(0.9); }
+}
 @keyframes pop {
     0% { opacity: 0; transform: translate(-50%, -20%) scale(0.4); }
     20% { opacity: 1; transform: translate(-50%, -60%) scale(1.25); }
@@ -1807,9 +1815,10 @@ h1, h2, h3, p { margin: 0; }
 .pend-arc-text { fill: var(--warn); font-size: 17px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
 .pend-tag circle { fill: var(--pc, var(--accent)); stroke: #0b1020; stroke-width: 2; }
 .pend-tag text { fill: var(--on-color); font-size: 16px; font-weight: 900; text-anchor: middle; dominant-baseline: central; font-family: var(--font-display); }
-.pend-count { fill: var(--ink); font-size: 16px; font-weight: 900; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.pend-tag.is-counting text { font-size: 15px; }
+.pend-tag.is-complete circle { stroke: var(--ok); stroke-width: 3; filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.8)); }
 .pend-len { fill: var(--ink-2); font-size: 14px; font-weight: 800; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
-.pend.is-first .pend-count { fill: var(--gold); }
+.pend.is-first .pend-tag circle { stroke: var(--gold); stroke-width: 3; }
 .pend.is-first .bob .w-body { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.8)); }
 .pend.is-done .bob .w-body { stroke: var(--ok); stroke-width: 3; }
 .pend.is-held .bob .w-shine { fill: rgba(255, 255, 255, 0.55); }
@@ -1819,7 +1828,6 @@ h1, h2, h3, p { margin: 0; }
 .bob.is-pulse .w-body { animation: bob-pulse 0.4s ease; }
 @keyframes bob-pulse { 40% { filter: brightness(1.8) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)); } }
 .pend-svg.is-narrow .pend-ruler-text { font-size: 20px; }
-.pend-svg.is-narrow .pend-count { font-size: 22px; }
 .pend-svg.is-narrow .pend-len { font-size: 20px; }
 .pend-svg.is-narrow .pend-arc-text { font-size: 24px; }
 .pend-svg.is-narrow .pend-tag circle { r: 20; }

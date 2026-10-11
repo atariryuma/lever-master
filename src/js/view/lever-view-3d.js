@@ -24,7 +24,7 @@ import { ghostIcon } from './weight-art.js';
 import { setDropZone } from '../widgets.js';
 import {
     Effects, bobHeight, disposeMesh, gridTexture, makeWeightMesh, radialTexture, readColors, reduceMotion, textTexture,
-    webglAvailable,
+    showcaseThrottle, webglAvailable,
 } from './three-utils.js';
 
 export { webglAvailable };
@@ -90,7 +90,9 @@ export class LeverView3D {
 
         this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
         this.renderer.outputColorSpace = SRGBColorSpace;
-        this.renderer.shadowMap.enabled = true;
+        // ホームのデモ（飾り）は影なし。毎フレームの影の計算をはぶいて、スクロールを軽く
+        this.renderer.shadowMap.enabled = !showcase;
+        this.skipFrame = showcase ? showcaseThrottle(canvas) : null;
         this.renderer.shadowMap.type = PCFShadowMap;
         this.scene = new Scene();
         this.camera = new PerspectiveCamera(32, 1, 0.1, 200);
@@ -523,6 +525,7 @@ export class LeverView3D {
 
     loop(now) {
         this.frame = requestAnimationFrame(this.loop);
+        if (this.skipFrame?.(now)) return; // デモ：スクロール中・画面の外・30fps をこえるフレームは描かない
         const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016); // 遅い端末でも、ゆれ方の速さは同じ
         this.last = now;
         if (!this.isVisible()) {
@@ -703,7 +706,7 @@ export class LeverView3D {
         const w = Math.max(1, rect.width);
         const h = Math.max(1, rect.height);
         const mobile = Math.min(w, h) < 500;
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.showcase ? 1.25 : mobile ? 1.5 : 2));
         this.renderer.setSize(w, h, false);
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();

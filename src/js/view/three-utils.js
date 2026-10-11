@@ -25,6 +25,31 @@ export function webglAvailable() {
     }
 }
 
+/**
+ * ホーム画面の 3D デモ（飾り）を軽くする。
+ * WebGL を毎フレーム描きながらスクロールすると、スクロールの描画が間に合わなくなる（とくにタブレット・スマホ）。
+ *   - スクロールしているあいだと、その直後は描かない
+ *   - 画面の外に出ているあいだは描かない
+ *   - 描くのは 30fps まで
+ * @returns {(now: number) => boolean} この時刻のフレームを描かずにとばすか
+ */
+export function showcaseThrottle(canvas) {
+    let pauseUntil = 0;
+    let offscreen = false;
+    let lastDraw = 0;
+    canvas.closest('.screen')?.addEventListener('scroll', () => {
+        pauseUntil = performance.now() + 200;
+    }, { passive: true });
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver(([entry]) => { offscreen = !entry.isIntersecting; }).observe(canvas);
+    }
+    return now => {
+        if (offscreen || now < pauseUntil || now - lastDraw < 32) return true;
+        lastDraw = now;
+        return false;
+    };
+}
+
 /** CSS 変数から色を読む */
 export function cssColor(name, fallback = '#ffffff') {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();

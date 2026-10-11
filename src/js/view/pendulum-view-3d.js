@@ -17,11 +17,10 @@ import {
 } from '../../vendor/three.js';
 import { AMPLITUDES, createPendulum, snapAmplitude } from '../engine/pendulum.js';
 import { createSwing, stepSwing } from '../engine/physics.js';
-import { PLAYER_META } from '../players.js';
-import { angleOf, colorVarOf, countLabel, pendulumAria } from './pendulum-view.js';
+import { angleOf, colorVarOf, cycleCount, pendulumAria, tagLabel } from './pendulum-view.js';
 import {
     Effects, LOOP_H, bobSize, cssColor, disposeMesh, gridTexture, makeWeightMesh, radialTexture, readColors, reduceMotion,
-    textSprite,
+    showcaseThrottle, textSprite,
 } from './three-utils.js';
 
 const UNIT_PER_CM = 0.05; // 100cm = 5
@@ -56,7 +55,9 @@ export class PendulumView3D {
 
         this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
         this.renderer.outputColorSpace = SRGBColorSpace;
-        this.renderer.shadowMap.enabled = true;
+        // ホームのデモ（飾り）は影なし。毎フレームの影の計算をはぶいて、スクロールを軽く
+        this.renderer.shadowMap.enabled = !showcase;
+        this.skipFrame = showcase ? showcaseThrottle(canvas) : null;
         this.renderer.shadowMap.type = PCFShadowMap;
         this.scene = new Scene();
         this.camera = new PerspectiveCamera(32, 1, 0.1, 200);
@@ -210,8 +211,9 @@ export class PendulumView3D {
         arcText.visible = false;
         g.add(arcText);
         const colorVar = colorVarOf(p, i);
-        const tag = textSprite(p.owner && PLAYER_META[p.owner] ? PLAYER_META[p.owner].symbol : p.label, {
-            color: cssColor(colorVar).getStyle(), font: '900 80px Orbitron, sans-serif', glow: 'rgba(255,255,255,0.4)',
+        // 名札：ふだんは記号、ふれているあいだは往復の回数（1〜10）
+        const tag = textSprite(tagLabel(p), {
+            color: cssColor(colorVar).getStyle(), font: '900 76px Orbitron, sans-serif', glow: 'rgba(255,255,255,0.4)',
         }, 0.7);
         tag.position.set(0, 0.62, 0.2);
         g.add(tag);
@@ -220,16 +222,12 @@ export class PendulumView3D {
         }));
         ring.position.set(0, 0.62, 0.15);
         g.add(ring);
-        // 「10往復 18.2秒」まで入るように、横に広いテクスチャ
-        const count = textSprite('', { color: '#eaf0ff', font: '900 52px Orbitron, "BIZ UDPGothic", sans-serif', size: 512 }, 2.6);
-        count.position.set(1.1, -0.4, 0.2);
-        g.add(count);
         const lenText = textSprite(`${p.length}cm`, {
             color: '#dce6ff', font: '900 50px Orbitron, sans-serif', size: 256, glow: 'rgba(120,180,255,0.6)',
         }, 1.2);
         g.add(lenText);
         this.layer.add(g);
-        g.userData = { rot, string, center, arc, arcText, tag, count, lenText, bob: null, key: null };
+        g.userData = { rot, string, center, arc, arcText, tag, ring, lenText, bob: null, key: null };
         return g;
     }
 
@@ -259,7 +257,7 @@ export class PendulumView3D {
             const haloColor = state === 'first' ? this.colors.gold : state === 'done' ? this.colors.ok : new Color(0xffffff);
             d.bob.userData.halo.material.color.copy(haloColor);
             d.bob.userData.body.material.emissiveIntensity = p.id === this.selectedId || state ? 2.2 : 1;
-            d.count.userData.setText(countLabel(p));
+            this.syncTag(d, p);
             if (this.buttons) this.syncButton(p);
         });
         for (const [id, g] of this.nodes) {
@@ -306,6 +304,16 @@ export class PendulumView3D {
         return this.interactive && (this.handlers.canDrag?.(id) ?? true);
     }
 
+    /** 名札：回数を数えているときは数字、10往復したら少し大きく */
+    syncTag(d, p) {
+        // ホームのデモは飾りなので、回数ではなく名前（A・B・C）のまま
+        d.tag.userData.setText(this.showcase ? p.label : tagLabel(p));
+        const done = cycleCount(p) === 10;
+        const s = done ? 0.85 : 0.7;
+        d.tag.scale.set(s, s, 1);
+        d.ring.scale.setScalar(done ? 1.2 : 1);
+    }
+
     place() {
         this.items.forEach(p => {
             const g = this.nodes.get(p.id);
@@ -348,6 +356,7 @@ export class PendulumView3D {
 
     loop(now) {
         this.frame = requestAnimationFrame(this.loop);
+        if (this.skipFrame?.(now)) return; // デモ：スクロール中・画面の外・30fps をこえるフレームは描かない
         const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016);
         this.last = now;
         if (!this.isVisible()) return;
@@ -366,7 +375,8 @@ export class PendulumView3D {
             if (p.phase !== 'swinging' || !p.swing) continue;
             const done = stepSwing(p.swing, p, step);
             if (done) {
-                this.nodes.get(p.id)?.userData.count.userData.setText(countLabel(p));
+                const g = this.nodes.get(p.id);
+                if (g) this.syncTag(g.userData, p);
                 this.handlers.onCycle?.(p, p.swing.cycles);
             }
         }
@@ -392,7 +402,7 @@ export class PendulumView3D {
         const w = Math.max(1, rect.width);
         const h = Math.max(1, rect.height);
         const mobile = Math.min(w, h) < 500;
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.showcase ? 1.25 : mobile ? 1.5 : 2));
         this.renderer.setSize(w, h, false);
         this.camera.aspect = w / h;
         this.camera.updateProjectionMatrix();

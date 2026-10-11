@@ -4,7 +4,7 @@ const browserGlobals = Object.fromEntries([
     'window', 'document', 'navigator', 'location', 'console', 'localStorage', 'CSS',
     'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
     'requestAnimationFrame', 'cancelAnimationFrame', 'structuredClone',
-    'URLSearchParams', 'getComputedStyle', 'performance', 'ResizeObserver', 'history', 'Event',
+    'URLSearchParams', 'getComputedStyle', 'performance', 'ResizeObserver', 'IntersectionObserver', 'history', 'Event',
 ].map(name => [name, 'readonly']));
 
 export default [

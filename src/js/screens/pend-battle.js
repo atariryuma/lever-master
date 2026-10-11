@@ -371,7 +371,8 @@ function onCycle(p, n) {
     play(grade === 'PERFECT' ? 'just' : 'points');
     app.view.fx?.(grade === 'PERFECT' ? 'first' : 'done', { id: p.id, color: cssVar(`--${p.id}`) });
     const chip = document.querySelector(`#players .pchip.c-${p.id}`)?.getBoundingClientRect();
-    if (chip) fx.popup(`${grade} ${diff > 0 ? '+' : ''}${round1(diff).toFixed(1)}秒`, chip.left + chip.width / 2, chip.bottom + 10, grade === 'PERFECT' ? 'ok' : 'combo');
+    // 評価だけを短く（差の秒は下のパネルとけっかに出る）。チップの下へ
+    if (chip) fx.popup(grade, chip.left + chip.width / 2, chip.bottom + 18, grade === 'PERFECT' ? 'ok' : 'combo', { down: true });
     render();
     ui.doneCount += 1;
     if (ui.doneCount >= state.order.length) {
