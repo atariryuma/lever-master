@@ -364,13 +364,23 @@ export class PendulumView {
         const p = this.press;
         if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return;
         if (!this.canDrag(p.id)) return;
-        this.drag = { id: p.id };
+        // 動かし方：'swing'＝横に持ち上げる、'length'＝上下で長さ、'auto'＝最初に動いた向きで決める
+        const want = this.handlers.dragMode?.(p.id) ?? 'swing';
+        const vertical = Math.abs(e.clientY - p.y) > Math.abs(e.clientX - p.x);
+        const mode = want === 'auto' ? (vertical ? 'length' : 'swing') : want;
+        this.drag = { id: p.id, mode };
         this.svg.classList.add('is-dragging');
         this.handlers.onDragStart?.(p.id);
         this.dragTo(e.clientX, e.clientY);
     }
 
     dragTo(clientX, clientY) {
+        if (this.drag.mode === 'length') {
+            // おもりの中心が指の高さに来る長さ（ものさしの目盛りと同じ）
+            const { y } = this.toSvgPoint(clientX, clientY);
+            this.handlers.onBobLength?.(this.drag.id, (y - PY) / SCALE);
+            return;
+        }
         const a = this.angleAt(this.drag.id, clientX, clientY);
         const side = a < 0 ? -1 : 1;
         this.handlers.onBobDrag?.(this.drag.id, snapAmplitude(a), side);
@@ -383,10 +393,11 @@ export class PendulumView {
         const p = this.press;
         this.press = null;
         if (this.drag) {
-            const { id } = this.drag;
+            const { id, mode } = this.drag;
             this.drag = null;
             this.svg.classList.remove('is-dragging');
             if (e.type === 'pointercancel') this.handlers.onDragCancel?.(id);
+            else if (mode === 'length') this.handlers.onLengthEnd?.(id);
             else this.handlers.onBobRelease?.(id);
             return;
         }
@@ -402,6 +413,11 @@ export class PendulumView {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             this.handlers.onBobTap?.(id);
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && this.canDrag(id) && (this.handlers.dragMode?.(id) ?? 'swing') !== 'swing') {
+            // 上下の矢印で長さ
+            e.preventDefault();
+            const p = this.items.find(q => q.id === id);
+            this.handlers.onBobLength?.(id, p.length + (e.key === 'ArrowDown' ? 1 : -1), { step: true });
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             // 矢印でふれはばを変える（持ち上げる）
             e.preventDefault();
