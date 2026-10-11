@@ -378,11 +378,11 @@ async function showSafe(result) {
     const chip = document.querySelector(`#players .pchip.c-${id}`)?.getBoundingClientRect();
     if (chip && gained !== 0) {
         play('points');
-        fx.popup(`${gained > 0 ? '+' : ''}${gained}`, chip.left + chip.width / 2, chip.bottom + 10);
+        fx.popup(`${gained > 0 ? '+' : ''}${gained}`, chip.left + chip.width / 2, chip.bottom + 18, 'ok', { down: true });
     }
     if (ui.streak[id] >= 2 && chip) {
         play('combo');
-        fx.popup(`${ui.streak[id]} 連続セーフ！`, chip.left + chip.width / 2, chip.bottom + 46, 'combo');
+        fx.popup(`${ui.streak[id]} 連続セーフ！`, chip.left + chip.width / 2, chip.bottom + 58, 'combo', { down: true });
     }
     await session.wrap(slamDone);
     state = result.state;

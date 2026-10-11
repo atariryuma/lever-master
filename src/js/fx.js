@@ -51,9 +51,12 @@ export function slam(text, { tone = 'ok', sub = '', ms = 1400 } = {}) {
     return new Promise(resolve => setTimeout(resolve, ms - 200));
 }
 
-/** 得点などのポップアップ（画面座標） */
-export function popup(text, x, y, tone = 'ok') {
-    const el = spawn(`fx-pop is-${tone}`, escapeHtml(text), 1300);
+/**
+ * 得点などのポップアップ（画面座標）
+ * @param {{ down?: boolean }} [opts] down … 下へ動く（上のプレイヤーのチップから出すとき。チップの文字にかぶらない）
+ */
+export function popup(text, x, y, tone = 'ok', { down = false } = {}) {
+    const el = spawn(`fx-pop is-${tone}${down ? ' is-down' : ''}`, escapeHtml(text), 1300);
     // 画面の外に出ないように（中央ぞろえなので、はしから少しはなす）
     const margin = Math.min(90, window.innerWidth / 4);
     el.style.left = `${Math.max(margin, Math.min(window.innerWidth - margin, x))}px`;

@@ -37,13 +37,22 @@ export function angleOf(p) {
     return 0;
 }
 
-/** 往復の回数の表示。10往復をはかり終えたら、そこで止めて見せる */
-export function countLabel(p) {
+/** ふれているあいだの往復の回数（10 で止める）。ふれていなければ null */
+export function cycleCount(p) {
     const n = p.swing?.cycles ?? 0;
-    if (!(p.phase === 'swinging' || (p.phase === 'stopped' && n))) return '';
-    if (n < COUNT) return `${n}往復`;
-    const t = p.swing.cycleTimes[COUNT - 1];
-    return t !== undefined ? `${COUNT}往復 ${t.toFixed(1)}秒` : `${COUNT}往復 ✓`;
+    if (!(p.phase === 'swinging' || (p.phase === 'stopped' && n))) return null;
+    return Math.min(n, COUNT);
+}
+
+/**
+ * ふりこの上の名札の文字。ふれているあいだは往復の回数（1, 2, … 10）をラップカウンターのように出す。
+ * 横に長いラベルをふりこのそばに出すと、ふりこが多いときに となりと重なるので、回数は名札の中だけ。
+ * 時間は下の計測パネルに出る
+ */
+export function tagLabel(p) {
+    const n = cycleCount(p);
+    if (n !== null) return String(n);
+    return p.owner && PLAYER_META[p.owner] ? PLAYER_META[p.owner].symbol : p.label;
 }
 
 export function pendulumAria(p) {
@@ -57,6 +66,14 @@ export function pendulumAria(p) {
 export function colorVarOf(p, index = 0) {
     if (p.owner && PLAYER_META[p.owner]) return `--${p.owner}`;
     return ['--glow-left', '--glow-right', '--m20', '--m30'][index % 4];
+}
+
+/** 名札：回数を数えているときは数字、10往復したら完了の色 */
+function syncTag(node, p) {
+    node.tagText.textContent = tagLabel(p);
+    const n = cycleCount(p);
+    node.tag.classList.toggle('is-counting', n !== null);
+    node.tag.classList.toggle('is-complete', n === COUNT);
 }
 
 export class PendulumView {
@@ -193,7 +210,6 @@ export class PendulumView {
                 node.tag = el('g', { class: 'pend-tag' }, node);
                 node.tagCircle = el('circle', { r: 15, cx: 0, cy: -34 }, node.tag);
                 node.tagText = el('text', { x: 0, y: -34 }, node.tag);
-                node.count = el('text', { class: 'pend-count', x: 12, y: 24 }, node);
                 node.lenText = el('text', { class: 'pend-len' }, node);
                 this.nodes.set(p.id, node);
             }
@@ -212,8 +228,7 @@ export class PendulumView {
             node.bob.setAttribute('class', `weight bob ${toneOf({ mass: p.mass, owner: p.owner })}${this.canDrag(p.id) ? ' is-movable' : ''}`);
             node.bob.setAttribute('aria-label', pendulumAria(p));
             node.bob.setAttribute('tabindex', this.interactive ? '0' : '-1');
-            node.tagText.textContent = p.owner && PLAYER_META[p.owner] ? PLAYER_META[p.owner].symbol : p.label;
-            node.count.textContent = countLabel(p);
+            syncTag(node, p);
             node.lenText.textContent = p.secret ? '？' : `${p.length}${CONDITION_META.length.unit}`;
             node.classList.toggle('is-secret', Boolean(p.secret));
         });
@@ -303,7 +318,7 @@ export class PendulumView {
             const done = stepSwing(p.swing, p, step);
             if (done) {
                 const node = this.nodes.get(p.id);
-                if (node) node.count.textContent = countLabel(p);
+                if (node) syncTag(node, p);
                 this.handlers.onCycle?.(p, p.swing.cycles);
             }
         }
