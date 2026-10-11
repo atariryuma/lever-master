@@ -1850,11 +1850,12 @@ h1, h2, h3, p { margin: 0; }
 .pside-count i { font-style: normal; color: var(--muted); font-weight: 700; margin-left: 4px; }
 .pside .bar span { background: var(--pc); box-shadow: 0 0 10px var(--pc); }
 .pgrade, .pchip-grade { padding: 1px 8px; border-radius: 999px; font-family: var(--font-display); font-size: 11px; font-weight: 900; background: var(--fill); color: var(--ink); }
-.is-perfect { background: var(--gold) !important; color: var(--on-color) !important; box-shadow: 0 0 12px rgba(250, 204, 21, 0.7); }
-.is-great { background: var(--ok) !important; color: var(--on-color) !important; }
-.is-good { background: var(--accent) !important; color: var(--on-color) !important; }
-.is-ok { background: var(--warn) !important; color: var(--on-color) !important; }
-.is-miss { background: var(--danger) !important; color: var(--on-color) !important; }
+/* 評価の色はバッジだけに（.is-ok などは演出レイヤー（.fx-slam.is-ok）でも使っているので、素のクラスには当てない） */
+.pgrade.is-perfect, .pchip-grade.is-perfect { background: var(--gold); color: var(--on-color); box-shadow: 0 0 12px rgba(250, 204, 21, 0.7); }
+.pgrade.is-great, .pchip-grade.is-great { background: var(--ok); color: var(--on-color); }
+.pgrade.is-good, .pchip-grade.is-good { background: var(--accent); color: var(--on-color); }
+.pgrade.is-ok, .pchip-grade.is-ok { background: var(--warn); color: var(--on-color); }
+.pgrade.is-miss, .pchip-grade.is-miss { background: var(--danger); color: var(--on-color); }
 .pend-readout .verdict { min-width: 84px; }
 @media (max-width: 760px) {
     .pend-readout { gap: 6px; padding: 4px 8px 6px; }
@@ -1966,7 +1967,7 @@ h1, h2, h3, p { margin: 0; }
     .pend-controls .option { min-height: 36px; padding: 2px 0; flex-wrap: nowrap; }
     .pend-controls .option-label { font-size: 13px; white-space: nowrap; }
     .pend-controls .seg { flex-wrap: nowrap; }
-    .mission { flex: 0 1 240px; }
+    #screen-play[data-unit="pendulum"] .mission { flex: 0 1 240px; }
     .choices { flex: 1 1 200px; }
     .pend-controls .option + .option { border-top: 0; border-left: 0.5px solid var(--separator); padding-left: 10px; }
     .pend-controls .seg button { min-height: 28px; padding: 0 8px; font-size: 13px; }
