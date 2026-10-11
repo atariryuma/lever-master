@@ -1,5 +1,5 @@
 /**
- * LEVER MASTER — GAS Web アプリ エントリポイント
+ * りかラボ（RIKA LAB）— GAS Web アプリ エントリポイント
  *
  * index.html は scripts/build-gas.mjs が自動生成する
  * （アプリ本体の JS・CSS は GitHub Pages から読み込む）。
@@ -12,7 +12,7 @@
  */
 function doGet() {
     return HtmlService.createHtmlOutputFromFile('index')
-        .setTitle('てこマスター – LEVER MASTER')
+        .setTitle('りかラボ – RIKA LAB')
         // GAS は <head> 内の meta を除去するため、ここで再指定する。
         // addMetaTag が許可するのは viewport / apple-mobile-web-app-capable /
         // mobile-web-app-capable / google-site-verification の4種のみ。

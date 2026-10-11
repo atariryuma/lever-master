@@ -367,6 +367,9 @@ h1, h2, h3, p { margin: 0; }
     background: radial-gradient(closest-side, rgba(7, 11, 24, 0.85), rgba(7, 11, 24, 0));
 }
 .home h1 { display: grid; gap: 2px; outline: none; line-height: 1.05; }
+/* アプリ全体の名前（単元のロゴの上に小さく） */
+.brand { display: inline-flex; align-items: baseline; gap: 8px; padding: 3px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); color: var(--ink-2); font-size: 13px; font-weight: 700; }
+.brand b { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.25em; color: var(--accent); }
 .logo-en {
     position: relative;
     isolation: isolate;

@@ -1,10 +1,10 @@
-/* てこマスター・ふりこマスター Service Worker
+/* りかラボ（てこマスター・ふりこマスター）Service Worker
  * - インストール時に全ファイルをキャッシュ（初回からオフラインで遊べる）
  * - ページもファイルもネットワーク優先（新旧が混ざらない）。オフラインのときはキャッシュ
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '3.3.0';
+const VERSION = '3.3.1';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
