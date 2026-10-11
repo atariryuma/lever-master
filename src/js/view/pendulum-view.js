@@ -48,7 +48,7 @@ export function countLabel(p) {
 
 export function pendulumAria(p) {
     const who = p.owner && PLAYER_META[p.owner] ? `${PLAYER_META[p.owner].name}の` : `${p.label} の`;
-    const cond = `長さ${p.length}cm・${p.mass}g・ふれはば${p.amplitude}°`;
+    const cond = p.secret ? '長さはないしょ' : `長さ${p.length}cm・${p.mass}g・ふれはば${p.amplitude}°`;
     const state = p.phase === 'swinging' ? 'ふれている' : p.phase === 'held' ? '持ち上げている。手をはなす' : '持ち上げて手をはなす';
     return `${who}ふりこ（${cond}）：${state}`;
 }
@@ -214,7 +214,8 @@ export class PendulumView {
             node.bob.setAttribute('tabindex', this.interactive ? '0' : '-1');
             node.tagText.textContent = p.owner && PLAYER_META[p.owner] ? PLAYER_META[p.owner].symbol : p.label;
             node.count.textContent = countLabel(p);
-            node.lenText.textContent = `${p.length}${CONDITION_META.length.unit}`;
+            node.lenText.textContent = p.secret ? '？' : `${p.length}${CONDITION_META.length.unit}`;
+            node.classList.toggle('is-secret', Boolean(p.secret));
         });
         for (const [id, node] of this.nodes) {
             if (!seen.has(id)) {
@@ -253,7 +254,7 @@ export class PendulumView {
             node.lenText.setAttribute('y', (my + 5).toFixed(1));
             node.lenText.style.display = still ? '' : 'none';
             // ものさしへの案内線（まっすぐ下がっているときだけ）
-            node.guide.style.display = p.phase === 'rest' ? '' : 'none';
+            node.guide.style.display = p.phase === 'rest' && !p.secret ? '' : 'none';
             node.guide.setAttribute('x1', (RULER_X - px).toFixed(1));
             node.guide.setAttribute('x2', 0);
             node.guide.setAttribute('y1', L.toFixed(1));

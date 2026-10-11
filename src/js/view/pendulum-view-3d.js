@@ -252,7 +252,8 @@ export class PendulumView3D {
                 d.rot.add(d.bob);
                 d.key = key;
             }
-            d.lenText.userData.setText(`${p.length}cm`);
+            d.lenText.userData.setText(p.secret ? '？' : `${p.length}cm`);
+            d.bob.userData.body.material.opacity = p.secret ? 0.35 : 1;
             const state = this.highlight.get(p.id);
             d.bob.userData.halo.visible = p.phase === 'held' || p.id === this.selectedId || state === 'first';
             const haloColor = state === 'first' ? this.colors.gold : state === 'done' ? this.colors.ok : new Color(0xffffff);

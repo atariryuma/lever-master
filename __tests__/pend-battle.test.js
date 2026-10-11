@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    GRADES, canChoose, choose, computeResult, createMatch, currentPlayer, gradeFor, makeTarget, nearestFree, nextRound,
-    resolveRound, targetLabel,
+    GRADES, choose, computeResult, createMatch, currentPlayer, gradeFor, makeTarget, nextRound, resolveRound, targetLabel,
 } from '../src/js/engine/pend-battle.js';
 import { planPick, CPU_LEVELS } from '../src/js/engine/pend-ai.js';
 import { tenOf } from '../src/js/engine/pendulum.js';
@@ -88,23 +87,14 @@ describe('ラウンドの流れ', () => {
         expect(result.winners).toEqual(['p2', 'p3']);
     });
 
-    it('同じ長さは 1 人だけ（まねをするなら 1cm ずらす）', () => {
-        let s = createMatch({ seats: [human, human, human, null] });
+    it('長さはないしょで決めるので、同じ長さでもえらべる', () => {
+        let s = createMatch({ seats: [human, human, null, null] });
         s = choose(s, { length: 60 });
-        expect(canChoose(s, 60)).toBe(false);
-        expect(canChoose(s, 61)).toBe(true);
-        expect(() => choose(s, { length: 60 })).toThrow();
-        expect(nearestFree(s, 60)).toBe(61);
-        s = choose(s, { length: 61 });
-        expect(nearestFree(s, 60)).toBe(59);
-        expect(nearestFree(s, 10)).toBe(10);
-    });
-
-    it('CPU はえらばれている長さをさける', () => {
-        let s = createMatch({ seats: [human, cpu('strong'), null, null], rng: seq(0.5, 0.1) });
-        const exact = Math.round(s.target.length);
-        s = choose(s, { length: exact });
-        for (let i = 0; i < 20; i++) expect(planPick(s, 'strong', seq(0.5)).length).not.toBe(exact);
+        s = choose(s, { length: 60 });
+        expect(s.phase).toBe('resolve');
+        s = resolveRound(s);
+        const [a, b] = s.history[0].results;
+        expect(a.points).toBe(b.points);
     });
 
     it('長さは 10〜100cm の整数にそろえる', () => {

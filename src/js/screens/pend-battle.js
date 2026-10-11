@@ -7,8 +7,7 @@
  */
 
 import {
-    canChoose, choose, createMatch, currentPlayer, gradeFor, nearestFree, nextRound, playerById, resolveRound, takenLengths,
-    targetLabel,
+    choose, createMatch, currentPlayer, gradeFor, nextRound, playerById, resolveRound, targetLabel,
 } from '../engine/pend-battle.js';
 import { CPU_LEVELS, planPick } from '../engine/pend-ai.js';
 import {
@@ -225,7 +224,7 @@ async function startTurn() {
     const p = currentPlayer(state);
     ui.busy = true;
     ui.intro = true;
-    ui.pick = { length: nearestFree(state, 50), mass: 10, amplitude: 10 };
+    ui.pick = { length: 50, mass: 10, amplitude: 10 };
     ui.fast = false;
     render();
     play('turn', p.seat);
@@ -245,21 +244,14 @@ async function startTurn() {
     }
 }
 
-/** CPU：目標のあたりへ、つまみを行ったり来たりさせながら決める */
+/** CPU：長さはないしょなので、考える時間だけ見せて決める */
 async function runCpu() {
     const p = currentPlayer(state);
-    const name = nameOf(p.id);
-    setStatus(`${name}がかんがえ中…`);
+    setStatus(`${nameOf(p.id)}がかんがえ中…`);
     render();
     const plan = planPick(state, p.level);
-    const path = [clampLength(plan.length + jitter(-25, 25)), clampLength(plan.length + jitter(-8, 8)), plan.length];
-    for (const len of path) {
-        await wait(jitter(500, 900));
-        ui.pick = { ...plan, length: len };
-        applyPick();
-        render({ light: true });
-    }
-    await wait(jitter(500, 900));
+    await wait(jitter(1400, 2600));
+    ui.pick = { ...plan };
     decide();
 }
 
@@ -270,24 +262,15 @@ function applyPick() {
     Object.assign(pendOf(p.id), { length: ui.pick.length, mass: ui.pick.mass, amplitude: ui.pick.amplitude, phase: 'rest' });
 }
 
-/** えらんだ長さで決める（同じ長さはえらべないので、時間切れなどで重なっていればずらす） */
+/** えらんだ長さで決める（ほかの人には、はなすまでないしょ） */
 function decide() {
-    if (!canChoose(state, ui.pick.length)) {
-        if (isHumanTurn() && ui.timer) {
-            ui.pick.length = nearestFree(state, ui.pick.length);
-        } else {
-            toast(`${takenBy(ui.pick.length)} と同じ長さはえらべないよ（1cm ずらそう）`, 'warn');
-            play('error');
-            return;
-        }
-    }
     stopTimer();
     const p = currentPlayer(state);
     applyPick();
     state = choose(state, ui.pick);
     play('drop');
     app.view.fx?.('count', { id: p.id, color: cssVar(`--${p.id}`) });
-    setStatus(`${nameOf(p.id)}は ${ui.pick.length}cm にした`);
+    setStatus(`${nameOf(p.id)}がきめた！（長さはないしょ）`);
     ui.busy = true;
     render();
     run(async () => {
@@ -305,10 +288,12 @@ async function resolve() {
     ui.doneCount = 0;
     render();
     setStatus(`全員きまった！ ねらいは ${targetLabel(state.target)}。3、2、1 で いっせいに はなす`);
-    // 全員そろって持ち上げる
+    // ないしょにしていた長さを、いっせいにオープン → 全員そろって持ち上げる
     for (const p of ui.pendulums.values()) p.phase = 'held';
-    play('pick');
     render();
+    play('whoosh');
+    app.view.fx?.('release');
+    await session.wrap(fx.slam('OPEN!', { tone: 'gold', sub: ordered().map(p => `${PLAYER_META[p.id].name} ${p.length}cm`).join('　'), ms: 1600 }));
     // 3・2・1 のカウントダウン（全員の手がおもりにかかっている時間）
     for (const n of [3, 2, 1]) {
         play('tick');
@@ -497,10 +482,8 @@ function onDockClick(e) {
     }
 }
 
-function setLength(len, dir = 0) {
-    let next = clampLength(len);
-    // ＋／− のボタンでは、もうえらばれている長さはとばす
-    if (dir && !canChoose(state, next)) next = clampLength(next + dir);
+function setLength(len) {
+    const next = clampLength(len);
     if (next === ui.pick.length) return;
     ui.pick.length = next;
     applyPick();
@@ -508,16 +491,20 @@ function setLength(len, dir = 0) {
     render({ light: true });
 }
 
-/** その長さをえらんだ人の名前 */
-function takenBy(length) {
-    const id = Object.keys(state.picks).find(k => state.picks[k].length === length);
-    return id ? nameOf(id) : '';
-}
-
 /* ---------- 描画 ---------- */
 
-function render({ light = false } = {}) {
+/**
+ * 画面に出すふりこ。えらぶあいだは、自分（いまのひと）以外の長さはないしょ（「？」で、長さは見せない）
+ */
+function visiblePendulums() {
     const items = ordered();
+    if (state.phase !== 'choose') return items;
+    const mine = isHumanTurn() ? currentPlayer(state).id : null;
+    return items.map(p => (p.id === mine ? p : { ...p, length: 50, phase: 'rest', secret: true }));
+}
+
+function render({ light = false } = {}) {
+    const items = visiblePendulums();
     const turnId = state.phase === 'choose' ? currentPlayer(state).id : null;
     const highlight = new Map();
     for (const p of items) {
@@ -535,25 +522,12 @@ function render({ light = false } = {}) {
         if (out) out.textContent = String(ui.pick.length);
         const range = document.querySelector('#dock #len-range');
         if (range && Number(range.value) !== ui.pick.length) range.value = String(ui.pick.length);
-        syncTaken();
         const chart = document.querySelector('#dock .aim-chart');
         if (chart) chart.outerHTML = aimChart();
         return;
     }
     renderPlayers();
     renderDock();
-}
-
-/** えらぼうとしている長さが、もうだれかのものなら「けってい」を止めて知らせる */
-function syncTaken() {
-    const dock = $('#dock');
-    const note = dock.querySelector('.length-taken');
-    const decide = dock.querySelector('[data-act="decide"]');
-    if (!note || !decide) return;
-    const taken = !canChoose(state, ui.pick.length);
-    note.hidden = !taken;
-    if (taken) note.textContent = `${takenBy(ui.pick.length)} と同じ長さ。1cm ずらそう`;
-    decide.disabled = taken;
 }
 
 function renderPlayers() {
@@ -564,7 +538,8 @@ function renderPlayers() {
         // ラウンドごとの評価（いまのラウンドは大きく）
         const past = state.history.map(h => h.results.find(r => r.playerId === id)?.grade).filter(Boolean);
         const dots = past.map((g, i) => `<i class="pchip-dot is-${g.toLowerCase()}" title="ラウンド${i + 1} ${g}"></i>`).join('');
-        const grade = ui.grades[id] ? `<span class="pchip-grade is-${ui.grades[id].toLowerCase()}">${ui.grades[id]}</span>` : (dots ? `<span class="pchip-dots" aria-hidden="true">${dots}</span>` : '');
+        const decided = state.phase === 'choose' && state.picks[id] ? `<span class="pchip-ok" aria-label="きめた">${icon('check')}</span>` : '';
+        const grade = ui.grades[id] ? `<span class="pchip-grade is-${ui.grades[id].toLowerCase()}">${ui.grades[id]}</span>` : decided || (dots ? `<span class="pchip-dots" aria-hidden="true">${dots}</span>` : '');
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}" role="group"
                 aria-label="${PLAYER_META[id].name} ${sub}、${p.total}ポイント${id === turnId ? '、いまのばん' : ''}">
@@ -603,7 +578,7 @@ function knownPoints() {
  */
 function aimChart() {
     const pts = knownPoints();
-    if (!pts.length) return '<div class="aim-chart aim-chart-empty">手がかりはまだない。ラウンドがすすむと、はかった結果がここに出る</div>';
+    if (!pts.length) return '<div class="aim-chart aim-chart-empty">手がかりはまだない。ラウンドがすすむと、はかったけっかがここに出る</div>';
     const W = 320;
     const H = 132;
     const L0 = 38; // 左の余白（時間の数字）
@@ -659,12 +634,12 @@ function fillDock(dock) {
     }
     if (p.kind === 'cpu') {
         dock.innerHTML = `
-            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}かんがえ中… <span class="length-out"><b>${ui.pick.length}</b>cm</span></p></div></div>
+            <div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('robot')}かんがえ中…（長さはないしょ）</p></div></div>
             <div class="dock-actions"><button type="button" class="btn" data-act="fast" ${ui.fast ? 'disabled' : ''}>${icon('fast')}はやおくり</button></div>`;
         return;
     }
     if (ui.busy) {
-        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>${ui.pick.length}cm に決めた</p></div></div>`;
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>きめた！ はなすまで ないしょ</p></div></div>`;
         return;
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';
@@ -684,24 +659,15 @@ function fillDock(dock) {
                     <button type="button" class="icon-btn" data-act="inc" aria-label="1cm ながく">＋</button>
                 </div>
                 <input type="range" id="len-range" min="${LENGTH_MIN}" max="${LENGTH_MAX}" step="1" value="${ui.pick.length}" aria-label="ふりこの長さ（cm）">
-                <p class="length-taken" role="status" hidden></p>
                 <button type="button" class="btn btn-primary btn-judge" data-act="decide">${icon('check')}けってい</button>
             </div>
         </div>`;
     dock.querySelector('#len-range').addEventListener('input', e => setLength(Number(e.target.value)));
-    // もうえらばれている長さを、つまみの下に目印で
-    const taken = takenLengths(state);
-    if (taken.length) {
-        const range = dock.querySelector('#len-range');
-        range.setAttribute('list', 'len-taken');
-        range.insertAdjacentHTML('afterend', `<datalist id="len-taken">${taken.map(L => `<option value="${L}"></option>`).join('')}</datalist>`);
-    }
-    syncTaken();
     updateTimerView();
 }
 
-/* ---------- ラウンドの結果発表（全画面） ----------
- * ドラムロール →「結果発表」→ 下の順位から1人ずつ → 1位は少しためてから → 合計点がカウントアップ。
+/* ---------- ラウンドのけっか（全画面） ----------
+ * ドラムロール →「RESULT」→ 下の順位から1人ずつ → 1位は少しためてから → 合計点がカウントアップ。
  * 画面のどこかをタップすると、のこりをすぐに見せる。最後に「つぎのラウンドへ」
  */
 async function revealRound() {
@@ -714,9 +680,9 @@ async function revealRound() {
     }));
     const maxTotal = Math.max(...totals.map(t => t.total), 1);
     box.innerHTML = `
-        <div class="reveal-card" role="dialog" aria-modal="true" aria-label="ラウンド${h.round}の結果">
+        <div class="reveal-card" role="dialog" aria-modal="true" aria-label="ラウンド${h.round}のけっか">
             <div class="reveal-kicker">ROUND ${h.round}${last ? ' ─ FINAL' : ''}</div>
-            <h2 class="reveal-title">結果発表</h2>
+            <h2 class="reveal-title" data-text="RESULT">RESULT</h2>
             <div class="reveal-target">${icon('target')}ねらい <b>${escapeHtml(targetLabel(h.target))}</b></div>
             <ol class="reveal-list">${rows.map((r, i) => `
                 <li class="reveal-row c-${r.playerId}" data-rank="${i + 1}">
@@ -735,7 +701,7 @@ async function revealRound() {
                     <b data-from="${t.total - t.gained}" data-to="${t.total}">${t.total - t.gained}</b>
                 </div>`).join('')}
             </div>
-            <button type="button" class="btn btn-primary btn-xl reveal-next" hidden>${last ? `${icon('trophy')}さいごの結果へ` : `つぎのラウンドへ${icon('next')}`}</button>
+            <button type="button" class="btn btn-primary btn-xl reveal-next" hidden>${last ? `${icon('trophy')}さいごのけっかへ` : `つぎのラウンドへ${icon('next')}`}</button>
         </div>`;
     box.hidden = false;
     ui.revealFast = false;
@@ -779,7 +745,7 @@ async function revealRound() {
             }
             await pause(40);
         }
-        announce(`ラウンド${h.round}の結果。${rows.map((r, i) => `${i + 1}位 ${nameOf(r.playerId)} ${r.grade} プラス${r.points}`).join('、')}`);
+        announce(`ラウンド${h.round}のけっか。${rows.map((r, i) => `${i + 1}位 ${nameOf(r.playerId)} ${r.grade} プラス${r.points}`).join('、')}`);
         // つぎへ（押すか、少し待つ）
         const next = box.querySelector('.reveal-next');
         next.hidden = false;

@@ -7,7 +7,6 @@
  */
 
 import { clampLength } from './pendulum.js';
-import { nearestFree } from './pend-battle.js';
 
 /*
  * spread は目標の長さからのずれの最大（cm）。1cm ≈ 10往復で 0.1〜0.2秒 なので、
@@ -27,8 +26,7 @@ export const CPU_LEVELS = Object.freeze({
 export function planPick(state, level = 'normal', rng = Math.random) {
     const cfg = CPU_LEVELS[level] ?? CPU_LEVELS.normal;
     const error = (rng() * 2 - 1) * cfg.spread;
-    // 同じ長さは 1 人だけなので、えらばれていれば 1cm ずらす
-    const length = nearestFree(state, clampLength(state.target.length + error));
+    const length = clampLength(state.target.length + error);
     const mass = rng() < cfg.heavyMass ? 30 : 10;
     return { length, mass, amplitude: 10 };
 }

@@ -274,7 +274,7 @@ function openRecords() {
     }).join('');
     body.innerHTML = state.records.length
         ? `<table class="record-table">
-            <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>結果</th></tr></thead>
+            <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>けっか</th></tr></thead>
             <tbody>${rows}</tbody></table>
             <p class="muted">そろえた条件：${CONDITIONS.filter(c => c !== state.variable).map(c => `${CONDITION_META[c].short} ${BASE[c]}${CONDITION_META[c].unit}`).join('・')}</p>`
         : '<p class="muted">まだ記録がないよ。おもりを持ち上げて、手をはなしてみよう。</p>';
