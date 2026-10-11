@@ -42,7 +42,12 @@ export function enter(appCtx) {
     $('#play-title').innerHTML = `${icon('pendulum')}じっけん`;
     $('#play-sub').textContent = '変える条件は1つだけ。おもりを持ち上げて、手をはなそう';
     $('#players').hidden = true;
-    app.view.handlers = { onBobDrag, onBobRelease, onBobTap, onCycle, onFrame, canDrag: () => true };
+    app.view.handlers = {
+        onBobDrag, onBobRelease, onBobTap, onCycle, onFrame, onBobLength, onLengthEnd: () => render(),
+        canDrag: () => true,
+        // B の長さを調べるときは、B を上下にドラッグして長さを変えられる（横なら持ち上げる）
+        dragMode: id => (id === 'B' && state.variable === 'length' ? 'auto' : 'swing'),
+    };
     buildDock();
     render();
     announce('ふりこのじっけん。変える条件を1つえらんで、おもりを持ち上げて手をはなそう');
@@ -163,6 +168,19 @@ function onBobDrag(id, amplitude, side) {
     render({ light: true });
 }
 
+/** B を上下にドラッグ：長さを 25・50・75・100cm にそろえる */
+function onBobLength(id, cm) {
+    if (id !== 'B' || state.variable !== 'length') return;
+    const values = CONDITION_META.length.values;
+    const next = values.reduce((best, v) => (Math.abs(v - cm) < Math.abs(best - cm) ? v : best), values[0]);
+    if (next === state.b.length) return;
+    state.b = { ...state.b, length: next };
+    hold();
+    play('tick');
+    buildValueSeg();
+    render({ light: true });
+}
+
 function onBobRelease() {
     release();
     render();
@@ -256,7 +274,7 @@ function openRecords() {
     }).join('');
     body.innerHTML = state.records.length
         ? `<table class="record-table">
-            <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>結果</th></tr></thead>
+            <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>けっか</th></tr></thead>
             <tbody>${rows}</tbody></table>
             <p class="muted">そろえた条件：${CONDITIONS.filter(c => c !== state.variable).map(c => `${CONDITION_META[c].short} ${BASE[c]}${CONDITION_META[c].unit}`).join('・')}</p>`
         : '<p class="muted">まだ記録がないよ。おもりを持ち上げて、手をはなしてみよう。</p>';
@@ -283,5 +301,7 @@ function render({ light = false } = {}) {
     badge.textContent = String(state.records.length);
     $('#stage-note').innerHTML = swinging
         ? (state.done ? `${icon('check')}10往復おわり。A ${formatSeconds(cycleTimeOf(state.a, COUNT))}・B ${formatSeconds(cycleTimeOf(state.b, COUNT))}` : `${icon('timer')}10往復をはかっているよ（タップで止める）`)
-        : `${icon('hand')}おもりを横にドラッグして持ち上げ、はなすとふれるよ`;
+        : state.variable === 'length'
+            ? `${icon('hand')}横にドラッグで持ち上げ、はなすとふれる。B は上下にドラッグで長さ`
+            : `${icon('hand')}おもりを横にドラッグして持ち上げ、はなすとふれるよ`;
 }

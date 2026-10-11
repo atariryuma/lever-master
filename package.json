@@ -1,6 +1,6 @@
 {
   "name": "lever-master",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "てこマスター／ふりこマスター - 小6「てこのはたらき」と小5「ふりこの運動」を遊びながら学ぶ物理シミュレーション教材ゲーム",
   "type": "module",
   "scripts": {

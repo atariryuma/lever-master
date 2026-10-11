@@ -252,7 +252,8 @@ export class PendulumView3D {
                 d.rot.add(d.bob);
                 d.key = key;
             }
-            d.lenText.userData.setText(`${p.length}cm`);
+            d.lenText.userData.setText(p.secret ? '？' : `${p.length}cm`);
+            d.bob.userData.body.material.opacity = p.secret ? 0.35 : 1;
             const state = this.highlight.get(p.id);
             d.bob.userData.halo.visible = p.phase === 'held' || p.id === this.selectedId || state === 'first';
             const haloColor = state === 'first' ? this.colors.gold : state === 'done' ? this.colors.ok : new Color(0xffffff);
@@ -428,7 +429,8 @@ export class PendulumView3D {
         this.canvas.addEventListener('pointermove', e => {
             if (this.drag || !this.interactive || e.pointerType === 'touch') return;
             const id = this.pick(e.clientX, e.clientY);
-            this.canvas.style.cursor = id && this.canDrag(id) ? 'grab' : '';
+            const mode = id ? this.handlers.dragMode?.(id) ?? 'swing' : null;
+            this.canvas.style.cursor = id && this.canDrag(id) ? (mode === 'length' ? 'ns-resize' : 'grab') : '';
         });
         this.a11yRoot?.addEventListener('click', this.onA11y);
         this.a11yRoot?.addEventListener('keydown', this.onA11y);
@@ -485,13 +487,25 @@ export class PendulumView3D {
         const p = this.press;
         if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return;
         if (!this.canDrag(p.id)) return;
-        this.drag = { id: p.id };
-        this.canvas.style.cursor = 'grabbing';
+        const want = this.handlers.dragMode?.(p.id) ?? 'swing';
+        const vertical = Math.abs(e.clientY - p.y) > Math.abs(e.clientX - p.x);
+        const mode = want === 'auto' ? (vertical ? 'length' : 'swing') : want;
+        this.drag = { id: p.id, mode };
+        this.canvas.style.cursor = mode === 'length' ? 'ns-resize' : 'grabbing';
         this.handlers.onDragStart?.(p.id);
         this.dragTo(e.clientX, e.clientY);
     }
 
     dragTo(clientX, clientY) {
+        if (this.drag.mode === 'length') {
+            const g = this.nodes.get(this.drag.id);
+            this.raycaster.setFromCamera(this.ndc(clientX, clientY), this.camera);
+            const hit = new Vector3();
+            if (g && this.raycaster.ray.intersectPlane(this.plane, hit)) {
+                this.handlers.onBobLength?.(this.drag.id, (g.position.y - hit.y) / UNIT_PER_CM);
+            }
+            return;
+        }
         const a = this.angleAt(this.drag.id, clientX, clientY);
         this.handlers.onBobDrag?.(this.drag.id, snapAmplitude(a), a < 0 ? -1 : 1);
     }
@@ -503,10 +517,11 @@ export class PendulumView3D {
         const p = this.press;
         this.press = null;
         if (this.drag) {
-            const { id } = this.drag;
+            const { id, mode } = this.drag;
             this.drag = null;
             this.canvas.style.cursor = '';
             if (e.type === 'pointercancel') this.handlers.onDragCancel?.(id);
+            else if (mode === 'length') this.handlers.onLengthEnd?.(id);
             else this.handlers.onBobRelease?.(id);
             return;
         }
@@ -521,6 +536,10 @@ export class PendulumView3D {
         const id = b.dataset.id;
         if (e.type === 'click') {
             this.handlers.onBobTap?.(id);
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && this.canDrag(id) && (this.handlers.dragMode?.(id) ?? 'swing') !== 'swing') {
+            e.preventDefault();
+            const p = this.items.find(q => q.id === id);
+            this.handlers.onBobLength?.(id, p.length + (e.key === 'ArrowDown' ? 1 : -1), { step: true });
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             e.preventDefault();
             const p = this.items.find(q => q.id === id);

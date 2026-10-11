@@ -48,7 +48,7 @@ export function countLabel(p) {
 
 export function pendulumAria(p) {
     const who = p.owner && PLAYER_META[p.owner] ? `${PLAYER_META[p.owner].name}の` : `${p.label} の`;
-    const cond = `長さ${p.length}cm・${p.mass}g・ふれはば${p.amplitude}°`;
+    const cond = p.secret ? '長さはないしょ' : `長さ${p.length}cm・${p.mass}g・ふれはば${p.amplitude}°`;
     const state = p.phase === 'swinging' ? 'ふれている' : p.phase === 'held' ? '持ち上げている。手をはなす' : '持ち上げて手をはなす';
     return `${who}ふりこ（${cond}）：${state}`;
 }
@@ -214,7 +214,8 @@ export class PendulumView {
             node.bob.setAttribute('tabindex', this.interactive ? '0' : '-1');
             node.tagText.textContent = p.owner && PLAYER_META[p.owner] ? PLAYER_META[p.owner].symbol : p.label;
             node.count.textContent = countLabel(p);
-            node.lenText.textContent = `${p.length}${CONDITION_META.length.unit}`;
+            node.lenText.textContent = p.secret ? '？' : `${p.length}${CONDITION_META.length.unit}`;
+            node.classList.toggle('is-secret', Boolean(p.secret));
         });
         for (const [id, node] of this.nodes) {
             if (!seen.has(id)) {
@@ -253,7 +254,7 @@ export class PendulumView {
             node.lenText.setAttribute('y', (my + 5).toFixed(1));
             node.lenText.style.display = still ? '' : 'none';
             // ものさしへの案内線（まっすぐ下がっているときだけ）
-            node.guide.style.display = p.phase === 'rest' ? '' : 'none';
+            node.guide.style.display = p.phase === 'rest' && !p.secret ? '' : 'none';
             node.guide.setAttribute('x1', (RULER_X - px).toFixed(1));
             node.guide.setAttribute('x2', 0);
             node.guide.setAttribute('y1', L.toFixed(1));
@@ -364,13 +365,23 @@ export class PendulumView {
         const p = this.press;
         if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return;
         if (!this.canDrag(p.id)) return;
-        this.drag = { id: p.id };
+        // 動かし方：'swing'＝横に持ち上げる、'length'＝上下で長さ、'auto'＝最初に動いた向きで決める
+        const want = this.handlers.dragMode?.(p.id) ?? 'swing';
+        const vertical = Math.abs(e.clientY - p.y) > Math.abs(e.clientX - p.x);
+        const mode = want === 'auto' ? (vertical ? 'length' : 'swing') : want;
+        this.drag = { id: p.id, mode };
         this.svg.classList.add('is-dragging');
         this.handlers.onDragStart?.(p.id);
         this.dragTo(e.clientX, e.clientY);
     }
 
     dragTo(clientX, clientY) {
+        if (this.drag.mode === 'length') {
+            // おもりの中心が指の高さに来る長さ（ものさしの目盛りと同じ）
+            const { y } = this.toSvgPoint(clientX, clientY);
+            this.handlers.onBobLength?.(this.drag.id, (y - PY) / SCALE);
+            return;
+        }
         const a = this.angleAt(this.drag.id, clientX, clientY);
         const side = a < 0 ? -1 : 1;
         this.handlers.onBobDrag?.(this.drag.id, snapAmplitude(a), side);
@@ -383,10 +394,11 @@ export class PendulumView {
         const p = this.press;
         this.press = null;
         if (this.drag) {
-            const { id } = this.drag;
+            const { id, mode } = this.drag;
             this.drag = null;
             this.svg.classList.remove('is-dragging');
             if (e.type === 'pointercancel') this.handlers.onDragCancel?.(id);
+            else if (mode === 'length') this.handlers.onLengthEnd?.(id);
             else this.handlers.onBobRelease?.(id);
             return;
         }
@@ -402,6 +414,11 @@ export class PendulumView {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             this.handlers.onBobTap?.(id);
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && this.canDrag(id) && (this.handlers.dragMode?.(id) ?? 'swing') !== 'swing') {
+            // 上下の矢印で長さ
+            e.preventDefault();
+            const p = this.items.find(q => q.id === id);
+            this.handlers.onBobLength?.(id, p.length + (e.key === 'ArrowDown' ? 1 : -1), { step: true });
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             // 矢印でふれはばを変える（持ち上げる）
             e.preventDefault();
