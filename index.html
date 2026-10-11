@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#070b18">
-    <meta name="description" content="きょり × 重さ で、てこをつり合わせよう。小学6年 理科「てこのはたらき」を遊びながら学べる教材ゲーム。">
+    <meta name="description" content="小学6年「てこのはたらき」と小学5年「ふりこの運動」を、実験・問題・対戦で遊びながら学べる物理シミュレーション教材ゲーム。">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,38 +27,21 @@
     <section id="screen-home" class="screen home">
         <div class="home-hero" aria-hidden="true">
             <canvas id="hero3d" class="hero-canvas"></canvas>
+            <canvas id="hero3d-pend" class="hero-canvas" hidden></canvas>
         </div>
         <header class="home-head">
             <h1 tabindex="-1"><span class="logo-en" data-text="LEVER MASTER">LEVER MASTER</span><span class="logo-ja">てこマスター</span></h1>
             <p class="tagline">きょり <b>×</b> 重さ で、てこをつり合わせよう</p>
-            <span class="pill">小6 理科「てこのはたらき」</span>
+            <span class="pill" id="home-grade">小6 理科「てこのはたらき」</span>
         </header>
 
-        <nav class="modes" aria-label="あそびかたをえらぶ">
-            <button type="button" class="mode-card mode-lab" data-go="lab">
-                <span class="mode-step">STEP 1</span>
-                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-flask"></use></svg></span>
-                <span class="mode-name">じっけん</span>
-                <span class="mode-desc">おもりを自由につるして、つり合うしくみを調べよう</span>
-            </button>
-            <button type="button" class="mode-card mode-puzzle" data-go="puzzles">
-                <span class="mode-step">STEP 2</span>
-                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-puzzle"></use></svg></span>
-                <span class="mode-name">もんだい</span>
-                <span class="mode-desc">予想してから手をはなそう。全<span data-puzzle-count></span>問</span>
-                <span class="mode-progress" data-puzzle-progress></span>
-            </button>
-            <button type="button" class="mode-card mode-battle" data-go="setup">
-                <span class="mode-step">STEP 3</span>
-                <span class="mode-icon"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-scale"></use></svg></span>
-                <span class="mode-name">たいせん</span>
-                <span class="mode-desc">2〜4人・CPUとも。持ち時間内につり合わせろ。かたむけたらアウト！</span>
-            </button>
-        </nav>
+        <div class="unit-switch seg" id="unit-switch" role="radiogroup" aria-label="単元をえらぶ"></div>
+
+        <nav class="modes" id="modes" aria-label="あそびかたをえらぶ"></nav>
 
         <footer class="home-foot">
-            <button type="button" class="chip-btn" data-open="dlg-learn"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>てこのきほん</button>
-            <button type="button" class="chip-btn" data-open="dlg-rules"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</button>
+            <button type="button" class="chip-btn" id="home-learn" data-open="dlg-learn"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>てこのきほん</button>
+            <button type="button" class="chip-btn" id="home-rules" data-open="dlg-rules"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</button>
             <button type="button" class="chip-btn" data-open="dlg-settings"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-gear"></use></svg>せってい</button>
         </footer>
         <p class="install-tip" id="install-tip" hidden></p>
@@ -68,7 +51,7 @@
     <section id="screen-puzzles" class="screen list" hidden>
         <header class="topbar">
             <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
-            <div class="topbar-title"><h2 tabindex="-1">もんだい</h2><p class="topbar-sub" id="puzzle-total"></p></div>
+            <div class="topbar-title"><h2 tabindex="-1" id="puzzles-title">もんだい</h2><p class="topbar-sub" id="puzzle-total"></p></div>
         </header>
         <div class="list-body" id="puzzle-list"></div>
     </section>
@@ -103,6 +86,36 @@
         </div>
     </section>
 
+    <!-- ふりこ たいせんの準備 -->
+    <section id="screen-pend-setup" class="screen list" hidden>
+        <header class="topbar">
+            <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
+            <div class="topbar-title"><h2 tabindex="-1">たいせんの準備（ジャスト・タイム）</h2><p class="topbar-sub">だれが参加する？</p></div>
+            <button type="button" class="icon-btn" data-open="dlg-rules-pend" aria-label="たいせんのルール"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
+        </header>
+        <div class="list-body">
+            <div class="seats" id="pend-seats"></div>
+            <div class="setup-options" role="group" aria-label="ルールの設定">
+                <div class="option">
+                    <span class="option-label" id="lbl-prounds">ラウンド数</span>
+                    <div class="seg" id="popt-rounds" role="radiogroup" aria-labelledby="lbl-prounds"></div>
+                </div>
+                <div class="option">
+                    <span class="option-label" id="lbl-ptimer">持ち時間（1人）</span>
+                    <div class="seg" id="popt-timer" role="radiogroup" aria-labelledby="lbl-ptimer"></div>
+                </div>
+                <div class="option">
+                    <span class="option-label" id="lbl-phints">ヒント</span>
+                    <div class="seg" id="popt-hints" role="radiogroup" aria-labelledby="lbl-phints"></div>
+                </div>
+            </div>
+            <div class="setup-start">
+                <p class="setup-note" id="pend-setup-note"></p>
+                <button type="button" class="btn btn-primary btn-xl" id="btn-pend-start">はじめる</button>
+            </div>
+        </div>
+    </section>
+
     <!-- プレイ画面（じっけん・もんだい・たいせん共通） -->
     <section id="screen-play" class="screen play" hidden>
         <header class="topbar">
@@ -120,6 +133,9 @@
             <canvas id="lever3d" class="lever lever-3d"></canvas>
             <div class="lever-a11y" id="lever-a11y" role="group" aria-label="実験用てこ"></div>
             <svg id="lever" class="lever" role="group" aria-label="実験用てこ" hidden></svg>
+            <canvas id="pendulum3d" class="lever lever-3d" hidden></canvas>
+            <div class="lever-a11y" id="pendulum-a11y" role="group" aria-label="ふりこ" hidden></div>
+            <svg id="pendulum" class="lever pend-svg" role="group" aria-label="ふりこ" hidden></svg>
             <p class="stage-note" id="stage-note"></p>
             <div class="keep" id="keep" hidden aria-hidden="true">
                 <svg viewBox="0 0 44 44"><circle class="keep-track" cx="22" cy="22" r="18"/><circle class="keep-fill" cx="22" cy="22" r="18" pathLength="1"/></svg>
@@ -142,6 +158,7 @@
                 <div class="area" aria-hidden="true"></div>
             </div>
         </div>
+        <div class="readout pend-readout" id="pend-readout" hidden></div>
         <div class="dock" id="dock"></div>
     </section>
 </div>
@@ -299,6 +316,142 @@
     
         </details>
     </div>
+</dialog>
+
+<!-- ふりこのきほん -->
+<dialog id="dlg-learn-pend" class="sheet" aria-labelledby="learn-pend-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="learn-pend-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>ふりこのきほん</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
+    </form>
+    <div class="sheet-body learn">
+        <section>
+            <h3>ふりこの3つの条件</h3>
+            <svg class="learn-fig" viewBox="0 0 360 190" role="img" aria-label="横棒から糸でおもりをつるしたふりこ。支点、ふりこの長さ（支点からおもりの中心まで）、ふれはば、1往復を示す図">
+                <defs>
+                    <marker id="arr-dim" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fig-head-dim"/></marker>
+                </defs>
+                <rect x="40" y="18" width="280" height="8" rx="4" class="fig-bar"/>
+                <circle cx="180" cy="22" r="5" class="fig-fulcrum"/>
+                <line x1="180" y1="22" x2="180" y2="150" class="fig-center"/>
+                <line x1="180" y1="22" x2="126" y2="140" class="fig-string"/>
+                <line x1="180" y1="22" x2="234" y2="140" class="fig-string fig-string-ghost"/>
+                <rect x="112" y="128" width="28" height="26" rx="5" class="fig-bob"/>
+                <rect x="220" y="128" width="28" height="26" rx="5" class="fig-bob fig-bob-ghost"/>
+                <path d="M160 70 A52 52 0 0 1 200 70" class="fig-arc"/>
+                <text x="180" y="64" class="fig-label">ふれはば</text>
+                <line x1="300" y1="22" x2="300" y2="141" class="fig-dim" marker-start="url(#arr-dim)" marker-end="url(#arr-dim)"/>
+                <text x="330" y="86" class="fig-label fig-label-dim">ふりこの<tspan x="330" dy="16">長さ</tspan></text>
+                <text x="180" y="12" class="fig-label">支点</text>
+                <path d="M126 172 C150 190, 210 190, 234 172" class="fig-cycle" marker-end="url(#arr-dim)"/>
+                <text x="180" y="186" class="fig-note">行って もどって 1往復</text>
+            </svg>
+            <ul class="tools">
+                <li><span class="tool-type"><b>ふりこの長さ</b></span>支点から おもりの中心まで</li>
+                <li><span class="tool-type"><b>おもりの重さ</b></span>10g・20g・30g</li>
+                <li><span class="tool-type"><b>ふれはば</b></span>まん中から どれだけ ふるか（角度）</li>
+            </ul>
+        </section>
+        <section>
+            <h3>1往復の時間を決めるもの</h3>
+            <p class="formula-card">1往復の時間は <b>ふりこの長さ</b> だけで決まる</p>
+            <p>おもりの<b>重さ</b>を変えても、<b>ふれはば</b>を変えても、1往復の時間は<b>変わりません</b>。長いふりこほど、ゆっくり往復します。</p>
+            <div class="example example-table">
+                <div><span class="ex-side">25cm</span> 10往復 <b>10.0秒</b></div>
+                <div><span class="ex-side">50cm</span> 10往復 <b>14.2秒</b></div>
+                <div><span class="ex-side">75cm</span> 10往復 <b>17.4秒</b></div>
+                <div><span class="ex-side">100cm</span> 10往復 <b>20.1秒</b></div>
+            </div>
+            <p class="muted">1往復は短くてはかりにくいので、<b>10往復</b>の時間をはかって 10 でわります。何回かはかって平均すると、もっと正確になります。</p>
+        </section>
+        <section>
+            <h3>正しい実験のしかた</h3>
+            <p>調べたい条件を<b>1つだけ</b>変えて、ほかの条件は<b>そろえます</b>。2つ同時に変えると、どちらのせいで時間が変わったのかわからなくなります。</p>
+        </section>
+        <section>
+            <h3>身の回りのふりこ</h3>
+            <ul class="tools">
+                <li><span class="tool-type">ふりこ時計</span>おくれるときは、おもりを上げて短くする</li>
+                <li><span class="tool-type">メトロノーム</span>おもりを下げると ゆっくりになる</li>
+                <li><span class="tool-type">ブランコ</span>長いブランコほど ゆっくりゆれる</li>
+            </ul>
+        </section>
+    </div>
+</dialog>
+
+<!-- ふりこ たいせんのルール -->
+<dialog id="dlg-rules-pend" class="sheet" aria-labelledby="rules-pend-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="rules-pend-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>ジャスト・タイムのあそびかた</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
+    </form>
+    <div class="sheet-body rules">
+        <div class="tour" data-page="0">
+            <section class="tour-page">
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+                    <rect x="60" y="30" width="200" height="80" rx="14" class="tw-card"/>
+                    <text x="160" y="62" class="tw-cap">ねらい</text>
+                    <text x="160" y="94" class="tw-target">10往復で 16.0秒</text>
+                </svg>
+                <h3><span class="tour-no">1</span>ねらい</h3>
+                <p>ラウンドごとに <b>目標の時間</b> が出る。「10往復で 16.0秒」や「1往復で 1.6秒」。</p>
+            </section>
+            <section class="tour-page" hidden>
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+                    <rect x="30" y="14" width="200" height="6" rx="3" class="tw-beam"/>
+                    <line x1="40" y1="20" x2="40" y2="124" class="tw-string"/>
+                    <line x1="34" y1="46" x2="40" y2="46" class="tw-string"/><line x1="34" y1="72" x2="40" y2="72" class="tw-string"/><line x1="34" y1="98" x2="40" y2="98" class="tw-string"/>
+                    <text x="20" y="50" class="tw-cap">25</text><text x="20" y="76" class="tw-cap">50</text><text x="20" y="102" class="tw-cap">75</text>
+                    <line x1="130" y1="20" x2="130" y2="86" class="tw-string"/>
+                    <rect x="119" y="86" width="22" height="20" rx="5" class="tw-mine"/>
+                    <rect x="180" y="60" width="120" height="8" rx="4" class="tw-slider"/>
+                    <circle cx="256" cy="64" r="11" class="tw-knob"/>
+                    <text x="240" y="100" class="tw-score tw-score-mine">63cm</text>
+                    <text x="240" y="122" class="tw-cap">←→ で長さを決める</text>
+                </svg>
+                <h3><span class="tour-no">2</span>長さをえらぶ</h3>
+                <p>順番に、自分のふりこの <b>長さ</b>（10〜100cm）を決める。<br>重さやふれはばも変えられるけど…時間に関係あるかな？</p>
+            </section>
+            <section class="tour-page" hidden>
+                <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
+                    <rect x="30" y="14" width="260" height="6" rx="3" class="tw-beam"/>
+                    <line x1="90" y1="20" x2="70" y2="80" class="tw-string"/><rect x="59" y="80" width="22" height="20" rx="5" class="tw-mine"/>
+                    <line x1="160" y1="20" x2="178" y2="92" class="tw-string"/><rect x="167" y="92" width="22" height="20" rx="5" class="tw-rival"/>
+                    <line x1="230" y1="20" x2="216" y2="70" class="tw-string"/><rect x="205" y="70" width="22" height="20" rx="5" class="tw-w"/>
+                    <text x="70" y="122" class="tw-safe">PERFECT +100</text>
+                    <text x="178" y="128" class="tw-cap">GOOD +50</text>
+                    <text x="230" y="112" class="tw-cap">MISS +10</text>
+                </svg>
+                <h3><span class="tour-no">3</span>いっせいに はなす</h3>
+                <p>全員のふりこを同時にはなして、<b>10往復の時間</b>をはかる。目標に近いほど高い点！<br>ぴったり（±0.1秒）なら <em>PERFECT</em>。</p>
+            </section>
+            <div class="tour-nav">
+                <button type="button" class="btn" data-tour="prev">まえへ</button>
+                <span class="tour-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <button type="button" class="btn btn-primary" data-tour="next">つぎへ</button>
+            </div>
+            <p class="tour-status visually-hidden" aria-live="polite"></p>
+        </div>
+        <details class="tour-more">
+            <summary>くわしいルール</summary>
+            <ol class="steps">
+                <li><b>ねらい</b><span>ラウンドごとに目標の時間が出る（10往復で 10.5〜19.5秒）。</span></li>
+                <li><b>えらぶ</b><span>順番に長さを決める（1cmきざみ）。あとの人は、前の人の長さを見てもOK。先頭はラウンドごとに入れかわる。<br>持ち時間が切れると、そのときの長さで決まる。</span></li>
+                <li><b>はなす</b><span>全員同時にはなして、10往復の時間をはかる。目標との差で点が入る：<em>PERFECT</em>（0.1秒以内）100点・GREAT（0.3秒）70点・GOOD（0.6秒）50点・OK（1秒）30点・MISS 10点。</span></li>
+            </ol>
+            <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>すべてのラウンドが終わったとき、合計点がいちばん大きい人の勝ち。</p>
+            <p class="muted">ヒント「あり」にすると、長さと時間の表（25cm → 10.0秒 …）が出ます。あいだの長さは、表から予想しよう。</p>
+        </details>
+    </div>
+</dialog>
+
+<!-- じっけんの きろく -->
+<dialog id="dlg-record" class="sheet" aria-labelledby="record-title">
+    <form method="dialog" class="sheet-head">
+        <h2 id="record-title"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-table"></use></svg>じっけんの きろく</h2>
+        <button class="icon-btn" aria-label="とじる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg></button>
+    </form>
+    <div class="sheet-body record-body"></div>
 </dialog>
 
 <!-- せってい -->

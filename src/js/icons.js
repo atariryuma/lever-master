@@ -36,6 +36,13 @@ const PATHS = {
     timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/>',
     cube: '<path d="M12 2.5l8.5 4.8v9.4L12 21.5l-8.5-4.8V7.3z"/><path d="M3.5 7.3L12 12l8.5-4.7M12 12v9.5"/>',
     chart: '<rect x="3" y="11" width="6" height="9" rx="1"/><rect x="15" y="5" width="6" height="15" rx="1"/><path d="M12 3v18"/>',
+    pendulum: '<path d="M4 3h16"/><path d="M12 3v2.5"/><path d="M12 5.5l5 10"/><circle cx="17.6" cy="18" r="3"/><path d="M12 5.5v8" stroke-dasharray="2 2.5"/>',
+    ruler: '<rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/>',
+    play: '<path d="M7 4.5l12 7.5-12 7.5z"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    table: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 15h18M9 5v14M15 5v14"/>',
+    swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 018 0V11"/>',
 };
 
 /** プレイヤーの記号（色だけに頼らないため） */

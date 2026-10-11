@@ -192,6 +192,23 @@ const SOUNDS = {
         tone(311.13, { at: 0.18, dur: 0.4, type: 'triangle', vol: 0.12 });
         noise({ dur: 0.3, vol: 0.06, type: 'lowpass', freq: 800 });
     },
+    /** ふりこ：1往復ごとの小さな音（木のブロック） */
+    count: () => {
+        tone(880, { dur: 0.05, type: 'triangle', vol: 0.08, to: 660 });
+        noise({ dur: 0.03, vol: 0.05, freq: 3000, q: 2 });
+    },
+    /** ふりこ たいせん：いっせいにはなす（ホイッスル） */
+    go: () => {
+        tone(2200, { dur: 0.18, type: 'square', vol: 0.06 });
+        tone(2200 * 1.5, { at: 0.2, dur: 0.45, type: 'square', vol: 0.06 });
+        noise({ dur: 0.6, vol: 0.08, type: 'highpass', freq: 5000 });
+    },
+    /** ぴったり（PERFECT） */
+    just: () => {
+        kick(0, 0.7);
+        chord([659.25, 830.61, 987.77, 1318.5], { dur: 0.7, type: 'triangle', vol: 0.12, spread: 0.04 });
+        chord([2637, 3322, 3951], { at: 0.15, dur: 0.3, type: 'sine', vol: 0.05, spread: 0.05 });
+    },
     starPop: (n = 0) => {
         const f = [1046.5, 1318.5, 1568][n % 3];
         tone(f, { dur: 0.3, type: 'square', vol: 0.05 });

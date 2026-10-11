@@ -6,7 +6,8 @@
  * - タップ／ドラッグ／キーボードで、位置やおもりを選べる
  */
 
-import { POSITIONS, chainOf, findWeight, momentOf, positionLabel } from '../engine/lever.js';
+import { POSITIONS, chainOf, findWeight, positionLabel } from '../engine/lever.js';
+import { createLeverBody, dropImpulse, leverIsCalm, leverLoads, stepLever } from '../engine/physics.js';
 import { PLAYER_META } from '../players.js';
 import { ghostIcon, heightOf, toneOf, weightShape } from './weight-art.js';
 import { setDropZone } from '../widgets.js';
@@ -21,9 +22,6 @@ const BEAM_HALF = 462;
 const ATTACH_Y = PY + 22; // フックの下端（うでのローカル座標）
 const STRING = 16;
 const GAP = 2;
-const MAX_TILT = 10; // 度
-const TILT_SCALE = 50;
-
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 const el = (tag, attrs = {}, parent) => {
@@ -33,35 +31,30 @@ const el = (tag, attrs = {}, parent) => {
     return node;
 };
 
-export function tiltFor(diff) {
-    return -Math.tanh(diff / TILT_SCALE) * MAX_TILT;
-}
-
 /**
- * うでの動き（2D・3D 共通）。少しやわらかいバネで、目標の角度のまわりを何回かゆれてから止まる。
- * k は 60fps を 1 とした経過フレーム数
+ * つるした・はずした・動かしたおもり（反動のもと）。
+ * 盤面の前後をくらべて、位置が変わったおもりを「落ちてきた」「はずれた」として返す
+ * @returns {{ x: number, mass: number }[]}
  */
-const STIFF = 0.022;
-const DAMP = 0.955;
-export function stepSpring(s, k = 1) {
-    const delta = s.target - s.angle;
-    s.velocity = (s.velocity + delta * STIFF * k) * Math.pow(DAMP, k);
-    s.angle += s.velocity * k;
-    return Math.abs(delta) > 0.01 || Math.abs(s.velocity) > 0.01;
+export function dropKicks(prevBoard, nextBoard) {
+    if (!prevBoard || !nextBoard) return [];
+    const at = board => {
+        const m = new Map();
+        for (const pos of POSITIONS) for (const w of board[pos]) m.set(w.id, pos);
+        return m;
+    };
+    const before = at(prevBoard);
+    const after = at(nextBoard);
+    const kicks = [];
+    for (const pos of POSITIONS) {
+        for (const w of nextBoard[pos]) if (before.get(w.id) !== pos) kicks.push({ x: pos, mass: w.mass });
+    }
+    for (const pos of POSITIONS) {
+        // はずれたおもり：反対向きの小さな反動
+        for (const w of prevBoard[pos]) if (!after.has(w.id)) kicks.push({ x: pos, mass: -w.mass * 0.4 });
+    }
+    return kicks;
 }
-
-/**
- * つるす・動かす・はずすときの「反動」（度/フレーム）。
- * はたらきの変化が大きいほど強くゆれる。つり合う形になっても、いったん大きくゆれてから静まる
- */
-export function kickFor(prevBoard, nextBoard) {
-    if (!prevBoard || !nextBoard) return 0;
-    const change = momentOf(nextBoard).diff - momentOf(prevBoard).diff;
-    return Math.max(-0.9, Math.min(0.9, -change * 0.005));
-}
-
-/** 静まった（ほぼ動いていない） */
-export const isCalm = s => Math.abs(s.target - s.angle) < 0.12 && Math.abs(s.velocity) < 0.02;
 
 function weightAria(weight, pos) {
     const owner = weight.owner && PLAYER_META[weight.owner]
@@ -80,9 +73,7 @@ export class LeverView {
     constructor(svg, handlers = {}) {
         this.svg = svg;
         this.handlers = handlers;
-        this.angle = 0;
-        this.velocity = 0;
-        this.target = 0;
+        this.body = createLeverBody(); // 物理（physics.js）。angle はラジアン
         this.held = null;
         this.weightNodes = new Map();
         this.settleResolvers = [];
@@ -254,9 +245,21 @@ export class LeverView {
      *           interactive?: boolean, chainMoves?: boolean }} view
      *   chainMoves … おもりをつかむと、その下のおもりもいっしょに動く（たいせん）
      */
+    /** うでの角度（度。時計回りが正） */
+    get angle() {
+        return (this.body.angle * 180) / Math.PI;
+    }
+
+    /** 別の表示（3D）から続けるとき、物理の状態を引きつぐ */
+    syncBody(body) {
+        this.body.angle = body.angle;
+        this.body.omega = body.omega;
+        this.body.resting = body.resting;
+    }
+
     render(view) {
         if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
-            this.velocity += kickFor(this.board, view.board);
+            for (const k of dropKicks(this.board, view.board)) dropImpulse(this.body, k.x, k.mass, leverLoads(view.board));
         }
         this.noKick = false;
         this.board = view.board;
@@ -270,7 +273,6 @@ export class LeverView {
         this.renderColumns(view.hover ?? null);
         this.renderWeights(view.newIds ?? new Set());
         this.renderRulers();
-        this.updateTarget();
         this.place();
     }
 
@@ -373,21 +375,11 @@ export class LeverView {
         if (held === this.held) return;
         this.held = held;
         this.stoppers.classList.toggle('is-released', !held);
-        this.updateTarget();
-    }
-
-    updateTarget() {
-        if (!this.board) return;
-        this.target = this.held ? 0 : tiltFor(momentOf(this.board).diff);
-        if (reduceMotion()) {
-            this.angle = this.target;
-            this.velocity = 0;
-        }
     }
 
     /** 手をはなしていて、うでが静まっている */
     isCalm() {
-        return Boolean(this.board) && this.held === false && isCalm(this);
+        return Boolean(this.board) && this.held === false && leverIsCalm(this.body);
     }
 
     /** 傾きが落ち着くまで待つ */
@@ -395,15 +387,24 @@ export class LeverView {
         return new Promise(resolve => this.settleResolvers.push(resolve));
     }
 
+    isVisible() {
+        return this.svg.isConnected && !this.svg.hasAttribute('hidden') && !document.hidden;
+    }
+
     loop(now = performance.now()) {
         this.frame = requestAnimationFrame(this.loop);
-        // 経過時間で進める（遅い端末でも、ゆれ方の速さは同じ）
-        const k = Math.min(6, (now - (this.lastFrame ?? now)) / (1000 / 60)) || 1;
+        // 経過時間で進める（遅い端末でも、ゆれ方の速さは同じ）。物理は固定の小さなきざみで進む
+        const dt = Math.min(0.1, (now - (this.lastFrame ?? now)) / 1000) || 1 / 60;
         this.lastFrame = now;
-        if (stepSpring(this, k)) {
+        if (!this.board) return;
+        if (!this.isVisible()) {
+            if (this.settleResolvers.length) this.settleResolvers.splice(0).forEach(r => r());
+            return;
+        }
+        const moving = stepLever(this.body, leverLoads(this.board), reduceMotion() ? 2 : dt, { held: this.held !== false });
+        if (moving) {
             this.place();
         } else if (this.settleResolvers.length) {
-            this.angle = this.target;
             this.place();
             this.settleResolvers.splice(0).forEach(r => r());
         }
@@ -584,9 +585,9 @@ export class LeverView {
 
     /** うでをすぐに水平にする */
     level() {
-        this.target = 0;
-        this.angle = 0;
-        this.velocity = 0;
+        this.body.angle = 0;
+        this.body.omega = 0;
+        this.body.resting = false;
         this.place();
     }
 
@@ -600,9 +601,7 @@ export class LeverView {
         this.held = null;
         this.skipKick();
         this.cancelDrag();
-        this.target = 0;
-        this.angle = 0;
-        this.velocity = 0;
+        this.level();
         this.settleResolvers?.splice(0).forEach(r => r());
     }
 
