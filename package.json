@@ -31,7 +31,7 @@
     "eslint": "^9.17.0",
     "jsdom": "^25.0.1",
     "three": "^0.186.1",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.11"
   },
   "config": {
     "gasDeploymentId": "AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w"
