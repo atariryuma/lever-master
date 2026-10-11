@@ -10,30 +10,32 @@
  */
 
 import {
-    AdditiveBlending, AmbientLight, BoxGeometry, CanvasTexture, Color, CylinderGeometry, DirectionalLight,
+    AdditiveBlending, AmbientLight, BoxGeometry, Color, CylinderGeometry, DirectionalLight,
     DoubleSide, Group, HemisphereLight, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera,
     Plane, PlaneGeometry, PointLight, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute,
     Raycaster, Scene, ShadowMaterial, SphereGeometry, Sprite, SpriteMaterial, SRGBColorSpace,
     TorusGeometry, Vector2, Vector3, WebGLRenderer, ConeGeometry, RingGeometry, PCFShadowMap,
 } from '../../vendor/three.js';
 import { POSITIONS, chainOf, findWeight, isBalanced, momentOf, positionLabel } from '../engine/lever.js';
+import { createLeverBody, dropImpulse, leverIsCalm, leverLoads, stepLever } from '../engine/physics.js';
 import { PLAYER_META } from '../players.js';
-import { isCalm, kickFor, stepSpring, tiltFor } from './lever-view.js';
+import { dropKicks } from './lever-view.js';
 import { ghostIcon } from './weight-art.js';
 import { setDropZone } from '../widgets.js';
+import {
+    Effects, bobHeight, disposeMesh, gridTexture, makeWeightMesh, radialTexture, readColors, reduceMotion, textTexture,
+    webglAvailable,
+} from './three-utils.js';
+
+export { webglAvailable };
 
 const UNIT = 1;
 const BEAM_HALF = 6.62;
-const HOOK_Y = -0.3; // うでのローカル座標でのフックの位置
+const HOOK_Y = -0.3; // うでのローカル座標でのフックの位置（physics.js の hookDrop と同じ）
 const STRING = 0.26;
 const GAP = 0.05;
 const FLOOR_Y = -6.3;
-const LOOP_H = 0.12;
-const SIZES = { 10: { r: 0.25, h: 0.4 }, 20: { r: 0.3, h: 0.48 }, 30: { r: 0.34, h: 0.56 } };
-const sizeOf = mass => SIZES[mass] ?? SIZES[10];
-const heightOf = mass => LOOP_H + sizeOf(mass).h;
-
-const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const heightOf = bobHeight;
 
 /**
  * うでの回転（Three.js のラジアン）
@@ -42,127 +44,11 @@ const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)
  */
 export const beamRotationZ = angleDeg => (-angleDeg * Math.PI) / 180;
 
-export function webglAvailable() {
-    try {
-        const c = document.createElement('canvas');
-        const gl = c.getContext('webgl2') || c.getContext('webgl');
-        gl?.getExtension('WEBGL_lose_context')?.loseContext(); // しらべるだけなので、すぐ返す
-        return Boolean(gl);
-    } catch {
-        return false;
-    }
-}
-
-/** CSS 変数から色を読む（色の定義は styles.css に一本化） */
-function cssColor(name, fallback) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    try {
-        return new Color(v || fallback);
-    } catch {
-        return new Color(fallback);
-    }
-}
-
-function toneKey(weight) {
-    if (weight.locked) return 'locked';
-    if (weight.owner === 'neutral') return 'neutral';
-    if (weight.owner && PLAYER_META[weight.owner]) return weight.owner;
-    return `m${weight.mass}`;
-}
-
-function labelOf(weight) {
-    if (weight.owner && PLAYER_META[weight.owner]) return PLAYER_META[weight.owner].symbol;
-    return `${weight.mass}g`;
-}
-
 function weightAria(weight, pos) {
     const owner = weight.owner && PLAYER_META[weight.owner]
         ? `${PLAYER_META[weight.owner].name}の`
         : weight.owner === 'neutral' ? 'はじめからある' : '';
     return `${owner}${weight.mass}gのおもり（${positionLabel(pos)}）`;
-}
-
-/**
- * おもりのメッシュを外して GPU の資源を返す。
- * 文字のテクスチャ（textTexture）は使い回しているので dispose しない。
- */
-function disposeMesh(group) {
-    group.parent?.remove(group);
-    const materials = new Set();
-    group.traverse(o => {
-        o.geometry?.dispose();
-        if (o.material) materials.add(o.material);
-    });
-    for (const m of materials) m.dispose();
-}
-
-const textures = new Map();
-function textTexture(text, { size = 128, color = '#ffffff', font = '900 64px Orbitron, "BIZ UDPGothic", sans-serif', glow = null } = {}) {
-    const key = `${text}|${size}|${color}|${font}|${glow}`;
-    if (textures.has(key)) return textures.get(key);
-    const c = document.createElement('canvas');
-    c.width = size;
-    c.height = size;
-    const ctx = c.getContext('2d');
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (glow) {
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = size / 10;
-    }
-    ctx.fillStyle = color;
-    ctx.fillText(text, size / 2, size / 2 + size * 0.03);
-    const tex = new CanvasTexture(c);
-    tex.colorSpace = SRGBColorSpace;
-    textures.set(key, tex);
-    return tex;
-}
-
-function radialTexture(inner, outer) {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 256;
-    const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    g.addColorStop(0, inner);
-    g.addColorStop(1, outer);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 256, 256);
-    const tex = new CanvasTexture(c);
-    tex.colorSpace = SRGBColorSpace;
-    return tex;
-}
-
-function gridTexture(color, cells = 36) {
-    const size = 1024;
-    const c = document.createElement('canvas');
-    c.width = size;
-    c.height = size;
-    const ctx = c.getContext('2d');
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    for (let i = 0; i <= cells; i++) {
-        const x = (i / cells) * size;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, size);
-        ctx.moveTo(0, x);
-        ctx.lineTo(size, x);
-        ctx.stroke();
-    }
-    // 中心から外へ消えていく
-    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(0.55, 'rgba(0,0,0,0.6)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    const tex = new CanvasTexture(c);
-    tex.colorSpace = SRGBColorSpace;
-    tex.anisotropy = 4;
-    return tex;
 }
 
 export class LeverView3D {
@@ -176,9 +62,7 @@ export class LeverView3D {
         this.handlers = handlers;
         this.a11yRoot = a11yRoot;
         this.showcase = showcase;
-        this.angle = 0;
-        this.velocity = 0;
-        this.target = 0;
+        this.body = createLeverBody(); // 物理（physics.js）。angle はラジアン
         this.held = null;
         this.board = null;
         this.interactive = false;
@@ -199,11 +83,9 @@ export class LeverView3D {
         this.focusGoal = 0;
         this.danger = 0;
         this.dangerGoal = 0;
-        this.particles = [];
-        this.waves = [];
         this.raycaster = new Raycaster();
         this.plane = new Plane(new Vector3(0, 0, 1), 0);
-        this.colors = this.readColors();
+        this.colors = readColors();
 
         this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
         this.renderer.outputColorSpace = SRGBColorSpace;
@@ -211,6 +93,7 @@ export class LeverView3D {
         this.renderer.shadowMap.type = PCFShadowMap;
         this.scene = new Scene();
         this.camera = new PerspectiveCamera(32, 1, 0.1, 200);
+        this.effects = new Effects(this.scene);
 
         this.build();
         if (a11yRoot) this.buildA11y();
@@ -219,17 +102,6 @@ export class LeverView3D {
         this.loop = this.loop.bind(this);
         this.last = performance.now();
         this.frame = requestAnimationFrame(this.loop);
-    }
-
-    readColors() {
-        const c = name => cssColor(name, '#ffffff');
-        return {
-            p1: c('--p1'), p2: c('--p2'), p3: c('--p3'), p4: c('--p4'),
-            m10: c('--m10'), m20: c('--m20'), m30: c('--m30'),
-            neutral: c('--w-neutral'), locked: c('--w-locked'),
-            accent: c('--accent'), ok: c('--ok'), danger: c('--danger'), warn: c('--warn'),
-            left: c('--glow-left'), right: c('--glow-right'),
-        };
     }
 
     /* ======================== シーン ======================== */
@@ -457,7 +329,6 @@ export class LeverView3D {
         this.preview = null;
         this.camTarget = new Vector3(0, -2.3, 0);
         this.lookAt = new Vector3();
-        this.glowTex = radialTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0)');
     }
 
     buildA11y() {
@@ -476,12 +347,25 @@ export class LeverView3D {
         this.weightButtons = new Map();
     }
 
+    /** うでの角度（度。時計回りが正） */
+    get angle() {
+        return (this.body.angle * 180) / Math.PI;
+    }
+
+    /** 別の表示（図）から続けるとき、物理の状態を引きつぐ */
+    syncBody(body) {
+        this.body.angle = body.angle;
+        this.body.omega = body.omega;
+        this.body.resting = body.resting;
+    }
+
     /* ======================== 描画データ ======================== */
 
     render(view) {
         const prevBoard = this.board;
         if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
-            this.velocity += kickFor(prevBoard, view.board);
+            // つるした・はずしたおもりがフックに当たる反動
+            for (const k of dropKicks(prevBoard, view.board)) dropImpulse(this.body, k.x, k.mass, leverLoads(view.board));
         }
         this.noKick = false;
         this.board = view.board;
@@ -494,7 +378,6 @@ export class LeverView3D {
         if (view.hover !== undefined) this.hover = view.hover;
         this.syncWeights(prevBoard, view.newIds ?? new Set());
         this.setHeld(Boolean(view.held));
-        this.updateTarget();
         this.syncA11y();
     }
 
@@ -508,39 +391,7 @@ export class LeverView3D {
     }
 
     makeWeightMesh(weight) {
-        const { r, h } = sizeOf(weight.mass);
-        const color = this.colors[toneKey(weight)] ?? this.colors.m10;
-        const g = new Group();
-        const body = new Mesh(new CylinderGeometry(r, r, h, 32), new MeshStandardMaterial({
-            color, metalness: 0.55, roughness: 0.3, emissive: color.clone().multiplyScalar(0.18), transparent: true,
-        }));
-        body.position.y = -LOOP_H - h / 2;
-        body.castShadow = true;
-        const lid = new Mesh(new CylinderGeometry(r * 0.55, r * 0.8, 0.06, 32), body.material);
-        lid.position.y = -LOOP_H - 0.02;
-        const loop = new Mesh(new TorusGeometry(0.05, 0.016, 8, 16), new MeshStandardMaterial({
-            color: 0xc7d0ea, metalness: 0.9, roughness: 0.25,
-        }));
-        loop.position.y = -0.05;
-        const label = new Sprite(new SpriteMaterial({
-            map: textTexture(labelOf(weight), {
-                font: weight.owner && PLAYER_META[weight.owner] ? '900 76px sans-serif' : '900 44px Orbitron, sans-serif',
-            }),
-            transparent: true, depthTest: false,
-        }));
-        label.renderOrder = 2;
-        label.scale.set(r * 2.1, r * 2.1, 1);
-        label.position.set(0, -LOOP_H - h / 2, r + 0.02);
-        const halo = new Mesh(new TorusGeometry(r + 0.08, 0.03, 8, 40), new MeshBasicMaterial({ color: 0xffffff }));
-        halo.rotation.x = Math.PI / 2;
-        halo.position.y = -LOOP_H - h / 2;
-        halo.visible = false;
-        const hit = new Mesh(new CylinderGeometry(r + 0.12, r + 0.12, h + 0.3, 12), new MeshBasicMaterial({ visible: false }));
-        hit.position.y = -LOOP_H - h / 2;
-        g.add(body, lid, loop, label, halo, hit);
-        g.userData = { id: weight.id, body, halo, hit, mass: weight.mass, drop: 0, offset: 0 };
-        hit.userData.weightId = weight.id;
-        return g;
+        return makeWeightMesh(weight, this.colors);
     }
 
     syncWeights(prevBoard, newIds) {
@@ -612,22 +463,13 @@ export class LeverView3D {
         if (wasHeld === true && !held) this.awaitingVerdict = true;
     }
 
-    updateTarget() {
-        if (!this.board) return;
-        this.target = this.held ? 0 : tiltFor(momentOf(this.board).diff);
-        if (reduceMotion()) {
-            this.angle = this.target;
-            this.velocity = 0;
-        }
-    }
-
     settle() {
         return new Promise(resolve => this.settleResolvers.push(resolve));
     }
 
     /** 手をはなしていて、うでも、ぶら下がったおもりも静まっている */
     isCalm() {
-        if (!this.board || this.held !== false || !isCalm(this)) return false;
+        if (!this.board || this.held !== false || !leverIsCalm(this.body)) return false;
         return Object.values(this.swing).every(s => Math.abs(s.a) < 0.06 && Math.abs(s.v) < 0.12);
     }
 
@@ -647,17 +489,7 @@ export class LeverView3D {
         this.shake = 0;
         this.zoom = 0;
         this.hover = null;
-        for (const p of this.particles) {
-            this.scene.remove(p.sprite);
-            p.sprite.material.dispose();
-        }
-        for (const w of this.waves) {
-            this.scene.remove(w.ring);
-            w.ring.geometry.dispose();
-            w.ring.material.dispose();
-        }
-        this.particles = [];
-        this.waves = [];
+        this.effects.clear();
         this.selectedId = null;
         this.selectedGroup = new Set();
         this.cancelDrag();
@@ -671,9 +503,9 @@ export class LeverView3D {
 
     /** うでをすぐに水平にする（図から切りかえた直後に、前の傾きが残らないように） */
     level() {
-        this.target = 0;
-        this.angle = 0;
-        this.velocity = 0;
+        this.body.angle = 0;
+        this.body.omega = 0;
+        this.body.resting = false;
         this.beam.rotation.z = 0;
     }
 
@@ -700,7 +532,7 @@ export class LeverView3D {
 
     step(dt) {
         const k = dt * 60;
-        const angVel = this.stepBeam(dt, k);
+        const angVel = this.stepBeam(dt);
         this.stepStoppers(dt);
         this.stepStacks(dt, k, angVel);
         this.stepGlow(dt);
@@ -711,14 +543,11 @@ export class LeverView3D {
         this.stepCamera(k);
     }
 
-    /** うで（バネで目標の角度へ） @returns {number} 角速度（度/秒） */
-    stepBeam(dt, k) {
+    /** うで（剛体の回転を物理で進める） @returns {number} 角速度（度/秒） */
+    stepBeam(dt) {
         const prev = this.angle;
-        if (!stepSpring(this, k)) {
-            this.angle = this.target;
-            this.velocity = 0;
-            if (this.settleResolvers.length || this.awaitingVerdict) this.finishSettle();
-        }
+        const moving = stepLever(this.body, leverLoads(this.board), reduceMotion() ? 2 : dt, { held: this.held !== false });
+        if (!moving && (this.settleResolvers.length || this.awaitingVerdict)) this.finishSettle();
         this.beam.rotation.z = beamRotationZ(this.angle);
         // ふりこ用の角速度は Three.js の向き（反時計回りが正）で返す
         return -(this.angle - prev) / Math.max(dt, 1e-3);
@@ -815,8 +644,6 @@ export class LeverView3D {
     }
 
     finishSettle() {
-        this.angle = this.target;
-        this.velocity = 0;
         if (this.awaitingVerdict && this.board && !this.held) {
             this.awaitingVerdict = false;
             const m = momentOf(this.board);
@@ -1233,8 +1060,9 @@ export class LeverView3D {
                 this.burst(new Vector3(0, 0, 0.3), this.colors.danger, 40, 5);
                 return;
             }
-            const sign = opts.side === 'left' ? 1 : -1; // 度（時計回りが正）: 左が重い → 左が下がる → 負
-            this.velocity += -sign * 1.2;
+            const sign = opts.side === 'left' ? 1 : -1; // ラジアン/秒（時計回りが正）: 左が重い → 左が下がる → 負
+            this.body.omega += -sign * 0.9;
+            this.body.resting = false;
             const end = new Vector3(-sign * BEAM_HALF, 0, 0);
             this.beam.localToWorld(end);
             this.burst(end, this.colors.danger, 50, 6);
@@ -1261,58 +1089,15 @@ export class LeverView3D {
     }
 
     burst(origin, color, count, speed, gravity = 6) {
-        for (let i = 0; i < count; i++) {
-            const sprite = new Sprite(new SpriteMaterial({
-                map: this.glowTex, color, transparent: true, blending: AdditiveBlending, depthWrite: false,
-            }));
-            const size = 0.12 + Math.random() * 0.22;
-            sprite.scale.set(size, size, 1);
-            sprite.position.copy(origin);
-            const dir = new Vector3(Math.random() - 0.5, Math.random() * 0.9 - 0.2, Math.random() - 0.5).normalize();
-            this.scene.add(sprite);
-            const v = dir.multiplyScalar(speed * (0.4 + Math.random()));
-            this.particles.push({ sprite, v, life: 0, max: 0.6 + Math.random() * 0.6, gravity });
-        }
+        this.effects.burst(origin, color, count, speed, gravity);
     }
 
     wave(origin, color, flat = false, grow = flat ? 9 : 7) {
-        const ring = new Mesh(new RingGeometry(0.85, 1, 64), new MeshBasicMaterial({
-            color, transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
-        }));
-        ring.position.copy(origin);
-        if (flat) ring.rotation.x = -Math.PI / 2;
-        this.scene.add(ring);
-        this.waves.push({ ring, life: 0, max: flat ? 0.9 : 0.7, grow });
+        this.effects.wave(origin, color, flat, grow);
     }
 
     stepEffects(dt) {
-        this.particles = this.particles.filter(p => {
-            p.life += dt;
-            if (p.life >= p.max) {
-                this.scene.remove(p.sprite);
-                p.sprite.material.dispose();
-                return false;
-            }
-            p.v.y -= p.gravity * dt;
-            p.v.multiplyScalar(Math.pow(0.97, dt * 60));
-            p.sprite.position.addScaledVector(p.v, dt);
-            p.sprite.material.opacity = 1 - p.life / p.max;
-            return true;
-        });
-        this.waves = this.waves.filter(w => {
-            w.life += dt;
-            const t = w.life / w.max;
-            if (t >= 1) {
-                this.scene.remove(w.ring);
-                w.ring.geometry.dispose();
-                w.ring.material.dispose();
-                return false;
-            }
-            const scale = 0.3 + (1 - Math.pow(1 - t, 3)) * w.grow;
-            w.ring.scale.set(scale, scale, scale);
-            w.ring.material.opacity = 1 - t;
-            return true;
-        });
+        this.effects.step(dt);
         // 警告灯
         this.danger += (this.dangerGoal - this.danger) * Math.min(1, dt * 4);
         const pulse = 0.5 + 0.5 * Math.sin(this.time * (6 + this.danger * 6));
@@ -1339,6 +1124,6 @@ export class LeverView3D {
         const newIds = new Set();
         for (const pos of POSITIONS) for (const w of board[pos]) if (!prev || !findWeight(prev, w.id)) newIds.add(w.id);
         this.render({ board, held: false, interactive: false, newIds });
-        if (!isBalanced(board) && !reduceMotion()) this.velocity += 0.2;
+        if (!isBalanced(board) && !reduceMotion()) this.body.omega += 0.15;
     }
 }

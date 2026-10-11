@@ -1770,6 +1770,213 @@ h1, h2, h3, p { margin: 0; }
 }
 @keyframes hint-show { 0% { opacity: 0; } 8%, 80% { opacity: 1; } 100% { opacity: 0; } }
 
+
+/* =========================================================
+   単元の切りかえ（ホーム）：6年 てこ ／ 5年 ふりこ
+   ========================================================= */
+.unit-switch { gap: 4px; padding: 4px; border-radius: 14px; background: rgba(28, 28, 38, 0.92); }
+.unit-switch button { min-height: 44px; padding: 0 18px; border-radius: 10px; font-size: 16px; font-weight: 700; }
+.unit-switch button[aria-checked="true"] { background: var(--accent); color: var(--on-color); }
+.unit-switch .i { margin-right: 6px; }
+.home-head.is-switching .logo-en, .home-head.is-switching .tagline, .home-head.is-switching .pill { animation: home-in 0.4s ease both; }
+/* ふりこの単元では、たいせんの色をねらいの色に */
+.modes[data-unit="pendulum"] .mode-battle { --mode: var(--gold); }
+@media (max-height: 500px) and (orientation: landscape) {
+    .unit-switch button { min-height: 36px; padding: 0 12px; font-size: 14px; }
+}
+
+/* =========================================================
+   ふりこ：SVG の図
+   ========================================================= */
+.pend-svg.is-dragging, .pend-svg.is-dragging * { cursor: grabbing; }
+.pend-bar { fill: url(#g-pmetal); stroke: #4a5a8c; stroke-width: 1.5; }
+.pend-post { fill: url(#g-pmetal); }
+.pend-ruler-line { stroke: #9aa8cc; stroke-width: 2; }
+.pend-tick { stroke: #6b7aa3; stroke-width: 1.5; }
+.pend-tick-major { stroke: var(--ink-2); stroke-width: 2.5; }
+.pend-ruler-text { fill: var(--ink-2); font-size: 14px; font-weight: 800; text-anchor: end; font-family: var(--font-display); }
+.pend-ruler-unit { fill: var(--muted); font-size: 12px; }
+.pend-pivot { fill: #facc15; stroke: #0b1020; stroke-width: 2.5; }
+.pend-string { stroke: #b9c4e2; stroke-width: 2; }
+.pend-guide { stroke: var(--pc, var(--accent)); stroke-width: 1.5; stroke-dasharray: 4 6; opacity: 0.6; }
+.pend-center { stroke: rgba(255, 255, 255, 0.5); stroke-width: 1.5; stroke-dasharray: 5 6; x1: 0; x2: 0; y1: 0; }
+.pend-arc { fill: none; stroke: var(--warn); stroke-width: 3; stroke-linecap: round; }
+.pend-arc-text { fill: var(--warn); font-size: 17px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.pend-tag circle { fill: var(--pc, var(--accent)); stroke: #0b1020; stroke-width: 2; }
+.pend-tag text { fill: var(--on-color); font-size: 16px; font-weight: 900; text-anchor: middle; dominant-baseline: central; font-family: var(--font-display); }
+.pend-count { fill: var(--ink); font-size: 16px; font-weight: 900; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.pend-len { fill: var(--ink-2); font-size: 14px; font-weight: 800; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.pend.is-first .pend-count { fill: var(--gold); }
+.pend.is-first .bob .w-body { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.8)); }
+.pend.is-done .bob .w-body { stroke: var(--ok); stroke-width: 3; }
+.pend.is-held .bob .w-shine { fill: rgba(255, 255, 255, 0.55); }
+.pend.is-selected .pend-tag circle { stroke: var(--ink); stroke-width: 3; }
+.pend-svg.is-interactive .bob.is-movable { cursor: grab; }
+.bob:focus-visible .w-body { stroke: var(--accent); stroke-width: 5; }
+.bob.is-pulse .w-body { animation: bob-pulse 0.4s ease; }
+@keyframes bob-pulse { 40% { filter: brightness(1.8) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)); } }
+.pend-svg.is-narrow .pend-ruler-text { font-size: 20px; }
+.pend-svg.is-narrow .pend-count { font-size: 22px; }
+.pend-svg.is-narrow .pend-len { font-size: 20px; }
+.pend-svg.is-narrow .pend-arc-text { font-size: 24px; }
+.pend-svg.is-narrow .pend-tag circle { r: 20; }
+.pend-svg.is-narrow .pend-tag text { font-size: 20px; }
+/* ふりこは たて長なので、よこ向きのおすすめは出さない */
+#screen-play[data-unit="pendulum"] .stage::after { display: none; }
+
+/* =========================================================
+   ふりこ：計測パネル
+   ========================================================= */
+.pend-readout { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); align-items: stretch; gap: 10px; padding: 6px 12px 8px; }
+.pend-readout[data-count="1"] { grid-template-columns: minmax(0, 520px); justify-content: center; }
+.pend-readout[data-count="2"] { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.pend-readout[data-count="2n"] { --n: 2; }
+.pend-readout[data-count="3"] { --n: 3; }
+.pend-readout[data-count="4"] { --n: 4; }
+.pside { display: grid; gap: 3px; min-width: 0; padding: 4px 10px; border-left: 3px solid var(--pc); }
+.pside-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.pside-tag { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 8px; background: var(--pc); color: var(--on-color); font-family: var(--font-display); font-size: 15px; font-weight: 900; }
+.pside-conds { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 13px; color: var(--muted); }
+.pcond b { color: var(--ink-2); font-weight: 800; }
+.pcond.is-changed { color: var(--warn); }
+.pcond.is-changed b { color: var(--warn); }
+.pside-time { display: flex; align-items: baseline; gap: 4px; font-family: var(--font-display); line-height: 1.1; }
+.pside-time b { font-size: clamp(22px, 3vw, 30px); font-weight: 900; color: var(--accent-2); text-shadow: 0 0 14px rgba(34, 211, 238, 0.55); font-variant-numeric: tabular-nums; }
+.pside-time b.is-done { color: var(--ok); text-shadow: 0 0 14px rgba(74, 222, 128, 0.55); }
+.pside-time b.q { color: var(--muted); text-shadow: none; }
+.pside-time small { color: var(--muted); font-size: 13px; font-weight: 700; }
+.pside-count { margin-left: auto; color: var(--ink-2); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.pside-count em { font-style: normal; font-size: 18px; color: var(--ink); }
+.pside-count i { font-style: normal; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.pside .bar span { background: var(--pc); box-shadow: 0 0 10px var(--pc); }
+.pgrade, .pchip-grade { padding: 1px 8px; border-radius: 999px; font-family: var(--font-display); font-size: 11px; font-weight: 900; background: var(--fill); color: var(--ink); }
+.is-perfect { background: var(--gold) !important; color: var(--on-color) !important; box-shadow: 0 0 12px rgba(250, 204, 21, 0.7); }
+.is-great { background: var(--ok) !important; color: var(--on-color) !important; }
+.is-good { background: var(--accent) !important; color: var(--on-color) !important; }
+.is-ok { background: var(--warn) !important; color: var(--on-color) !important; }
+.is-miss { background: var(--danger) !important; color: var(--on-color) !important; }
+.pend-readout .verdict { min-width: 84px; }
+@media (max-width: 760px) {
+    .pend-readout { gap: 6px; padding: 4px 8px 6px; }
+    .pside { padding: 3px 6px; }
+    .pside-conds { font-size: 11px; gap: 2px 6px; }
+    .pside-time b { font-size: 20px; }
+    .pside-count { font-size: 11px; }
+    .pside-count em { font-size: 15px; }
+    .pside-tag { min-width: 22px; height: 22px; font-size: 13px; }
+}
+@media (max-width: 560px) {
+    .pend-readout[data-count="3"] .pside-conds, .pend-readout[data-count="4"] .pside-conds { display: none; }
+    .pend-readout[data-count="4"] .pside-count { display: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+    .pend-readout { padding: 2px 10px; gap: 8px; }
+    .pside { gap: 1px; }
+    .pside-time b { font-size: 18px; }
+    .pside .bar { display: none; }
+}
+
+/* =========================================================
+   ふりこ：操作エリア
+   ========================================================= */
+.pend-controls { display: grid; flex: 1 1 320px; min-width: 0; gap: 0; padding: 0 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
+.pend-controls .option { min-height: 44px; padding: 4px 0; gap: 6px 12px; }
+.pend-controls .option-label { font-size: 15px; }
+.pend-controls .option-label .i { margin-right: 4px; color: var(--warn); }
+.pend-controls .seg button { min-height: 32px; padding: 0 12px; font-size: 14px; }
+.badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-color); font-size: 12px; font-weight: 900; }
+
+/* もんだいの選択肢 */
+.choices { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 300px; min-width: 0; }
+.choice {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+.choice:hover { background: rgba(255, 255, 255, 0.1); }
+.choice[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-2); }
+.choice:disabled { opacity: 0.5; cursor: default; }
+.choice-plan { font-family: var(--font-display); font-size: 13px; letter-spacing: 0; }
+.mission .pill { margin-left: 6px; vertical-align: middle; }
+
+/* たいせん：長さのつまみ */
+.length-ctl { display: flex; flex: 1 1 320px; align-items: center; gap: 6px; min-width: 0; }
+.length-ctl input[type="range"] { flex: 1 1 auto; min-width: 80px; height: 32px; accent-color: var(--accent); touch-action: none; }
+.length-ctl .icon-btn { width: 40px; height: 40px; background: var(--fill-2); color: var(--ink); font-size: 22px; font-weight: 900; }
+.length-out { display: inline-flex; align-items: baseline; gap: 2px; min-width: 76px; font-family: var(--font-display); font-weight: 900; color: var(--ink-2); }
+.length-out b { font-size: 28px; color: var(--accent-2); text-shadow: 0 0 12px rgba(34, 211, 238, 0.55); font-variant-numeric: tabular-nums; }
+.turn-info .length-out b { font-size: 18px; }
+.decoys { display: flex; flex-wrap: wrap; gap: 6px; }
+.hint-table { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; font-size: 12px; color: var(--ink-2); }
+.hint-table span { padding: 1px 8px; border-radius: 999px; background: var(--fill-3); white-space: nowrap; }
+.hint-table b { color: var(--accent-2); font-family: var(--font-display); }
+
+/* きろく（表） */
+.record-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.record-table th, .record-table td { padding: 8px 6px; border-bottom: 0.5px solid var(--separator); text-align: left; vertical-align: top; line-height: 1.5; }
+.record-table th { color: var(--muted); font-weight: 700; font-size: 12px; }
+.record-table th small { display: block; font-weight: 400; }
+.record-table .num { font-family: var(--font-display); font-weight: 700; text-align: right; }
+.record-table .is-same { color: var(--ok); font-weight: 800; }
+.record-table .is-diff { color: var(--warn); font-weight: 800; }
+.record-body { padding-top: 14px; }
+
+/* ふりこのきほんの図 */
+.fig-center { stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.fig-string { stroke: #b9c4e2; stroke-width: 2; }
+.fig-string-ghost, .fig-bob-ghost { opacity: 0.35; }
+.fig-bob { fill: var(--m10); }
+.fig-arc { fill: none; stroke: var(--warn); stroke-width: 3; }
+.fig-dim { stroke: var(--accent); stroke-width: 2; }
+.fig-head-dim { fill: var(--accent); }
+.fig-label-dim { fill: var(--accent); text-anchor: start; }
+.fig-cycle { fill: none; stroke: var(--ok); stroke-width: 2.5; }
+.example-table { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; font-size: 16px; }
+.example-table div { display: flex; align-items: center; gap: 6px; }
+
+/* たいせんのあそびかた（ふりこ）の絵 */
+.tw-card { fill: rgba(34, 211, 238, 0.12); stroke: var(--accent); stroke-width: 2; }
+.tw-target { fill: var(--accent-2); font-size: 20px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); }
+.tw-slider { fill: rgba(140, 175, 255, 0.25); }
+.tw-knob { fill: var(--accent); }
+
+/* スマホ：ふりこの操作エリアを1〜2行に */
+@media (max-width: 560px) {
+    .pend-controls { flex: 1 1 100%; padding: 0 8px; }
+    .pend-controls .option { min-height: 40px; }
+    .pend-controls .seg button { padding: 0 9px; font-size: 13px; }
+    .choice { padding: 4px 10px; font-size: 14px; min-height: 40px; }
+    .choice-plan { font-size: 11.5px; }
+    .length-ctl { flex: 1 1 100%; }
+    .decoys { display: none; } /* 重さ・ふれはばは時間に関係ないので、せまい画面では長さだけ */
+    .hint-table { display: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+    .pend-controls { display: flex; flex-wrap: nowrap; gap: 12px; padding: 0 10px; }
+    .pend-controls .option { min-height: 36px; padding: 2px 0; flex-wrap: nowrap; }
+    .pend-controls .option-label { font-size: 13px; white-space: nowrap; }
+    .pend-controls .seg { flex-wrap: nowrap; }
+    .mission { flex: 0 1 240px; }
+    .choices { flex: 1 1 200px; }
+    .pend-controls .option + .option { border-top: 0; border-left: 0.5px solid var(--separator); padding-left: 10px; }
+    .pend-controls .seg button { min-height: 28px; padding: 0 8px; font-size: 13px; }
+    .choices { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .choice { flex: none; min-height: 36px; font-size: 13px; }
+    .decoys, .hint-table { display: none; }
+    .length-out b { font-size: 20px; }
+    .length-ctl .icon-btn { width: 32px; height: 32px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     /* 演出の文字は「最後のコマ」（画面の外・透明）に飛ばず、動かさずに表示する。消すのは fx.js の spawn */

@@ -1,19 +1,22 @@
 /**
  * てこの傾く向き：重いほうが下がること（2D と 3D の両方）
  * 3D は Three.js（反時計回りが正）、SVG は時計回りが正なので、向きの取りちがえを防ぐ。
+ * 角度は物理エンジン（physics.js）のつり合いの角度から。
  */
 import { describe, it, expect } from 'vitest';
 import { Vector3 } from '../src/vendor/three.js';
-import { tiltFor } from '../src/js/view/lever-view.js';
 import { beamRotationZ } from '../src/js/view/lever-view-3d.js';
+import { equilibriumAngle, leverLoads } from '../src/js/engine/physics.js';
 import { createBoard, hang, momentOf } from '../src/js/engine/lever.js';
 
 const leftHeavy = hang(createBoard(), -4, { id: 'a', mass: 20 });
 const rightHeavy = hang(createBoard(), 4, { id: 'a', mass: 20 });
 
+const tiltFor = board => equilibriumAngle(momentOf(board), leverLoads(board));
+
 /** 3D：左端・右端の高さ */
 function ends3d(board) {
-    const rz = beamRotationZ(tiltFor(momentOf(board).diff));
+    const rz = beamRotationZ(tiltFor(board));
     const axis = new Vector3(0, 0, 1);
     return {
         left: new Vector3(-6, 0, 0).applyAxisAngle(axis, rz).y,
@@ -23,7 +26,7 @@ function ends3d(board) {
 
 /** SVG：rotate(angle) は時計回り、y は下向きが正 → 画面上の高さは -y */
 function ends2d(board) {
-    const a = (tiltFor(momentOf(board).diff) * Math.PI) / 180;
+    const a = (tiltFor(board) * Math.PI) / 180;
     const y = x => x * Math.sin(a);
     return { left: -y(-6), right: -y(6) };
 }

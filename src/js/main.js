@@ -1,10 +1,12 @@
 /**
- * てこマスター エントリーポイント
- * 画面の切りかえ・ダイアログ・設定・PWA まわり
+ * エントリーポイント
+ * ホーム（6年 てこ／5年 ふりこ の切りかえ）・画面の切りかえ・ダイアログ・設定・PWA まわり
  */
 
 import { LeverView } from './view/lever-view.js';
 import { LeverView3D, webglAvailable } from './view/lever-view-3d.js';
+import { PendulumView } from './view/pendulum-view.js';
+import { PendulumView3D } from './view/pendulum-view-3d.js';
 import { createBoard, hang } from './engine/lever.js';
 import { $, $$, hideBanner, showScreen } from './ui.js';
 import { icon, installIcons } from './icons.js';
@@ -15,73 +17,142 @@ import { setupRulesTour } from './rules-tour.js';
 import * as lab from './screens/lab.js';
 import * as puzzles from './screens/puzzles.js';
 import * as battle from './screens/battle.js';
+import * as pendLab from './screens/pend-lab.js';
+import * as pendPuzzles from './screens/pend-puzzles.js';
+import * as pendBattle from './screens/pend-battle.js';
 
 installIcons();
 
 /** GAS（Google Apps Script）版として配信されているか（build-gas.mjs が設定） */
 const IS_GAS = Boolean(window.LEVER_GAS);
 
-/** 2D（SVG）は常に用意。WebGL が使えれば 3D も作り、ふだんは 3D を使う */
-const views = createViews();
-let view = views.v3d ?? views.v2d;
+/* ---------- 単元 ----------
+ * ホームは「6年 てこ」と「5年 ふりこ」のハブ。モードのカード・ロゴ・きほんのダイアログが切りかわる
+ */
+const UNITS = {
+    lever: {
+        en: 'LEVER MASTER', ja: 'てこマスター', grade: '小6 理科「てこのはたらき」',
+        tagline: 'きょり <b>×</b> 重さ で、てこをつり合わせよう',
+        learn: 'dlg-learn', rules: 'dlg-rules', learnLabel: 'てこのきほん',
+        modes: [
+            { go: 'lab', cls: 'mode-lab', icon: 'flask', name: 'じっけん', desc: 'おもりを自由につるして、つり合うしくみを調べよう' },
+            { go: 'puzzles', cls: 'mode-puzzle', icon: 'puzzle', name: 'もんだい', desc: '予想してから手をはなそう。全<span data-count></span>問', progress: puzzles },
+            { go: 'setup', cls: 'mode-battle', icon: 'scale', name: 'たいせん', desc: '2〜4人・CPUとも。持ち時間内につり合わせろ。かたむけたらアウト！' },
+        ],
+    },
+    pendulum: {
+        en: 'PENDULUM MASTER', ja: 'ふりこマスター', grade: '小5 理科「ふりこの運動」',
+        tagline: 'ふりこの <b>長さ</b> で、1往復の時間が決まる',
+        learn: 'dlg-learn-pend', rules: 'dlg-rules-pend', learnLabel: 'ふりこのきほん',
+        modes: [
+            { go: 'pend-lab', cls: 'mode-lab', icon: 'flask', name: 'じっけん', desc: '変える条件は1つだけ。10往復の時間をくらべよう' },
+            { go: 'pend-puzzles', cls: 'mode-puzzle', icon: 'puzzle', name: 'もんだい', desc: 'どっちがはやい？ 予想してからたしかめよう。全<span data-count></span>問', progress: pendPuzzles },
+            { go: 'pend-setup', cls: 'mode-battle', icon: 'target', name: 'たいせん', desc: 'ジャスト・タイム。目標の時間になる長さをねらえ！ 2〜4人・CPUとも' },
+        ],
+    },
+};
+let unit = UNITS[settings.unit] ? settings.unit : 'lever';
+
+/* ---------- てこ・ふりこのビュー ----------
+ * 2D（SVG）は常に用意。WebGL が使えれば 3D も作り、ふだんは 3D を使う。
+ * ふりこのビューは、はじめてふりこの画面に入るときに作る（最初から WebGL を2つ作らない）
+ */
+const has3d = webglAvailable() && !new URLSearchParams(location.search).has('2d');
+const STAGE = {
+    lever: { c3d: '#lever3d', a11y: '#lever-a11y', svg: '#lever', readout: '#readout' },
+    pendulum: { c3d: '#pendulum3d', a11y: '#pendulum-a11y', svg: '#pendulum', readout: '#pend-readout' },
+};
+const views = { lever: null, pendulum: null };
+let playUnit = 'lever'; // プレイ画面がどちらの単元か
+let view = null; // いま使っているビュー
 let active = null; // いまプレイ画面を使っているモード
 
-function createViews() {
-    const v2d = new LeverView($('#lever'));
+function viewsFor(u) {
+    if (views[u]) return views[u];
+    const stage = STAGE[u];
+    const v2d = u === 'lever' ? new LeverView($(stage.svg)) : new PendulumView($(stage.svg));
     let v3d = null;
     try {
-        if (webglAvailable() && !new URLSearchParams(location.search).has('2d')) {
-            v3d = new LeverView3D($('#lever3d'), {}, { a11yRoot: $('#lever-a11y') });
-            document.documentElement.classList.add('is-3d');
-            startHero(LeverView3D);
+        if (has3d) {
+            v3d = u === 'lever'
+                ? new LeverView3D($(stage.c3d), {}, { a11yRoot: $(stage.a11y) })
+                : new PendulumView3D($(stage.c3d), {}, { a11yRoot: $(stage.a11y) });
         }
     } catch (err) {
         console.warn('3D view unavailable, falling back to 2D:', err);
         v3d = null;
-        document.documentElement.classList.remove('is-3d');
     }
-    if (!v3d) $('#lever3d').hidden = true;
-    return { v2d, v3d };
+    if (!v3d) $(stage.c3d).hidden = true;
+    views[u] = { v2d, v3d };
+    return views[u];
 }
+
+const vs = viewsFor('lever');
+document.documentElement.classList.toggle('is-3d', Boolean(vs.v3d));
+view = vs.v3d ?? vs.v2d;
 
 /** 3D と 図（2D）の切りかえ。handlers を引きついで、画面を描き直す（refresh を持つのはじっけんだけ） */
 function setViewKind(kind, { refresh = true } = {}) {
-    const next = kind === '2d' || !views.v3d ? views.v2d : views.v3d;
+    const u = viewsFor(playUnit);
+    const next = kind === '2d' || !u.v3d ? u.v2d : u.v3d;
     if (next !== view) {
         view.cancelDrag?.();
         next.skipKick?.(); // かくれていたあいだの盤面とくらべて、ゆらさない
         // 前の表示の傾きから続ける（かくれていたあいだの古い角度から大きくゆれない）
-        next.angle = view.angle;
-        next.velocity = view.velocity;
+        next.syncBody?.(view.body);
+        if ('timeScale' in next) next.timeScale = view.timeScale ?? 1;
         next.handlers = view.handlers;
         view.handlers = {};
         view = next;
     }
-    const is3d = view === views.v3d;
-    $('#lever3d').hidden = !is3d;
-    $('#lever-a11y').hidden = !is3d;
-    if (is3d) $('#lever').setAttribute('hidden', '');
-    else $('#lever').removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
+    const is3d = view === u.v3d;
+    const stage = STAGE[playUnit];
+    $(stage.c3d).hidden = !is3d;
+    $(stage.a11y).hidden = !is3d;
+    if (is3d) $(stage.svg).setAttribute('hidden', '');
+    else $(stage.svg).removeAttribute('hidden'); // SVG 要素には hidden プロパティがない
     const toggle = $('#view-toggle');
     toggle.innerHTML = is3d ? `${icon('chart')}<span>図で見る</span>` : `${icon('cube')}<span>3Dで見る</span>`;
     toggle.setAttribute('aria-label', is3d ? '図（2D）で見る' : '3D で見る');
     if (refresh) active?.refresh?.();
 }
 
-/** ホーム画面の 3D デモ（つり合う例と、かたむく例を順番に見せる） */
-function startHero(LeverView3D) {
-    const demo = [
-        [[-3, 20], [2, 30]],
-        [[-6, 10], [-1, 20], [4, 20]],
-        [[-4, 30], [5, 10], [3, 10]],
-        [[-4, 30], [6, 20]],
-        [[-2, 10], [-5, 20], [3, 20], [6, 10]],
-    ].map((items, i) => items.reduce((b, [pos, mass], k) => hang(b, pos, { id: `d${i}-${k}`, mass }), createBoard()));
+/** プレイ画面を単元に合わせる（使わないほうのステージはかくす） */
+function showStage(u) {
+    for (const [name, stage] of Object.entries(STAGE)) {
+        const off = name !== u;
+        $(stage.c3d).hidden = off || !viewsFor(u).v3d;
+        $(stage.a11y).hidden = off;
+        if (off) $(stage.svg).setAttribute('hidden', '');
+        $(stage.readout).hidden = off;
+    }
+}
+
+/* ---------- ホーム画面の 3D デモ ---------- */
+const heroes = { lever: null, pendulum: null };
+
+function startHero(u) {
+    const canvas = $(u === 'lever' ? '#hero3d' : '#hero3d-pend');
+    if (!has3d || heroes[u]) return;
     try {
-        const hero = new LeverView3D($('#hero3d'), {}, { showcase: true });
-        hero.setShowcase(demo);
+        if (u === 'lever') {
+            const demo = [
+                [[-3, 20], [2, 30]],
+                [[-6, 10], [-1, 20], [4, 20]],
+                [[-4, 30], [5, 10], [3, 10]],
+                [[-4, 30], [6, 20]],
+                [[-2, 10], [-5, 20], [3, 20], [6, 10]],
+            ].map((items, i) => items.reduce((b, [pos, mass], k) => hang(b, pos, { id: `d${i}-${k}`, mass }), createBoard()));
+            const hero = new LeverView3D(canvas, {}, { showcase: true });
+            hero.setShowcase(demo);
+            heroes[u] = hero;
+        } else {
+            const hero = new PendulumView3D(canvas, {}, { showcase: true });
+            hero.setShowcase();
+            heroes[u] = hero;
+        }
         // 最初の絵がかけてから見せる（まっ黒→急に出る、をなくす）
-        requestAnimationFrame(() => requestAnimationFrame(() => $('#hero3d').classList.add('is-ready')));
+        requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add('is-ready')));
     } catch (err) {
         console.warn('hero disabled:', err);
     }
@@ -93,7 +164,7 @@ const app = {
     },
     /** 3D が使えるか（もんだいの「図で予想 → 3D でたしかめる」用） */
     get has3d() {
-        return Boolean(views.v3d);
+        return Boolean(viewsFor(playUnit).v3d);
     },
     /** モードから表示を切りかえる（描き直しはモード側で行う） */
     setView: kind => setViewKind(kind, { refresh: false }),
@@ -117,18 +188,35 @@ const routes = {
         showScreen('screen-setup');
     },
     battle: params => enterPlay(battle, params),
+    'pend-lab': params => enterPlay(pendLab, params),
+    'pend-puzzles': () => {
+        pendPuzzles.renderList(app);
+        showScreen('screen-puzzles');
+    },
+    'pend-puzzle': params => enterPlay(pendPuzzles, params),
+    'pend-setup': () => {
+        pendBattle.renderSetup(app);
+        showScreen('screen-pend-setup');
+    },
+    'pend-battle': params => enterPlay(pendBattle, params),
 };
 
 let viewPref = '3d';
 
-const ROUTE_BGM = { home: 'menu', puzzles: 'menu', setup: 'menu', lab: 'study', puzzle: 'study', battle: 'battle' };
+const ROUTE_BGM = {
+    home: 'menu', puzzles: 'menu', setup: 'menu', lab: 'study', puzzle: 'study', battle: 'battle',
+    'pend-puzzles': 'menu', 'pend-setup': 'menu', 'pend-lab': 'study', 'pend-puzzle': 'study', 'pend-battle': 'battle',
+};
 
 let currentRoute = 'home';
 
 function go(route, params = {}) {
     currentRoute = route;
     syncHistory(route);
-    for (const v of Object.values(views)) v?.cancelDrag?.();
+    for (const u of Object.values(views)) {
+        u?.v2d?.cancelDrag?.();
+        u?.v3d?.cancelDrag?.();
+    }
     if (active) {
         active.leave();
         active = null;
@@ -143,17 +231,29 @@ function go(route, params = {}) {
 
 function enterPlay(mode, params) {
     active = mode;
+    playUnit = mode.UNIT ?? 'lever';
+    const u = viewsFor(playUnit);
+    showStage(playUnit);
+    if (view !== u.v2d && view !== u.v3d) {
+        view.handlers = {};
+        view = u.v3d ?? u.v2d;
+    }
     // じっけんだけ自由に切りかえ。たいせんは 3D、もんだいは「図で予想 → 3D でたしかめる」でモードが決める
-    $('#view-toggle').hidden = !views.v3d || mode.MODE !== 'lab';
-    setViewKind({ battle: '3d', puzzle: '2d' }[mode.MODE] ?? viewPref, { refresh: false });
+    const isLab = mode.MODE === 'lab' || mode.MODE === 'pend-lab';
+    $('#view-toggle').hidden = !u.v3d || !isLab;
+    const fixed = { battle: '3d', puzzle: '2d', 'pend-battle': '3d', 'pend-puzzle': '2d' }[mode.MODE];
+    setViewKind(fixed ?? viewPref, { refresh: false });
     $('#screen-play').dataset.mode = mode.MODE;
+    $('#screen-play').dataset.unit = playUnit;
     const help = $('#play-help');
-    const rules = mode.MODE === 'battle';
-    help.dataset.open = rules ? 'dlg-rules' : 'dlg-learn';
+    const helpId = mode.HELP ?? 'dlg-learn';
+    const rules = helpId.startsWith('dlg-rules');
+    help.dataset.open = helpId;
     help.innerHTML = icon(rules ? 'help' : 'book');
-    help.setAttribute('aria-label', rules ? 'たいせんのルール' : 'てこのきほん');
+    help.setAttribute('aria-label', rules ? 'たいせんのルール' : UNITS[playUnit].learnLabel);
     showScreen('screen-play');
-    for (const v of Object.values(views)) v?.reset?.();
+    u.v2d.reset?.();
+    u.v3d?.reset?.();
     mode.enter(app, params);
     // タイトルはモードが決めるので、決まってから読み上げ用にフォーカスしなおす
     $('#play-title').focus({ preventScroll: true });
@@ -189,10 +289,55 @@ function confirm(title, { yes = 'やめる', no = 'つづける' } = {}) {
     });
 }
 
+/* ---------- ホーム ---------- */
+
 function refreshHome() {
-    const { total, earned, max } = puzzles.progressSummary();
-    $('[data-puzzle-count]').textContent = total;
-    $('[data-puzzle-progress]').innerHTML = earned ? `${icon('star', 'star is-on')} ${earned} / ${max}` : '';
+    const u = UNITS[unit];
+    const logo = $('.logo-en');
+    logo.textContent = u.en;
+    logo.dataset.text = u.en;
+    $('.logo-ja').textContent = u.ja;
+    $('.tagline').innerHTML = u.tagline;
+    $('#home-grade').textContent = u.grade;
+    $('#modes').dataset.unit = unit;
+    $('#modes').innerHTML = u.modes.map((m, i) => {
+        const prog = m.progress?.progressSummary();
+        const stars = prog?.earned ? `${icon('star', 'star is-on')} ${prog.earned} / ${prog.max}` : '';
+        return `
+            <button type="button" class="mode-card ${m.cls}" data-go="${m.go}">
+                <span class="mode-step">STEP ${i + 1}</span>
+                <span class="mode-icon">${icon(m.icon)}</span>
+                <span class="mode-name">${m.name}</span>
+                <span class="mode-desc">${m.desc.replace('<span data-count></span>', String(prog?.total ?? ''))}</span>
+                <span class="mode-progress">${stars}</span>
+            </button>`;
+    }).join('');
+    const learn = $('#home-learn');
+    learn.dataset.open = u.learn;
+    learn.innerHTML = `${icon('book')}${u.learnLabel}`;
+    $('#home-rules').dataset.open = u.rules;
+    document.documentElement.dataset.unit = unit;
+    // 3D のデモは単元ごと
+    startHero(unit);
+    $('#hero3d').hidden = unit !== 'lever';
+    $('#hero3d-pend').hidden = unit !== 'pendulum';
+}
+
+function setupUnitSwitch() {
+    segmented($('#unit-switch'), {
+        options: [['lever', '6年 てこ', 'lever'], ['pendulum', '5年 ふりこ', 'pendulum']],
+        value: unit,
+        onChange: v => {
+            unit = v;
+            settings.unit = v;
+            saveSettings();
+            refreshHome();
+            const head = $('.home-head');
+            head.classList.remove('is-switching');
+            void head.offsetWidth;
+            head.classList.add('is-switching');
+        },
+    });
 }
 
 /* ---------- イベント ---------- */
@@ -214,7 +359,7 @@ document.addEventListener('click', e => {
     }
     if (e.target.closest('#view-toggle')) {
         play('tap');
-        viewPref = view === views.v3d ? '2d' : '3d';
+        viewPref = view === viewsFor(playUnit).v3d ? '2d' : '3d';
         setViewKind(viewPref);
         return;
     }
@@ -321,9 +466,11 @@ function bindSettings() {
     });
     $('#btn-reset-progress').addEventListener('click', async () => {
         $('#dlg-settings').close();
-        if (await confirm('もんだいの記録（★）をぜんぶ消しますか？', { yes: 'けす', no: 'けさない' })) {
+        if (await confirm('もんだいの記録（★）をぜんぶ消しますか？（てこ・ふりこ両方）', { yes: 'けす', no: 'けさない' })) {
             save('progress', { stars: {} });
+            save('pendProgress', { stars: {} });
             puzzles.reloadProgress();
+            pendPuzzles.reloadProgress();
             refreshHome();
         }
     });
@@ -393,6 +540,7 @@ const readoutObserver = 'ResizeObserver' in window ? new ResizeObserver(([entry]
 readoutObserver?.observe($('#readout'));
 
 bindSettings();
+setupUnitSwitch();
 setupRulesTour();
 setupInstallTip();
 registerServiceWorker();

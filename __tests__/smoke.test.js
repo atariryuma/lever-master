@@ -58,6 +58,10 @@ describe('アプリのロード', () => {
         run('lab', () => {
             click('[data-go="lab"]');
             click('[data-tray="m20"]');
+            leverState = {
+                hidden: window.document.querySelector('#lever').hasAttribute('hidden'),
+                hooks: window.document.querySelectorAll('#lever .hook').length,
+            };
             click('[data-action="back"]');
         });
         run('puzzles', () => {
@@ -76,7 +80,42 @@ describe('アプリのロード', () => {
         });
         // たいせんは BATTLE! の演出（約1.7秒）と TURN の帯（約1秒）のあと最初のターンへ進む。そこまで待つ
         await new Promise(r => setTimeout(r, 4000));
+        battleState = {
+            turn: window.document.querySelector('#players .pchip.is-turn') !== null,
+            sub: window.document.querySelector('#play-sub').textContent,
+        };
+        // ---- ふりこ（5年）----
+        run('pend-lab', () => {
+            click('[data-action="back"]');
+            click('#unit-switch [data-value="pendulum"]');
+            click('[data-go="pend-lab"]');
+            click('#lab-var [data-value="mass"]');
+            click('#dock [data-act="go"]');
+        });
+        pendLab = {
+            logo: window.document.querySelector('.logo-en').textContent,
+            bobs: window.document.querySelectorAll('#pendulum .bob').length,
+            cards: window.document.querySelectorAll('#pend-readout .pside').length,
+        };
+        run('pend-puzzles', () => {
+            click('[data-action="back"]');
+            click('[data-go="pend-puzzles"]');
+            click('.puzzle-card[data-id="1"]');
+            click('#dock [data-choice="a"]');
+            click('#dock [data-act="hint"]');
+            click('[data-action="back"]');
+        });
+        run('pend-battle', () => {
+            click('[data-go="home"]');
+            click('[data-go="pend-setup"]');
+            click('#btn-pend-start');
+            for (let i = 0; i < 3; i++) click('#dlg-rules-pend [data-tour="next"]');
+        });
+        await new Promise(r => setTimeout(r, 4000));
     });
+    let battleState;
+    let pendLab;
+    let leverState;
 
     it('起動・画面移動でエラーが出ない', () => {
         expect(errors).toEqual([]);
@@ -85,14 +124,10 @@ describe('アプリのロード', () => {
     it('WebGL が無いときは 2D 表示になる', () => {
         const doc = window.document;
         expect(doc.documentElement.classList.contains('is-3d')).toBe(false);
-        expect(doc.querySelector('#lever').hasAttribute('hidden')).toBe(false);
-        expect(doc.querySelectorAll('#lever .hook')).toHaveLength(12);
+        expect(leverState.hidden).toBe(false);
+        expect(leverState.hooks).toBe(12);
     });
 
-    it('たいせん画面が開いている', () => {
-        expect(window.document.querySelector('#screen-play').hidden).toBe(false);
-        expect(window.document.querySelectorAll('#players .pchip').length).toBeGreaterThanOrEqual(2);
-    });
 
     it('はじめての対戦では、あそびかたが開き、閉じると始まる', () => {
         expect(tourOpened).toBe(true);
@@ -100,7 +135,20 @@ describe('アプリのロード', () => {
     });
 
     it('たいせんが最初のターンまで進む（演出のあとで止まらない）', () => {
-        expect(window.document.querySelector('#players .pchip.is-turn')).not.toBeNull();
-        expect(window.document.querySelector('#play-sub').textContent).toMatch(/のばん|かんがえ中/);
+        expect(battleState.turn).toBe(true);
+        expect(battleState.sub).toMatch(/のばん|かんがえ中/);
+    });
+
+    it('ふりこ：単元を切りかえるとロゴが変わり、じっけんに 2つのふりこと計測パネルが出る', () => {
+        expect(pendLab.logo).toBe('PENDULUM MASTER');
+        expect(pendLab.bobs).toBe(2);
+        expect(pendLab.cards).toBe(2);
+    });
+
+    it('ふりこ たいせんが最初のターンまで進む', () => {
+        const doc = window.document;
+        expect(doc.querySelector('#screen-play').dataset.unit).toBe('pendulum');
+        expect(doc.querySelectorAll('#players .pchip').length).toBeGreaterThanOrEqual(2);
+        expect(doc.querySelector('#play-sub').textContent).toMatch(/のばん|かんがえ中|にした/);
     });
 });

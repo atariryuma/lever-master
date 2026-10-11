@@ -11,7 +11,7 @@ import {
     POSITIONS, canHang, canHangChain, chainOf, distanceOf, findWeight, isAdjacent, isBalanced, momentOf, moveChain,
     positionLabel,
 } from '../engine/lever.js';
-import { PLAYER_META, SEAT_IDS } from '../players.js';
+import { PLAYER_META } from '../players.js';
 import {
     $, SessionEnded, announce, createSession, escapeHtml, hideBanner, renderReadout, toast,
 } from '../ui.js';
@@ -23,6 +23,7 @@ import { weightIcon } from '../view/weight-art.js';
 import { icon } from '../icons.js';
 import { watchKeep } from '../keep.js';
 import { showRulesTour } from '../rules-tour.js';
+import { normalizeSeats, renderSeats, seatsNote } from '../seats.js';
 
 export const MODE = 'battle';
 
@@ -58,12 +59,7 @@ if (!TIMER_OPTIONS.some(([v]) => v === setup.timer)) setup.timer = SETUP_DEFAULT
 if (!['3', '4', '5'].includes(String(setup.stock))) setup.stock = SETUP_DEFAULT.stock;
 setup.stock = String(setup.stock);
 if (!['on', 'off'].includes(setup.hints)) setup.hints = SETUP_DEFAULT.hints;
-setup.seats = SETUP_DEFAULT.seats.map((def, i) => {
-    const seat = Array.isArray(setup.seats) ? setup.seats[i] : null;
-    const kind = ['human', 'cpu', 'none'].includes(seat?.kind) ? seat.kind : def.kind;
-    const level = Object.hasOwn(CPU_LEVELS, seat?.level) ? seat.level : 'normal';
-    return { kind, level };
-});
+setup.seats = normalizeSeats(setup.seats, SETUP_DEFAULT.seats, CPU_LEVELS);
 let session;
 let config;
 let state;
@@ -73,45 +69,9 @@ let ui;
 
 export function renderSetup(appCtx) {
     app = appCtx;
-    const root = $('#seats');
-    root.innerHTML = SEAT_IDS.map((id, i) => `
-        <div class="seat c-${id}" data-seat="${i}">
-            <div class="seat-head">
-                <span class="seat-chip" aria-hidden="true">${icon(id)}</span>
-                <b>${PLAYER_META[id].name}</b><span class="seat-color">${PLAYER_META[id].color}</span>
-            </div>
-            <div class="seg seat-kind" role="radiogroup" aria-label="${PLAYER_META[id].name} の参加"></div>
-            <div class="seg seg-sm seat-level" role="radiogroup" aria-label="${PLAYER_META[id].name} のCPUのつよさ"></div>
-        </div>`).join('');
-
-    SEAT_IDS.forEach((_id, i) => {
-        const seatEl = root.querySelector(`[data-seat="${i}"]`);
-        const seat = setup.seats[i] ?? { kind: 'none', level: 'normal' };
-        setup.seats[i] = seat;
-        const levelBox = seatEl.querySelector('.seat-level');
-        const syncSeat = () => {
-            levelBox.hidden = seat.kind !== 'cpu';
-            seatEl.classList.toggle('is-off', seat.kind === 'none');
-            validateSetup();
-            save('battleSetup', setup);
-        };
-        segmented(seatEl.querySelector('.seat-kind'), {
-            options: [['human', 'ひと', 'user'], ['cpu', 'CPU', 'robot'], ['none', 'なし']],
-            value: seat.kind,
-            onChange: v => {
-                seat.kind = v;
-                syncSeat();
-            },
-        });
-        segmented(levelBox, {
-            options: Object.entries(CPU_LEVELS).map(([k, v]) => [k, v.label]),
-            value: seat.level ?? 'normal',
-            onChange: v => {
-                seat.level = v;
-                save('battleSetup', setup);
-            },
-        });
-        syncSeat();
+    renderSeats($('#seats'), setup, CPU_LEVELS, () => {
+        validateSetup();
+        save('battleSetup', setup);
     });
 
     segmented($('#opt-stock'), {
@@ -146,13 +106,9 @@ export function renderSetup(appCtx) {
 }
 
 function validateSetup() {
-    const joined = setup.seats.filter(s => s.kind !== 'none');
-    const ok = joined.length >= 2;
+    const { ok, note } = seatsNote(setup.seats);
     $('#btn-start').disabled = !ok;
-    const humans = joined.filter(s => s.kind === 'human').length;
-    $('#setup-note').textContent = !ok
-        ? '2人以上えらんでね'
-        : humans === 0 ? 'CPUどうしの対戦を見るよ' : `${joined.length}人で対戦（ひと ${humans}人）`;
+    $('#setup-note').textContent = note;
 }
 
 /* ======================== プレイ ======================== */

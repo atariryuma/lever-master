@@ -1,10 +1,10 @@
-/* てこマスター Service Worker
+/* てこマスター・ふりこマスター Service Worker
  * - インストール時に全ファイルをキャッシュ（初回からオフラインで遊べる）
  * - ページもファイルもネットワーク優先（新旧が混ざらない）。オフラインのときはキャッシュ
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '2.9.2';
+const VERSION = '3.0.0';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [
@@ -18,6 +18,8 @@ const ASSETS = [
     'src/js/icons.js',
     'src/js/keep.js',
     'src/js/rules-tour.js',
+    'src/js/seats.js',
+    'src/js/ui-pend.js',
     'src/js/audio.js',
     'src/js/storage.js',
     'src/js/players.js',
@@ -25,13 +27,24 @@ const ASSETS = [
     'src/js/engine/battle.js',
     'src/js/engine/ai.js',
     'src/js/engine/puzzles.js',
+    'src/js/engine/physics.js',
+    'src/js/engine/pendulum.js',
+    'src/js/engine/pend-puzzles.js',
+    'src/js/engine/pend-battle.js',
+    'src/js/engine/pend-ai.js',
     'src/js/view/lever-view.js',
     'src/js/view/lever-view-3d.js',
+    'src/js/view/three-utils.js',
+    'src/js/view/pendulum-view.js',
+    'src/js/view/pendulum-view-3d.js',
     'src/vendor/three.js',
     'src/js/view/weight-art.js',
     'src/js/screens/lab.js',
     'src/js/screens/puzzles.js',
     'src/js/screens/battle.js',
+    'src/js/screens/pend-lab.js',
+    'src/js/screens/pend-puzzles.js',
+    'src/js/screens/pend-battle.js',
     'public/manifest.json',
     'public/icons/icon.svg',
     'public/icons/icon-192.png',
