@@ -5,10 +5,11 @@
  *   1. ねらい … 「10往復で 16.0秒」のような目標が出る
  *   2. えらぶ … 順番に、自分のふりこの長さ（10〜100cm、1cmきざみ）を決める。重さ・ふれはばも変えられるが時間には関係ない
  *   3. いっせいに はなす … 全員のふりこが同時にふれ、10往復の時間が目標にどれだけ近いかで点が入る
+ * あとの人は前の人の長さを見てよいが、同じ長さは 1 人だけ（まねをするなら 1cm はずらす）。
  * ラウンドごとに先頭の人が入れかわる。すべてのラウンドが終わったとき、合計点がいちばん大きい人の勝ち。
  */
 
-import { lengthForTen, round1, tenOf, clampLength } from './pendulum.js';
+import { LENGTH_MAX, LENGTH_MIN, lengthForTen, round1, tenOf, clampLength } from './pendulum.js';
 
 const DEFAULT_ROUNDS = 3;
 
@@ -71,9 +72,27 @@ export const currentPlayer = state => (state.phase === 'choose' ? state.players.
 export const playerById = (state, id) => state.players.find(p => p.id === id);
 export const pickOf = (state, id) => state.picks[id] ?? null;
 
+/** このラウンドで、もうだれかがえらんだ長さ */
+export const takenLengths = state => Object.values(state.picks).map(p => p.length);
+
+/** その長さをえらべるか（同じ長さは 1 人だけ） */
+export const canChoose = (state, length) => !takenLengths(state).includes(clampLength(length));
+
+/** えらべない長さなら、いちばん近いえらべる長さにずらす */
+export function nearestFree(state, length) {
+    const want = clampLength(length);
+    for (let d = 0; d <= 100; d++) {
+        for (const cand of [want + d, want - d]) {
+            if (cand >= LENGTH_MIN && cand <= LENGTH_MAX && canChoose(state, cand)) return cand;
+        }
+    }
+    return want;
+}
+
 /** いまの人が長さを決める。全員決まったら「はなす」へ */
 export function choose(state, { length, mass = 10, amplitude = 10 }) {
     if (state.phase !== 'choose') throw new Error('いまはえらぶときではありません');
+    if (!canChoose(state, length)) throw new Error('その長さはもうえらばれています');
     const s = copy(state);
     const p = currentPlayer(s);
     s.picks[p.id] = { length: clampLength(length), mass, amplitude };

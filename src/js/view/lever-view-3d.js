@@ -36,6 +36,7 @@ const STRING = 0.26;
 const GAP = 0.05;
 const FLOOR_Y = -6.3;
 const heightOf = bobHeight;
+const LEVEL_DEG = 0.8; // これより小さい傾きは「水平」
 
 /**
  * うでの回転（Three.js のラジアン）
@@ -461,6 +462,11 @@ export class LeverView3D {
         this.resetGlow();
         // 「ささえ → はなす」に変わったときだけ、落ち着いたあとに結果を光で見せる
         if (wasHeld === true && !held) this.awaitingVerdict = true;
+    }
+
+    /** 手をはなしていて、静まっていて、うでが水平（判定はこれで決める。式ではなく物理の状態） */
+    isLevel() {
+        return this.isCalm() && Math.abs(this.angle) < LEVEL_DEG;
     }
 
     settle() {

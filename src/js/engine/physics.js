@@ -35,7 +35,7 @@ export const LEVER = Object.freeze({
     beamDrop: 1.0, // うで（＋支柱の金具）の重心が支点より下にある深さ
     hookDrop: 0.3, // フックが支点より下にある深さ（3D の HOOK_Y と同じ）
     maxTilt: (12 * Math.PI) / 180, // ストッパー
-    zeta: 0.16, // 減衰比（0.16 で、何回かゆれてから止まる）
+    zeta: 0.28, // 減衰比（2〜3 回ゆれてから、2〜3 秒で止まる。判定を待たせすぎない）
     restitution: 0.22, // ストッパーにぶつかったときのはね返り
 });
 
@@ -115,12 +115,12 @@ export function stepLever(body, loads, dt, { held = false } = {}) {
             if (body.omega < 0) body.omega = -body.omega * LEVER.restitution;
         }
     }
-    // 静まった（つり合いの角度のそばで、ほとんど動いていない）
+    // 静まった（つり合いの角度のそば（約 0.3° 以内）で、ほとんど動いていない（約 0.6°/秒 未満））。
+    // 止めはしない（そのあとも積分を続けるので、つり合いの角度へゆっくり寄っていく）
     const onStopper = Math.abs(Math.abs(body.angle) - LEVER.maxTilt) < 1e-6;
     const acc = leverTorque(loads, body.angle) / I;
-    const calm = Math.abs(body.omega) < 0.004 && (onStopper || Math.abs(acc) < 0.02);
+    const calm = Math.abs(body.omega) < 0.01 && (onStopper || Math.abs(acc) < 0.12);
     body.resting = calm;
-    if (calm) body.omega = 0;
     return !calm;
 }
 

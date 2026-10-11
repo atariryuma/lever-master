@@ -7,6 +7,7 @@ import {
     move, moveDestinations, moveRuleFor, playerById, pointsOf, release, undoHang, undoMove,
 } from '../engine/battle.js';
 import { CPU_LEVELS, planTurn } from '../engine/ai.js';
+import { equilibriumAngle, leverLoads } from '../engine/physics.js';
 import {
     POSITIONS, canHang, canHangChain, chainOf, distanceOf, findWeight, isAdjacent, isBalanced, momentOf, moveChain,
     positionLabel,
@@ -314,8 +315,13 @@ function hangEffects(pos, owner) {
     fx.shake('soft');
 }
 
-/** 判定：ドラムロール → SAFE! / OUT!! */
-/** @param {{ auto?: boolean }} [opts] auto … 水平キープで決まったとき（ドラムロールは短く） */
+/**
+ * 判定（ひとも CPU も同じ手順。式ではなく、物理シミュレーションのうでの状態で決める）
+ *   1. うでが静まるまで待つ（ゆれている最中は決めない）
+ *   2. 静まったとき水平でなければ、その場で OUT
+ *   3. 水平なら「水平キープ」のゲージがたまるのを待って SAFE
+ * @param {{ auto?: boolean }} [opts] auto … ひとの水平キープのゲージで決まったとき（ゲージはもうたまっているので待たない）
+ */
 async function judge({ auto = false } = {}) {
     stopTimer();
     app.view.cancelDrag?.(); // 押したままの指が、次の人の手番で効かないように
@@ -324,13 +330,38 @@ async function judge({ auto = false } = {}) {
     const p = currentPlayer(state);
     render();
     app.view.fx?.('judge');
-    const roll = auto ? 450 : p.kind === 'cpu' ? 700 : 1000;
+    // うでが静まるまで（反動でゆれていれば、そのぶん待つ。長くても 5 秒）
+    if (!app.view.isCalm?.()) {
+        setStatus(`${nameOf(p.id)}：てこが静まるのを待っている…`);
+        await Promise.race([session.wrap(app.view.settle()), session.sleep(5000)]);
+    }
+    // 判定は物理の状態で。万一まだ静まっていなければ、物理のつり合いの角度（静まったときの角度）で決める
+    const level = app.view.isCalm?.()
+        ? app.view.isLevel()
+        : Math.abs(equilibriumAngle(momentOf(state.board), leverLoads(state.board))) < 0.8;
+    if (level && !auto) {
+        // 水平のまま静まっているのを、みんなで見とどける（CPU の番でもゲージを出す）
+        setStatus(`${nameOf(p.id)}：水平キープ…`);
+        await session.wrap(new Promise(resolve => {
+            stopKeep();
+            ui.keep = watchKeep({
+                ms: JUDGE_KEEP_MS * (ui.fast ? 0.4 : 1),
+                label: '水平キープ',
+                isActive: () => app.view.isLevel?.() ?? true,
+                onDone: resolve,
+            });
+        }));
+    }
+    const roll = auto ? 450 : level ? 500 : p.kind === 'cpu' ? 700 : 1000;
     play('drumroll', roll / 1000);
     await session.sleep(roll * (ui.fast ? 0.4 : 1));
-    const result = release(state);
+    const result = release(state, { balanced: level });
     app.view.fx?.('judgeEnd');
     await (result.balanced ? showSafe(result) : showOut(result));
 }
+
+/** 判定のときの水平キープ（ひとのゲージ 2 秒より短く） */
+const JUDGE_KEEP_MS = 1200;
 
 async function showSafe(result) {
     const { left, right } = result.moment;
@@ -468,7 +499,7 @@ function updateDanger() {
         app.view.setDanger?.(0);
         return;
     }
-    const tilted = momentOf(state.board).diff !== 0;
+    const tilted = Math.abs(app.view.angle ?? 0) > 0.8 || momentOf(state.board).diff !== 0;
     const t = ui.timer ? 1 - ui.timer.left / ui.timer.total : 0;
     const level = Math.max(tilted && !ui.busy ? 0.55 : 0, ui.timer && ui.timer.left < 10000 ? 0.3 + t * 0.7 : 0);
     fx.setDanger(level);
@@ -725,7 +756,7 @@ function startKeep() {
         label: '水平キープ',
         // 自分で何かしたあと（つるした・動かした）、つり合ったまま静まっていて、さわっていないとき
         isActive: () => isHumanTurn() && state.phase === 'move' && Boolean(state.hung || state.moved)
-            && !ui.selected && !app.view.drag && !app.view.press && isBalanced(state.board) && app.view.isCalm?.() === true,
+            && !ui.selected && !app.view.drag && !app.view.press && (app.view.isLevel?.() ?? isBalanced(state.board)),
         onDone: () => run(() => judge({ auto: true })),
     });
 }

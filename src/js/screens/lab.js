@@ -50,8 +50,9 @@ function startCelebrateWatch() {
             // 形が変わったら、またお祝いできるように
             if (state.celebratedKey && boardKey() !== state.celebratedKey) state.celebratedKey = null;
             const m = momentOf(state.board);
-            return m.diff === 0 && m.left > 0 && boardKey() !== state.celebratedKey
-                && !app.view.drag && app.view.isCalm?.() === true;
+            // 「つり合った」は物理の状態で（静まって水平）。おもりが何もないときは祝わない
+            return m.left > 0 && boardKey() !== state.celebratedKey && !app.view.drag
+                && (app.view.isLevel?.() ?? (m.diff === 0 && app.view.isCalm?.() === true));
         },
         onDone: () => {
             state.celebratedKey = boardKey();
