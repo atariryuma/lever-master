@@ -1,5 +1,5 @@
 ---
-description: GitHub PagesへLEVER MASTERをデプロイ
+description: GitHub Pagesへりかラボ（lever-master）をデプロイ
 ---
 
 # GitHub Pages デプロイワークフロー

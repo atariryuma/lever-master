@@ -1,7 +1,7 @@
 {
-    "name": "てこマスター – LEVER MASTER",
-    "short_name": "てこマスター",
-    "description": "きょり × 重さ で、てこをつり合わせよう。小学6年 理科「てこのはたらき」の教材ゲーム",
+    "name": "りかラボ – RIKA LAB",
+    "short_name": "りかラボ",
+    "description": "てこ（小6）とふりこ（小5）を、実験・もんだい・たいせんで遊びながら学ぶ理科の教材ゲーム",
     "lang": "ja",
     "start_url": "../",
     "scope": "../",
@@ -9,11 +9,33 @@
     "orientation": "any",
     "background_color": "#070b18",
     "theme_color": "#070b18",
-    "categories": ["education", "games"],
+    "categories": [
+        "education",
+        "games"
+    ],
     "icons": [
-        { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-        { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
     ]
 }
