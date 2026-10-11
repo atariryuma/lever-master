@@ -180,13 +180,15 @@ const canRelease = state => state.phase === 'move';
 
 /**
  * 手をはなして判定する
+ * @param {{ balanced?: boolean }} [opts] balanced … 画面の物理シミュレーションで「静まって水平」だったか。
+ *   省略すると式の差（diff）で決める。物理ではつり合えば水平、差があれば必ずかたむくので同じ結果になる
  * @returns {{ state: object, balanced: boolean, playerId: string, moment: {left:number,right:number,diff:number} }}
  */
-export function release(state) {
+export function release(state, { balanced: measured } = {}) {
     if (!canRelease(state)) throw new Error('まずおもりをつるそう');
     const player = currentPlayer(state);
     const moment = momentOf(state.board);
-    const balanced = moment.diff === 0;
+    const balanced = measured ?? moment.diff === 0;
     const s = balanced ? copy(state) : knockOut(state);
     return { state: advance(s), balanced, playerId: player.id, moment };
 }

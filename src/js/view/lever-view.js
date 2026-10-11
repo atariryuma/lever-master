@@ -22,6 +22,7 @@ const BEAM_HALF = 462;
 const ATTACH_Y = PY + 22; // フックの下端（うでのローカル座標）
 const STRING = 16;
 const GAP = 2;
+const LEVEL_DEG = 0.8; // これより小さい傾きは「水平」（つり合いなら 0°、差が 10 でも 2.7° 以上かたむく）
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 const el = (tag, attrs = {}, parent) => {
@@ -382,6 +383,11 @@ export class LeverView {
         return Boolean(this.board) && this.held === false && leverIsCalm(this.body);
     }
 
+    /** 手をはなしていて、静まっていて、うでが水平（判定はこれで決める。式ではなく物理の状態） */
+    isLevel() {
+        return this.isCalm() && Math.abs(this.angle) < LEVEL_DEG;
+    }
+
     /** 傾きが落ち着くまで待つ */
     settle() {
         return new Promise(resolve => this.settleResolvers.push(resolve));
@@ -402,12 +408,12 @@ export class LeverView {
             return;
         }
         const moving = stepLever(this.body, leverLoads(this.board), reduceMotion() ? 2 : dt, { held: this.held !== false });
-        if (moving) {
+        // 静まったあとも、つり合いの角度へゆっくり寄るぶんは描く
+        if (moving || Math.abs(this.body.angle - (this.placedAngle ?? 0)) > 1e-4) {
+            this.placedAngle = this.body.angle;
             this.place();
-        } else if (this.settleResolvers.length) {
-            this.place();
-            this.settleResolvers.splice(0).forEach(r => r());
         }
+        if (!moving && this.settleResolvers.length) this.settleResolvers.splice(0).forEach(r => r());
     }
 
     attachPoint(pos) {

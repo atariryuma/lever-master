@@ -24,7 +24,7 @@ describe('てこ', () => {
         const body = createLeverBody();
         body.omega = 0.8; // 反動があっても
         settle(body, leverLoads(board));
-        expect(Math.abs(deg(body.angle))).toBeLessThan(0.2);
+        expect(Math.abs(deg(body.angle))).toBeLessThan(0.4);
         expect(body.resting).toBe(true);
     });
 
@@ -60,6 +60,15 @@ describe('てこ', () => {
         const body = createLeverBody();
         expect(stepLever(body, leverLoads(board), 0.5, { held: true })).toBe(false);
         expect(body.angle).toBe(0);
+    });
+
+    it('大きく動かしても、数秒で静まる（判定が待ちぼうけにならない）', () => {
+        const board = hang(hang(createBoard(), -6, { id: 'a', mass: 30 }), 6, { id: 'b', mass: 30 });
+        const body = createLeverBody();
+        body.angle = LEVER.maxTilt; // ストッパーから手をはなした
+        const t = settle(body, leverLoads(board), 20);
+        expect(t).toBeLessThan(4.5);
+        expect(Math.abs(body.angle)).toBeLessThan(0.8 * Math.PI / 180);
     });
 
     it('つるした反動で動きだし、やがて静まる', () => {

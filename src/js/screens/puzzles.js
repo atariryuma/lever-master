@@ -375,7 +375,8 @@ async function releaseHands() {
     // 大きく動かしたほど、反動でゆれてから静まる。つり合っていれば、水平のまま少しキープして成功
     await Promise.all([session.wrap(app.view.settle()), session.sleep(700)]);
 
-    if (isBalanced(state.board)) {
+    // 判定は物理の状態で（静まって水平か）。つり合っていれば 0°、差があれば必ずかたむく
+    if (app.view.isLevel?.() ?? isBalanced(state.board)) {
         await session.wrap(keepLevel(900));
         await showClear();
         return;

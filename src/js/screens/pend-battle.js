@@ -7,7 +7,7 @@
  */
 
 import {
-    choose, createMatch, currentPlayer, nextRound, playerById, resolveRound, targetLabel,
+    canChoose, choose, createMatch, currentPlayer, nearestFree, nextRound, playerById, resolveRound, takenLengths, targetLabel,
 } from '../engine/pend-battle.js';
 import { CPU_LEVELS, planPick } from '../engine/pend-ai.js';
 import { COUNT, LENGTHS, LENGTH_MAX, LENGTH_MIN, clampLength, createPendulum, cycleTimeOf, round1, tenOf } from '../engine/pendulum.js';
@@ -254,8 +254,17 @@ function applyPick() {
     Object.assign(pendOf(p.id), { length: ui.pick.length, mass: ui.pick.mass, amplitude: ui.pick.amplitude, phase: 'held' });
 }
 
-/** えらんだ長さで決める */
+/** えらんだ長さで決める（同じ長さはえらべないので、時間切れなどで重なっていればずらす） */
 function decide() {
+    if (!canChoose(state, ui.pick.length)) {
+        if (isHumanTurn() && ui.timer) {
+            ui.pick.length = nearestFree(state, ui.pick.length);
+        } else {
+            toast(`${takenBy(ui.pick.length)} と同じ長さはえらべないよ（1cm ずらそう）`, 'warn');
+            play('error');
+            return;
+        }
+    }
     stopTimer();
     const p = currentPlayer(state);
     applyPick();
@@ -420,20 +429,29 @@ function onDockClick(e) {
     }
     if (!isHumanTurn()) return;
     if (act === 'dec' || act === 'inc') {
-        setLength(ui.pick.length + (act === 'inc' ? 1 : -1));
+        const dir = act === 'inc' ? 1 : -1;
+        setLength(ui.pick.length + dir, dir);
     } else if (act === 'decide') {
         play('tap');
         decide();
     }
 }
 
-function setLength(len) {
-    const next = clampLength(len);
+function setLength(len, dir = 0) {
+    let next = clampLength(len);
+    // ＋／− のボタンでは、もうえらばれている長さはとばす
+    if (dir && !canChoose(state, next)) next = clampLength(next + dir);
     if (next === ui.pick.length) return;
     ui.pick.length = next;
     applyPick();
     play('tick');
     render({ light: true });
+}
+
+/** その長さをえらんだ人の名前 */
+function takenBy(length) {
+    const id = Object.keys(state.picks).find(k => state.picks[k].length === length);
+    return id ? nameOf(id) : '';
 }
 
 /* ---------- 描画 ---------- */
@@ -454,10 +472,23 @@ function render({ light = false } = {}) {
         if (out) out.textContent = String(ui.pick.length);
         const range = document.querySelector('#dock #len-range');
         if (range && Number(range.value) !== ui.pick.length) range.value = String(ui.pick.length);
+        syncTaken();
         return;
     }
     renderPlayers();
     renderDock();
+}
+
+/** えらぼうとしている長さが、もうだれかのものなら「けってい」を止めて知らせる */
+function syncTaken() {
+    const dock = $('#dock');
+    const note = dock.querySelector('.length-taken');
+    const decide = dock.querySelector('[data-act="decide"]');
+    if (!note || !decide) return;
+    const taken = !canChoose(state, ui.pick.length);
+    note.hidden = !taken;
+    if (taken) note.textContent = `${takenBy(ui.pick.length)} と同じ長さ。1cm ずらそう`;
+    decide.disabled = taken;
 }
 
 function renderPlayers() {
@@ -487,9 +518,17 @@ function renderDock() {
     }
 }
 
+/** 長さと時間の手がかり：ヒントの表（設定で）と、これまでのラウンドで実測した結果（全員ぶん） */
 function hintTable() {
-    if (config.hints !== 'on') return '';
-    return `<div class="hint-table" aria-label="長さと10往復の時間の表">${LENGTHS.map(L => `<span><b>${L}</b>cm → ${round1(tenOf(L)).toFixed(1)}秒</span>`).join('')}</div>`;
+    const seen = new Map();
+    if (config.hints === 'on') for (const L of LENGTHS) seen.set(L, { time: tenOf(L), kind: 'table' });
+    for (const h of state.history) for (const r of h.results) seen.set(r.length, { time: r.time, kind: 'measured', who: r.playerId });
+    if (!seen.size) return '';
+    const chips = [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([L, v]) => `
+        <span class="${v.kind === 'measured' ? `is-measured c-${v.who}` : ''}" title="${v.kind === 'measured' ? `ラウンドで ${PLAYER_META[v.who].name} が実測` : 'ヒントの表'}">
+            <b>${L}</b>cm → ${round1(v.time).toFixed(1)}秒</span>`).join('');
+    const label = config.hints === 'on' ? (state.history.length ? '表と、これまでの実測' : '長さと10往復の時間の表') : 'これまでの実測';
+    return `<div class="hint-table" aria-label="${label}">${chips}</div>`;
 }
 
 function fillDock(dock) {
@@ -533,6 +572,7 @@ function fillDock(dock) {
             <input type="range" id="len-range" min="${LENGTH_MIN}" max="${LENGTH_MAX}" step="1" value="${ui.pick.length}" aria-label="ふりこの長さ（cm）">
             <button type="button" class="icon-btn" data-act="inc" aria-label="1cm ながく">＋</button>
             <output class="length-out" for="len-range"><b>${ui.pick.length}</b>cm</output>
+            <span class="length-taken" role="status" hidden></span>
         </div>
         <div class="decoys">
             <div class="seg seg-sm" id="pick-mass" role="radiogroup" aria-label="おもりの重さ"></div>
@@ -542,6 +582,14 @@ function fillDock(dock) {
             <button type="button" class="btn btn-primary btn-judge" data-act="decide">${icon('check')}けってい</button>
         </div>`;
     dock.querySelector('#len-range').addEventListener('input', e => setLength(Number(e.target.value)));
+    // もうえらばれている長さを、つまみの下に目印で
+    const taken = takenLengths(state);
+    if (taken.length) {
+        const range = dock.querySelector('#len-range');
+        range.setAttribute('list', 'len-taken');
+        range.insertAdjacentHTML('afterend', `<datalist id="len-taken">${taken.map(L => `<option value="${L}"></option>`).join('')}</datalist>`);
+    }
+    syncTaken();
     segmented(dock.querySelector('#pick-mass'), {
         options: [['10', '10g'], ['20', '20g'], ['30', '30g']],
         value: String(ui.pick.mass),
