@@ -41,7 +41,9 @@ export function angleOf(p) {
 export function countLabel(p) {
     const n = p.swing?.cycles ?? 0;
     if (!(p.phase === 'swinging' || (p.phase === 'stopped' && n))) return '';
-    return n >= COUNT ? `${COUNT}往復 ✓` : `${n}往復`;
+    if (n < COUNT) return `${n}往復`;
+    const t = p.swing.cycleTimes[COUNT - 1];
+    return t !== undefined ? `${COUNT}往復 ${t.toFixed(1)}秒` : `${COUNT}往復 ✓`;
 }
 
 export function pendulumAria(p) {

@@ -220,8 +220,9 @@ export class PendulumView3D {
         }));
         ring.position.set(0, 0.62, 0.15);
         g.add(ring);
-        const count = textSprite('', { color: '#eaf0ff', font: '900 54px Orbitron, sans-serif', size: 256 }, 1.3);
-        count.position.set(0.9, -0.4, 0.2);
+        // 「10往復 18.2秒」まで入るように、横に広いテクスチャ
+        const count = textSprite('', { color: '#eaf0ff', font: '900 52px Orbitron, "BIZ UDPGothic", sans-serif', size: 512 }, 2.6);
+        count.position.set(1.1, -0.4, 0.2);
         g.add(count);
         const lenText = textSprite(`${p.length}cm`, {
             color: '#dce6ff', font: '900 50px Orbitron, sans-serif', size: 256, glow: 'rgba(120,180,255,0.6)',

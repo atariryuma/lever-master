@@ -7,13 +7,16 @@
  */
 
 import {
-    canChoose, choose, createMatch, currentPlayer, nearestFree, nextRound, playerById, resolveRound, takenLengths, targetLabel,
+    canChoose, choose, createMatch, currentPlayer, gradeFor, nearestFree, nextRound, playerById, resolveRound, takenLengths,
+    targetLabel,
 } from '../engine/pend-battle.js';
 import { CPU_LEVELS, planPick } from '../engine/pend-ai.js';
-import { COUNT, LENGTHS, LENGTH_MAX, LENGTH_MIN, clampLength, createPendulum, cycleTimeOf, round1, tenOf } from '../engine/pendulum.js';
+import {
+    COUNT, LENGTHS, LENGTH_MAX, LENGTH_MIN, clampLength, createPendulum, cycleTimeOf, elapsedOf, round1, tenOf,
+} from '../engine/pendulum.js';
 import { createSwing } from '../engine/physics.js';
 import { PLAYER_META } from '../players.js';
-import { $, SessionEnded, announce, banner, createSession, escapeHtml, hideBanner, toast } from '../ui.js';
+import { $, SessionEnded, announce, createSession, escapeHtml, hideBanner, toast } from '../ui.js';
 import { renderPendReadout, updatePendReadout } from '../ui-pend.js';
 import { play, setBgm } from '../audio.js';
 import * as fx from '../fx.js';
@@ -145,6 +148,7 @@ export function enter(appCtx, params) {
 
 export function leave() {
     stopTimer();
+    hideStopwatch();
     session?.end();
     hideBanner();
     fx.setDanger(0);
@@ -213,7 +217,7 @@ async function startTurn() {
     const p = currentPlayer(state);
     ui.busy = true;
     ui.intro = true;
-    ui.pick = { length: 50, mass: 10, amplitude: 10 };
+    ui.pick = { length: nearestFree(state, 50), mass: 10, amplitude: 10 };
     ui.fast = false;
     render();
     play('turn', p.seat);
@@ -228,6 +232,10 @@ async function startTurn() {
     setStatus(`${nameOf(p.id)}のばん：${targetLabel(state.target)} になる長さは？`);
     render();
     startTimer();
+    if (!ui.coached) {
+        ui.coached = true;
+        toast('ねらいの時間になる長さを予想して、つまみで決めよう');
+    }
 }
 
 /** CPU：目標のあたりへ、つまみを行ったり来たりさせながら決める */
@@ -288,9 +296,13 @@ async function resolve() {
     ui.times = {};
     ui.doneCount = 0;
     render();
+    setStatus(`全員きまった！ ねらいは ${targetLabel(state.target)}。3、2、1 で いっせいに はなす`);
+    // 3・2・1 のカウントダウン（全員の手がおもりにかかっている時間）
+    for (const n of [3, 2, 1]) {
+        play('tick');
+        await session.wrap(fx.slam(String(n), { tone: 'ok', ms: 700 }));
+    }
     play('go');
-    setStatus('いっせいに はなす！');
-    await session.wrap(fx.turnSweep('はなす！', `ねらい：${targetLabel(state.target)}`, 'c-exp'));
     for (const p of ui.pendulums.values()) {
         p.phase = 'swinging';
         p.swing = createSwing(p);
@@ -298,19 +310,28 @@ async function resolve() {
     play('release');
     app.view.fx?.('release');
     ui.intro = false;
+    ui.watch = { shown: true, passed: false };
     render();
+    fx.slam('GO!', { tone: 'ok', ms: 700 });
     await session.wrap(new Promise(resolveDone => {
         ui.onAllDone = resolveDone;
     }));
     await session.sleep(900);
+    app.view.timeScale = 1;
     state = resolveRound(state, ui.times);
+    hideStopwatch();
+    render();
     const results = state.history.at(-1).results;
     const best = [...results].sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))[0];
-    render();
-    setStatus(`ラウンド ${state.history.length} おわり。いちばん近かったのは ${nameOf(best.playerId)}（${best.grade}）`);
-    await session.wrap(banner(`ROUND ${state.history.length} おわり`, {
-        tone: 'info', sub: `いちばん近かったのは ${nameOf(best.playerId)}：${best.grade} +${best.points}`, duration: 1800,
+    setStatus(`ラウンド ${state.history.length} おわり。いちばん近かったのは ${nameOf(best.playerId)}（${best.grade} +${best.points}）`);
+    play(best.grade === 'PERFECT' ? 'just' : 'points');
+    // ラウンドの結果表（下の操作エリア）。「つぎへ」を押すか、少し待つと進む
+    await session.wrap(new Promise(resolveNext => {
+        ui.onNext = resolveNext;
+        render();
+        session.sleep(state.phase === 'over' ? 2600 : 7000).then(resolveNext, () => {});
     }));
+    ui.onNext = null;
     if (state.phase === 'over') {
         await showResult();
         return;
@@ -319,19 +340,48 @@ async function resolve() {
     await startRound();
 }
 
+/* ---------- ストップウォッチ（全員同時にはなすので、時計は 1 つ） ---------- */
+
+function updateStopwatch() {
+    const el = $('#stopwatch');
+    if (!ui.watch?.shown) return;
+    const first = ordered()[0];
+    const t = elapsedOf(first);
+    el.hidden = false;
+    el.querySelector('.sw-time').textContent = t.toFixed(1);
+    el.style.setProperty('--p', String(Math.min(1, t / (state.target.ten * 1.25))));
+    const target = state.target.ten;
+    if (!ui.watch.passed && t >= target) {
+        // ねらいの時刻：ここで 10往復していれば ぴったり
+        ui.watch.passed = true;
+        el.classList.add('is-just');
+        play('tickUrgent');
+        fx.flash('white');
+        setTimeout(() => el.classList.remove('is-just'), 900);
+    }
+    el.classList.toggle('is-near', !ui.watch.passed && target - t < 2);
+}
+
+function hideStopwatch() {
+    if (ui.watch) ui.watch.shown = false;
+    const el = $('#stopwatch');
+    el.hidden = true;
+    el.classList.remove('is-just', 'is-near');
+}
+
 function onCycle(p, n) {
     if (state.phase !== 'resolve' || !ui.onAllDone) return;
-    if (n < COUNT) return;
+    if (n !== COUNT) return; // ちょうど 10往復した瞬間だけ（11往復目からは数えない）
     // 10往復：目標との差で評価
     const t = cycleTimeOf(p, COUNT);
     ui.times[p.id] = t;
-    const diff = round1(t - state.target.ten);
-    const grade = gradeOf(diff);
+    const diff = t - state.target.ten;
+    const grade = gradeFor(diff).grade; // 評価はエンジンと同じ（実測の時間から）
     ui.grades[p.id] = grade;
     play(grade === 'PERFECT' ? 'just' : 'points');
     app.view.fx?.(grade === 'PERFECT' ? 'first' : 'done', { id: p.id, color: cssVar(`--${p.id}`) });
     const chip = document.querySelector(`#players .pchip.c-${p.id}`)?.getBoundingClientRect();
-    if (chip) fx.popup(`${grade} ${diff > 0 ? '+' : ''}${diff.toFixed(1)}秒`, chip.left + chip.width / 2, chip.bottom + 10, grade === 'PERFECT' ? 'ok' : 'combo');
+    if (chip) fx.popup(`${grade} ${diff > 0 ? '+' : ''}${round1(diff).toFixed(1)}秒`, chip.left + chip.width / 2, chip.bottom + 10, grade === 'PERFECT' ? 'ok' : 'combo');
     render();
     ui.doneCount += 1;
     if (ui.doneCount >= state.order.length) {
@@ -341,14 +391,11 @@ function onCycle(p, n) {
     }
 }
 
-/** 画面用の評価（engine と同じしきい値） */
-function gradeOf(diff) {
-    const d = Math.abs(diff);
-    return d <= 0.1 ? 'PERFECT' : d <= 0.3 ? 'GREAT' : d <= 0.6 ? 'GOOD' : d <= 1.0 ? 'OK' : 'MISS';
-}
-
 function onFrame() {
-    if (state.phase === 'resolve' && ui.onAllDone) updatePendReadout($('#pend-readout'), ordered());
+    if (state.phase === 'resolve' && ui.onAllDone) {
+        updatePendReadout($('#pend-readout'), ordered());
+        updateStopwatch();
+    }
 }
 
 function onBobTap(id) {
@@ -365,6 +412,7 @@ function startTimer() {
     const startedAt = performance.now();
     let lastSecond = Math.ceil(total / 1000);
     let lastTick = startedAt;
+    let lastBeat = 0;
     let paused = 0;
     ui.timer = { total, left: total };
     ui.timer.id = setInterval(() => {
@@ -379,6 +427,13 @@ function startTimer() {
             lastSecond = sec;
             if (sec <= 5 && sec > 0) play('tickUrgent');
             else if (sec <= 10) play('tick');
+        }
+        // 心音：残りが少ないほど速く
+        const elapsed = t - startedAt - paused;
+        const beatGap = left < 5000 ? 450 : left < 10000 ? 750 : 0;
+        if (beatGap && elapsed - lastBeat > beatGap) {
+            lastBeat = elapsed;
+            play('heartbeat');
         }
         updateTimerView();
         fx.setDanger(left < 10000 ? 0.3 + (1 - left / total) * 0.7 : 0);
@@ -418,6 +473,11 @@ function onDockClick(e) {
         if (act === 'home') app.go('home');
         else if (act === 'again') app.go('pend-battle', { config });
         else if (!$('#dlg-result').open) $('#dlg-result').showModal();
+        return;
+    }
+    if (act === 'next' && ui.onNext) {
+        play('tap');
+        ui.onNext();
         return;
     }
     if (act === 'fast') {
@@ -466,13 +526,17 @@ function render({ light = false } = {}) {
     }
     app.view.render({ pendulums: items, interactive: isHumanTurn(), selectedId: turnId, highlight });
     renderPendReadout($('#pend-readout'), items, { grades: ui.grades, hidden: state.phase === 'choose', verdict: false });
-    $('#stage-note').innerHTML = state.phase === 'choose' ? `${icon('target')}ねらい：${escapeHtml(targetLabel(state.target))}` : '';
+    $('#stage-note').innerHTML = state.phase === 'choose'
+        ? (isHumanTurn() ? `${icon('target')}ねらい：${escapeHtml(targetLabel(state.target))} ─ 下のつまみで長さを決めて「けってい」` : `${icon('target')}ねらい：${escapeHtml(targetLabel(state.target))}`)
+        : '';
     if (light) {
         const out = document.querySelector('#dock .length-out b');
         if (out) out.textContent = String(ui.pick.length);
         const range = document.querySelector('#dock #len-range');
         if (range && Number(range.value) !== ui.pick.length) range.value = String(ui.pick.length);
         syncTaken();
+        const chart = document.querySelector('#dock .aim-chart');
+        if (chart) chart.outerHTML = aimChart();
         return;
     }
     renderPlayers();
@@ -496,7 +560,10 @@ function renderPlayers() {
     $('#players').innerHTML = state.order.map(id => {
         const p = playerById(state, id);
         const sub = p.kind === 'cpu' ? `CPU・${CPU_LEVELS[p.level]?.label ?? ''}` : (humanCount() === 1 ? 'あなた' : 'ひと');
-        const grade = ui.grades[id] ? `<span class="pchip-grade is-${ui.grades[id].toLowerCase()}">${ui.grades[id]}</span>` : '';
+        // ラウンドごとの評価（いまのラウンドは大きく）
+        const past = state.history.map(h => h.results.find(r => r.playerId === id)?.grade).filter(Boolean);
+        const dots = past.map((g, i) => `<i class="pchip-dot is-${g.toLowerCase()}" title="ラウンド${i + 1} ${g}"></i>`).join('');
+        const grade = ui.grades[id] ? `<span class="pchip-grade is-${ui.grades[id].toLowerCase()}">${ui.grades[id]}</span>` : (dots ? `<span class="pchip-dots" aria-hidden="true">${dots}</span>` : '');
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}" role="group"
                 aria-label="${PLAYER_META[id].name} ${sub}、${p.total}ポイント${id === turnId ? '、いまのばん' : ''}">
@@ -518,17 +585,83 @@ function renderDock() {
     }
 }
 
-/** 長さと時間の手がかり：ヒントの表（設定で）と、これまでのラウンドで実測した結果（全員ぶん） */
-function hintTable() {
-    const seen = new Map();
-    if (config.hints === 'on') for (const L of LENGTHS) seen.set(L, { time: tenOf(L), kind: 'table' });
-    for (const h of state.history) for (const r of h.results) seen.set(r.length, { time: r.time, kind: 'measured', who: r.playerId });
-    if (!seen.size) return '';
-    const chips = [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([L, v]) => `
-        <span class="${v.kind === 'measured' ? `is-measured c-${v.who}` : ''}" title="${v.kind === 'measured' ? `ラウンドで ${PLAYER_META[v.who].name} が実測` : 'ヒントの表'}">
-            <b>${L}</b>cm → ${round1(v.time).toFixed(1)}秒</span>`).join('');
-    const label = config.hints === 'on' ? (state.history.length ? '表と、これまでの実測' : '長さと10往復の時間の表') : 'これまでの実測';
-    return `<div class="hint-table" aria-label="${label}">${chips}</div>`;
+/** 手がかりの点：ヒントの表（設定で）と、これまでのラウンドで全員が実測した結果 */
+function knownPoints() {
+    const pts = [];
+    if (config.hints === 'on') for (const L of LENGTHS) pts.push({ length: L, time: tenOf(L), kind: 'table' });
+    state.history.forEach((h, i) => {
+        for (const r of h.results) pts.push({ length: r.length, time: r.time, kind: 'measured', who: r.playerId, round: i + 1 });
+    });
+    return pts;
+}
+
+/**
+ * 長さ → 10往復の時間 のグラフ（糸口）。
+ * 横じく＝長さ、たてじく＝時間。わかっている点（表・実測）と、ねらいの時間の横線、いまえらんでいる長さのたて線。
+ * 点をつないでいいかは言わない：ねらいの線と点のならびから「何cm か」を読み取るのが遊び
+ */
+function aimChart() {
+    const pts = knownPoints();
+    if (!pts.length) return '<div class="aim-chart aim-chart-empty">手がかりはまだない。ラウンドがすすむと、はかった結果がここに出る</div>';
+    const W = 320;
+    const H = 132;
+    const L0 = 38; // 左の余白（時間の数字）
+    const R0 = 10;
+    const T0 = 10;
+    const B0 = 24; // 下の余白（長さの数字）
+    const x = L => L0 + ((L - LENGTH_MIN) / (LENGTH_MAX - LENGTH_MIN)) * (W - L0 - R0);
+    const tMin = 8;
+    const tMax = 22;
+    const y = t => T0 + (1 - (t - tMin) / (tMax - tMin)) * (H - T0 - B0);
+    const target = state.target.ten;
+    const cur = ui.pick.length;
+    const grid = [10, 15, 20].map(t => `<line class="ac-grid" x1="${L0}" x2="${W - R0}" y1="${y(t)}" y2="${y(t)}"/><text class="ac-ylab" x="${L0 - 4}" y="${y(t) + 4}">${t}秒</text>`).join('');
+    const xlab = [10, 25, 50, 75, 100].map(L => `<text class="ac-xlab" x="${x(L)}" y="${H - 8}">${L}${L === 10 ? 'cm' : ''}</text>`).join('');
+    const dots = pts.map(pt => (pt.kind === 'table'
+        ? `<circle class="ac-dot ac-table" cx="${x(pt.length)}" cy="${y(pt.time)}" r="4.5"/>`
+        : `<g class="ac-measured c-${pt.who}"><circle cx="${x(pt.length)}" cy="${y(pt.time)}" r="5"/><text x="${x(pt.length)}" y="${y(pt.time) - 8}">R${pt.round}</text></g>`)).join('');
+    return `
+        <svg class="aim-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="長さと10往復の時間のグラフ。ねらい ${target.toFixed(1)}秒、いまの長さ ${cur}cm">
+            ${grid}
+            <line class="ac-axis" x1="${L0}" x2="${W - R0}" y1="${H - B0}" y2="${H - B0}"/>
+            ${xlab}
+            <line class="ac-target" x1="${L0}" x2="${W - R0}" y1="${y(target)}" y2="${y(target)}"/>
+            <text class="ac-target-lab" x="${W - R0 - 2}" y="${y(target) - 4}">ねらい ${target.toFixed(1)}秒</text>
+            <line class="ac-cur" x1="${x(cur)}" x2="${x(cur)}" y1="${T0}" y2="${H - B0}"/>
+            <text class="ac-cur-lab" x="${x(cur)}" y="${T0 + 1}">${cur}cm</text>
+            ${dots}
+        </svg>`;
+}
+
+/** いまどのステップか（0: ねらい、1: 長さ、2: けってい） */
+function turnSteps(now) {
+    const names = ['ねらいを見る', '長さを決める', 'けってい'];
+    return `<ol class="turn-steps" aria-label="いまのステップ：${names[now]}">${names.map((n, i) =>
+        `<li class="${i < now ? 'is-done' : i === now ? 'is-now' : ''}">${i + 1} ${n}</li>`).join('')}</ol>`;
+}
+
+/** ラウンドの結果表（近い順） */
+function roundResultPanel() {
+    const h = state.history.at(-1);
+    const rows = [...h.results].sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff));
+    const last = state.phase === 'over';
+    return `
+        <div class="round-result">
+            <div class="round-result-head"><b>ROUND ${h.round} の結果</b><span>ねらい ${escapeHtml(targetLabel(h.target))}</span></div>
+            <table class="round-table">
+                <tbody>${rows.map((r, i) => `
+                    <tr class="c-${r.playerId}">
+                        <td class="rr-rank">${i + 1}</td>
+                        <td class="rr-name"><span class="rank-chip" aria-hidden="true">${icon(r.playerId)}</span>${escapeHtml(nameOf(r.playerId))}</td>
+                        <td class="rr-len">${r.length}cm</td>
+                        <td class="rr-time">${round1(r.time).toFixed(1)}秒 <small>${r.diff > 0 ? '+' : ''}${round1(r.diff).toFixed(1)}</small></td>
+                        <td class="rr-grade"><span class="pgrade is-${r.grade.toLowerCase()}">${r.grade}</span></td>
+                        <td class="rr-pts">+${r.points}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <div class="dock-actions"><button type="button" class="btn btn-primary" data-act="next">${last ? 'けっかを見る' : `つぎのラウンドへ${icon('next')}`}</button></div>
+        </div>`;
 }
 
 function fillDock(dock) {
@@ -540,6 +673,11 @@ function fillDock(dock) {
                 <button type="button" class="btn" data-act="again">${icon('reset')}もういちど</button>
                 <button type="button" class="btn btn-primary" data-act="result">${icon('trophy')}けっかを見る</button>
             </div>`;
+        return;
+    }
+    if (ui.onNext && state.history.length) {
+        dock.innerHTML = roundResultPanel();
+        dock.querySelector('[data-act="next"]')?.focus({ preventScroll: true });
         return;
     }
     if (state.phase === 'resolve' || state.phase === 'between') {
@@ -566,13 +704,17 @@ function fillDock(dock) {
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';
     dock.innerHTML = `
-        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b><p>${icon('target')}ねらい：${escapeHtml(targetLabel(state.target))}</p>${hintTable()}</div></div>
+        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${escapeHtml(nameOf(p.id))}のばん</b>${turnSteps(1)}<p>ちょうどになる長さは？ つまみで決めて「けってい」</p></div></div>
+        <div class="aim">
+            <div class="aim-target"><small>${icon('target')}ねらい</small><b>${escapeHtml(targetLabel(state.target))}</b></div>
+            ${aimChart()}
+        </div>
         <div class="length-ctl" role="group" aria-label="ふりこの長さ">
             <button type="button" class="icon-btn" data-act="dec" aria-label="1cm みじかく">−</button>
             <input type="range" id="len-range" min="${LENGTH_MIN}" max="${LENGTH_MAX}" step="1" value="${ui.pick.length}" aria-label="ふりこの長さ（cm）">
             <button type="button" class="icon-btn" data-act="inc" aria-label="1cm ながく">＋</button>
             <output class="length-out" for="len-range"><b>${ui.pick.length}</b>cm</output>
-            <span class="length-taken" role="status" hidden></span>
+            <p class="length-taken" role="status" hidden></p>
         </div>
         <div class="decoys">
             <div class="seg seg-sm" id="pick-mass" role="radiogroup" aria-label="おもりの重さ"></div>

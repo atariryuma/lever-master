@@ -1911,20 +1911,93 @@ h1, h2, h3, p { margin: 0; }
 .mission .pill { margin-left: 6px; vertical-align: middle; }
 
 /* たいせん：長さのつまみ */
-.length-ctl { display: flex; flex: 1 1 320px; align-items: center; gap: 6px; min-width: 0; }
+.length-ctl { display: flex; flex-wrap: wrap; flex: 1 1 320px; align-items: center; gap: 6px; min-width: 0; }
 .length-ctl input[type="range"] { flex: 1 1 auto; min-width: 80px; height: 32px; accent-color: var(--accent); touch-action: none; }
 .length-ctl .icon-btn { width: 40px; height: 40px; background: var(--fill-2); color: var(--ink); font-size: 22px; font-weight: 900; }
 .length-out { display: inline-flex; align-items: baseline; gap: 2px; min-width: 76px; font-family: var(--font-display); font-weight: 900; color: var(--ink-2); }
 .length-out b { font-size: 28px; color: var(--accent-2); text-shadow: 0 0 12px rgba(34, 211, 238, 0.55); font-variant-numeric: tabular-nums; }
 .turn-info .length-out b { font-size: 18px; }
-.length-taken { flex: 1 1 100%; color: var(--warn); font-size: 13px; font-weight: 800; }
+.length-taken { flex: 1 1 100%; margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px; font-weight: 800; }
+
+/* お題とグラフ（糸口） */
+.aim { display: grid; flex: 1 1 440px; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 14px; min-width: 0; }
+.aim-target { display: grid; justify-items: center; gap: 2px; padding: 10px 16px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-2); text-align: center; }
+.aim-target small { font-size: 12px; font-weight: 800; color: var(--accent); }
+.aim-target small .i { margin-right: 3px; }
+.aim-target b { font-family: var(--font-display); font-size: clamp(18px, 2.4vw, 26px); font-weight: 900; line-height: 1.1; white-space: nowrap; }
+.aim-chart { display: block; width: 100%; max-width: 420px; height: auto; max-height: 150px; overflow: visible; }
+.aim-chart-empty { padding: 8px 12px; border-radius: 10px; background: var(--fill-3); color: var(--muted); font-size: 13px; }
+.ac-grid { stroke: rgba(140, 175, 255, 0.14); stroke-width: 1; }
+.ac-axis { stroke: var(--line-strong); stroke-width: 1.5; }
+.ac-ylab { fill: var(--muted); font-size: 10px; text-anchor: end; font-family: var(--font-display); }
+.ac-xlab { fill: var(--ink-2); font-size: 11px; font-weight: 800; text-anchor: middle; font-family: var(--font-display); }
+.ac-xunit { fill: var(--muted); font-size: 10px; text-anchor: end; }
+.ac-target { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 6 4; }
+.ac-target-lab { fill: var(--gold); font-size: 11px; font-weight: 900; text-anchor: end; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.ac-cur { stroke: var(--accent); stroke-width: 2; }
+.ac-cur-lab { fill: var(--accent-2); font-size: 11px; font-weight: 900; text-anchor: middle; dominant-baseline: hanging; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.ac-table { fill: var(--paper); stroke: var(--ink-2); stroke-width: 2; }
+.ac-measured circle { fill: var(--pc); stroke: var(--paper); stroke-width: 1.5; }
+.ac-measured text { fill: var(--pc); font-size: 10px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+
+/* ストップウォッチ（全員同時にはなすので時計は1つ。ねらいの時刻でフラッシュ） */
+.stopwatch {
+    position: absolute;
+    bottom: 12px; /* ステージの下（床のあたり）。上はふりこの名札があるので */
+    left: 50%;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    column-gap: 4px;
+    padding: 6px 18px 10px;
+    border-radius: 18px;
+    background: rgba(12, 18, 36, 0.86);
+    border: 1px solid var(--line-strong);
+    transform: translateX(-50%);
+    pointer-events: none;
+    font-family: var(--font-display);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.stopwatch[hidden] { display: none; }
+.sw-time { font-size: clamp(30px, 5vw, 48px); font-weight: 900; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+.stopwatch small { font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.sw-bar { grid-column: 1 / -1; display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: rgba(140, 175, 255, 0.15); overflow: hidden; }
+.sw-bar::after { content: ""; display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.stopwatch.is-near { border-color: var(--gold); box-shadow: 0 0 24px rgba(250, 204, 21, 0.45); }
+.stopwatch.is-near .sw-time { color: var(--gold); }
+.stopwatch.is-just { animation: sw-just 0.9s ease; }
+@keyframes sw-just { 0% { transform: translateX(-50%) scale(1.25); background: var(--gold); color: var(--on-color); } 100% { transform: translateX(-50%) scale(1); } }
+@media (max-height: 500px) and (orientation: landscape) {
+    .stopwatch { bottom: 4px; padding: 2px 12px 6px; }
+    .sw-time { font-size: 24px; }
+}
+
+/* ラウンドの結果表 */
+.round-result { display: grid; gap: 8px; width: 100%; }
+.round-result-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.round-result-head b { font-family: var(--font-display); font-size: 18px; color: var(--accent-2); }
+.round-result-head span { color: var(--ink-2); font-size: 14px; font-weight: 700; }
+.round-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.round-table td { padding: 5px 6px; border-bottom: 0.5px solid var(--separator); vertical-align: middle; white-space: nowrap; }
+.round-table tr:first-child td { color: var(--gold); }
+.rr-rank { width: 2em; font-family: var(--font-display); font-weight: 900; }
+.rr-name { font-weight: 800; }
+.rr-name .rank-chip { display: inline-grid; width: 24px; height: 24px; margin-right: 6px; vertical-align: middle; }
+.rr-len, .rr-time { font-family: var(--font-display); font-weight: 700; }
+.rr-time small { color: var(--muted); font-size: 12px; }
+.rr-pts { text-align: right; font-family: var(--font-display); font-weight: 900; }
+.round-result .dock-actions { justify-content: flex-end; }
+
+/* プレイヤーのチップ：ラウンドごとの評価の点 */
+.pchip-dots { display: flex; gap: 3px; }
+.pchip-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fill); }
+.pchip-dot.is-perfect { background: var(--gold); box-shadow: 0 0 6px rgba(250, 204, 21, 0.8); }
+.pchip-dot.is-great { background: var(--ok); }
+.pchip-dot.is-good { background: var(--accent); }
+.pchip-dot.is-ok { background: var(--warn); }
+.pchip-dot.is-miss { background: var(--danger); }
 .decoys { display: flex; flex-wrap: wrap; gap: 6px; }
-.hint-table { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; font-size: 12px; color: var(--ink-2); }
-.hint-table span { padding: 1px 8px; border-radius: 999px; background: var(--fill-3); white-space: nowrap; }
-.hint-table b { color: var(--accent-2); font-family: var(--font-display); }
-/* ラウンドで実測した結果は、はかった人の色のふちで（表の値と見分ける） */
-.hint-table .is-measured { box-shadow: inset 0 0 0 1px var(--pc); background: var(--pc-soft, var(--fill-3)); }
-.hint-table .is-measured b { color: var(--ink); }
 
 /* きろく（表） */
 .record-table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -1964,7 +2037,12 @@ h1, h2, h3, p { margin: 0; }
     .choice-plan { font-size: 11.5px; }
     .length-ctl { flex: 1 1 100%; }
     .decoys { display: none; } /* 重さ・ふれはばは時間に関係ないので、せまい画面では長さだけ */
-    .hint-table { display: none; }
+    .aim { grid-template-columns: 1fr; gap: 6px; }
+    .aim-target { padding: 6px 12px; }
+    .aim-chart { max-height: 120px; }
+    .round-table { font-size: 13px; }
+    .round-table td { padding: 3px 4px; }
+    .rr-len { display: none; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
     .pend-controls { display: flex; flex-wrap: nowrap; gap: 12px; padding: 0 10px; }
@@ -1977,7 +2055,16 @@ h1, h2, h3, p { margin: 0; }
     .pend-controls .seg button { min-height: 28px; padding: 0 8px; font-size: 13px; }
     .choices { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .choice { flex: none; min-height: 36px; font-size: 13px; }
-    .decoys, .hint-table { display: none; }
+    .decoys { display: none; }
+    .aim { grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
+    .aim-target { padding: 4px 10px; }
+    .aim-target b { font-size: 16px; }
+    .aim-chart { max-height: 92px; }
+    #screen-play[data-mode="pend-battle"] .turn-info p { display: none; }
+    .round-result { gap: 4px; }
+    .round-table { font-size: 12px; }
+    .round-table td { padding: 2px 4px; }
+    .round-result-head b { font-size: 15px; }
     .length-out b { font-size: 20px; }
     .length-ctl .icon-btn { width: 32px; height: 32px; }
 }

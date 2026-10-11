@@ -350,6 +350,7 @@ function onCycle(p, n) {
         app.view.fx?.('count', { id: p.id });
         return;
     }
+    if (n > COUNT) return; // 10往復のあとは数えない
     play('starPop', p.id === 'A' ? 0 : 2);
     app.view.fx?.(state.firstId ? 'done' : 'first', { id: p.id });
     state.firstId ??= p.id;
