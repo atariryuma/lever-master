@@ -20,3 +20,7 @@ gas/*.js.html
 node_modules/
 coverage/
 
+
+# GAS（学校版）：gas/ からコピーする生成物
+gas-school/index.html
+gas-school/Code.js
