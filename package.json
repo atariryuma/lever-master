@@ -14,7 +14,7 @@
     "push:gas": "npm run build:gas && clasp push -f",
     "deploy:gas": "npm run push:gas && clasp redeploy $npm_package_config_gasDeploymentId --description \"sync from src\"",
     "deploy": "git push && echo \"GitHub Pages の反映後に npm run deploy:gas を実行してください\"",
-    "build:gas:school": "npm run build:gas && node scripts/build-gas-school.mjs",
+    "build:gas:school": "node scripts/build-gas-school.mjs",
     "push:gas:school": "npm run build:gas:school && clasp --user school -P \"$PWD/gas-school\" push -f",
     "deploy:gas:school": "npm run push:gas:school && clasp --user school -P \"$PWD/gas-school\" redeploy $npm_package_config_gasSchoolDeploymentId --description \"sync from src\""
   },

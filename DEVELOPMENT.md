@@ -111,7 +111,7 @@ npm run check   # 両方
 置換対象が見つからないとビルドはエラーで止まる（黙って壊れた出力を作らない）。
 デプロイ ID は `package.json` の `config.gasDeploymentId` にあり、同じ ID へ再デプロイするので URL は変わらない。
 
-**学校版（naha-okinawa.ed.jp）**：`gas-school/` が学校のアカウントの Apps Script プロジェクト（`.clasp.json`）。中身は `gas/` のビルド結果をコピーするだけ（`scripts/build-gas-school.mjs`）で、`gas-school/appsscript.json` の公開範囲だけが `"DOMAIN"`（学校のアカウントの人だけ）。clasp は名前つきログインで分けている（個人＝default、学校＝`--user school`）。`npm run deploy:gas:school` で `config.gasSchoolDeploymentId` に再デプロイする。
+**学校版（naha-okinawa.ed.jp）**：`gas-school/` が学校のアカウントの Apps Script プロジェクト（`.clasp.json`）。学校のネットワークでは github.io が読めないことがあるため、個人版とちがい**外のファイルを読まない1枚の HTML**にする（`scripts/build-gas-school.mjs`）：JS は esbuild で1ファイルにまとめて base64 で埋めこみ、開いたときに戻して実行（そのまま埋めこむと GAS の配信ラッパーで SyntaxError になるため）。CSS は `<style>`、フォントは data: URL。`gas-school/appsscript.json` の公開範囲は `"DOMAIN"`（学校のアカウントの人だけ）。clasp は名前つきログインで分けている（個人＝default、学校＝`--user school`）。`npm run deploy:gas:school` で `config.gasSchoolDeploymentId` に再デプロイする。
 **GitHub Pages に同じコミットが反映されてから GAS をデプロイすること。**
 
 ## リリース
