@@ -23,6 +23,7 @@ import { load, save, settings } from '../storage.js';
 import { segmented } from '../widgets.js';
 import { icon } from '../icons.js';
 import { showRulesTour } from '../rules-tour.js';
+import { watchKeep } from '../keep.js';
 import { normalizeSeats, renderSeats, seatsNote } from '../seats.js';
 
 export const MODE = 'pend-battle';
@@ -225,6 +226,8 @@ async function startTurn() {
     ui.busy = true;
     ui.intro = true;
     ui.pick = { length: 50, mass: 10, amplitude: 10 };
+    ui.adjusted = false; // このばんで長さを変えたか
+    ui.lastAdjust = 0;
     ui.fast = false;
     render();
     play('turn', p.seat);
@@ -238,9 +241,10 @@ async function startTurn() {
     setStatus(`${nameOf(p.id)}のばん：${targetLabel(state.target)} になる長さは？`);
     render();
     startTimer();
+    startKeep();
     if (!ui.coached) {
         ui.coached = true;
-        toast('自分のおもりを上下にドラッグして、長さを決めよう');
+        toast('おもりを上下にドラッグして長さを決めよう。手をはなすと決まるよ');
     }
 }
 
@@ -438,7 +442,29 @@ function startTimer() {
     }, 100);
 }
 
+/* ---------- 「けってい」ボタンのかわりに：長さを変えて、さわらずに少し待つと決まる ---------- */
+
+const KEEP_MS = 2500;
+
+function startKeep() {
+    stopKeep();
+    ui.keep = watchKeep({
+        ms: KEEP_MS,
+        label: 'これできめる',
+        // 長さを1回でも変えたあと、おもり・スライダー・＋−をさわっていないとき
+        isActive: () => isHumanTurn() && ui.adjusted && !app.view.drag && !app.view.press
+            && performance.now() - ui.lastAdjust > 300,
+        onDone: () => decide(),
+    });
+}
+
+function stopKeep() {
+    ui?.keep?.stop();
+    if (ui) ui.keep = null;
+}
+
 function stopTimer() {
+    stopKeep();
     if (ui?.timer) clearInterval(ui.timer.id);
     if (ui) ui.timer = null;
     fx.setDanger(0);
@@ -477,9 +503,6 @@ function onDockClick(e) {
     if (act === 'dec' || act === 'inc') {
         const dir = act === 'inc' ? 1 : -1;
         setLength(ui.pick.length + dir, dir);
-    } else if (act === 'decide') {
-        play('tap');
-        decide();
     }
 }
 
@@ -487,6 +510,10 @@ function setLength(len) {
     const next = clampLength(len);
     if (next === ui.pick.length) return;
     ui.pick.length = next;
+    ui.adjusted = true;
+    ui.lastAdjust = performance.now();
+    const howto = document.querySelector('#dock .choose-howto');
+    if (howto) howto.textContent = '手をはなして少し待つと決まる';
     applyPick();
     play('tick');
     render({ light: true });
@@ -644,7 +671,8 @@ function fillDock(dock) {
         return;
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';
-    // えらぶ画面は 3 つだけ：お題（左）、手がかりのグラフ（まん中）、長さと「けってい」（右）
+    // えらぶ画面は 3 つだけ：お題（左）、手がかりのグラフ（まん中）、長さ（右）。
+    // 「けってい」ボタンはない：長さを変えて、さわらずに 2.5 秒で決まる（上にゲージ）
     dock.innerHTML = `
         <div class="choose c-${p.id}">
             <div class="choose-target">
@@ -660,7 +688,7 @@ function fillDock(dock) {
                     <button type="button" class="icon-btn" data-act="inc" aria-label="1cm ながく">＋</button>
                 </div>
                 <input type="range" id="len-range" min="${LENGTH_MIN}" max="${LENGTH_MAX}" step="1" value="${ui.pick.length}" aria-label="ふりこの長さ（cm）">
-                <button type="button" class="btn btn-primary btn-judge" data-act="decide">${icon('check')}けってい</button>
+                <small class="choose-howto">${ui.adjusted ? '手をはなして少し待つと決まる' : '長さを変えよう'}</small>
             </div>
         </div>`;
     dock.querySelector('#len-range').addEventListener('input', e => setLength(Number(e.target.value)));

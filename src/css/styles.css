@@ -2231,3 +2231,6 @@ h1, h2, h3, p { margin: 0; }
     .fx-sweep-band { animation: none !important; transform: rotate(-4deg); }
     .fx-slam-text, .fx-slam-sub, .fx-pop { animation: none !important; opacity: 1; }
 }
+
+/* ふりこ たいせん：「けってい」ボタンのかわりの案内 */
+.choose-howto { display: block; margin-top: 4px; color: var(--ink-2); font-size: 13px; text-align: center; }

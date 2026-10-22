@@ -1,6 +1,6 @@
 {
   "name": "lever-master",
-  "version": "3.3.4",
+  "version": "3.3.5",
   "description": "りかラボ（てこマスター／ふりこマスター） - 小6「てこのはたらき」と小5「ふりこの運動」を遊びながら学ぶ物理シミュレーション教材ゲーム",
   "type": "module",
   "scripts": {
