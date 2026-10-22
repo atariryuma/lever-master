@@ -8,7 +8,7 @@ const browserGlobals = Object.fromEntries([
 ].map(name => [name, 'readonly']));
 
 export default [
-    { ignores: ['node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**', 'src/vendor/**', 'gas-school/Code.js', 'gas-school/index.html'] },
+    { ignores: ['node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**', 'src/vendor/**', 'gas-school/index.html'] },
 
     js.configs.recommended,
 
@@ -58,7 +58,7 @@ export default [
 
     // GAS版 サーバーサイドコード専用の設定
     {
-        files: ['gas/**/*.js'],
+        files: ['gas-school/**/*.js'],
         languageOptions: {
             // Apps Script はモジュールではなくスクリプトとして評価される
             sourceType: 'script',

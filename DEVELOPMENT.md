@@ -33,8 +33,8 @@ src/vendor/three.js     同梱した Three.js（使う部品だけ。`npm run ve
 public/fonts/           同梱フォント（Orbitron, SIL OFL）
 scripts/vendor.mjs      Three.js とフォントを同梱するスクリプト
 scripts/bundle.mjs      esbuild で main.js を1ファイル（IIFE）にまとめる（スモークテスト用）
-scripts/build-gas.mjs   index.html → gas/index.html 変換ビルド
-gas/Code.js             GAS の doGet（手書き。gas/index.html は自動生成で git 管理外）
+scripts/build-gas-school.mjs  index.html → gas-school/index.html（外のファイルを読まない1枚の HTML）
+gas-school/             学校のアカウントの Apps Script プロジェクト（.clasp.json・appsscript.json・Code.js は手書き、index.html は自動生成で git 管理外）
 ```
 
 ## 設計のポイント
@@ -96,26 +96,23 @@ npm run check   # 両方
 てこは `src/js/engine/puzzles.js` の `PUZZLES` に追加します。テストが自動で「解けるか」「最初からつり合っていないか」を確認します。
 ふりこは `src/js/engine/pend-puzzles.js` の `PUZZLES` に追加します（`kind` と `pendulums` / `options` / `target`）。テストが「答えがちょうど1つあるか」を確認します。
 
-## GAS 版のビルド
+## GAS 版（学校版・naha-okinawa.ed.jp）
 
-`npm run build:gas` が `scripts/build-gas.mjs` で `gas/index.html` を作る。`gas/index.html` は直接編集しないこと。
+`gas-school/` が学校のアカウントの Apps Script プロジェクト（`.clasp.json`）。`npm run build:gas` が `scripts/build-gas-school.mjs` で `gas-school/index.html` を作る（直接編集しないこと）。
 
-- アプリ本体（JS・CSS・Three.js・フォント・アイコン）は **GitHub Pages から読み込む**。GitHub Pages は CORS を許可しているので、GAS の iframe からそのまま ES modules を読める
-  - 以前は JS を1ファイルにまとめてインライン化していたが、Three.js を含めて 600KB を超えると GAS の配信ラッパー内で `SyntaxError: Invalid or unexpected token` になったためやめた
-- エントリ（`main.js` / `styles.css`）には `?v=<コミット>` を付けてキャッシュを避ける
-- `main.js` が import するモジュールにも、import map（`<script type="importmap">`）で `?v=<コミット>` を付ける。Pages は max-age=600 なので、これがないとデプロイ直後に新旧のモジュールが混ざって起動しないことがある。`src/js` と `src/vendor` の .js はビルド時に自動で列挙される
-- `GAS_PAGES_BASE=http://localhost:8801 npm run build:gas` で読み込み先を変えて、ローカルで確認できる
+- 学校のネットワークでは github.io が読めないことがあるため、**外のファイルを読まない1枚の HTML** にする
+  - JS は esbuild で1ファイル（Three.js もふくむ）にまとめ、base64 で埋めこんで、開いたときに戻して実行する。そのまま埋めこむと GAS の配信ラッパーで `SyntaxError: Invalid or unexpected token` になるため
+  - CSS は `<style>` に、フォントは data: URL に。アイコン・preload の `<link>` は外す
 - `<!-- gas:strip 理由 -->…<!-- /gas:strip -->` は除去（PWA manifest）
 - `<head>` の最後に `window.LEVER_GAS = true` を入れ、アプリ側で Service Worker 登録とインストール案内を止める
+- 置換対象が見つからない・外のファイルへの参照が残っていると、ビルドはエラーで止まる（黙って壊れた出力を作らない）
+- 公開範囲は `gas-school/appsscript.json` の `"DOMAIN"`（学校のアカウントの人だけ）
+- clasp は名前つきログイン（`--user school`）。デプロイ ID は `package.json` の `config.gasDeploymentId` で、同じ ID へ再デプロイするので URL は変わらない
 
-置換対象が見つからないとビルドはエラーで止まる（黙って壊れた出力を作らない）。
-デプロイ ID は `package.json` の `config.gasDeploymentId` にあり、同じ ID へ再デプロイするので URL は変わらない。
-
-**学校版（naha-okinawa.ed.jp）**：`gas-school/` が学校のアカウントの Apps Script プロジェクト（`.clasp.json`）。学校のネットワークでは github.io が読めないことがあるため、個人版とちがい**外のファイルを読まない1枚の HTML**にする（`scripts/build-gas-school.mjs`）：JS は esbuild で1ファイルにまとめて base64 で埋めこみ、開いたときに戻して実行（そのまま埋めこむと GAS の配信ラッパーで SyntaxError になるため）。CSS は `<style>`、フォントは data: URL。`gas-school/appsscript.json` の公開範囲は `"DOMAIN"`（学校のアカウントの人だけ）。clasp は名前つきログインで分けている（個人＝default、学校＝`--user school`）。`npm run deploy:gas:school` で `config.gasSchoolDeploymentId` に再デプロイする。
-**GitHub Pages に同じコミットが反映されてから GAS をデプロイすること。**
+（以前は個人アカウントにも GitHub Pages から読みこむ形の GAS 版があったが、学校版にまとめて削除した）
 
 ## リリース
 
 1. `sw.js` の `VERSION` と `package.json` の `version` を上げる（キャッシュ更新のため）
 2. `main` に push → GitHub Actions が Pages にデプロイ
-3. Pages の反映を確認してから `npm run deploy:gas`
+3. `npm run deploy:gas`（学校版。本体を埋めこむので Pages の反映を待たなくてよい）

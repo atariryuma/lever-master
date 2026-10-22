@@ -2,7 +2,7 @@
  * 学校（naha-okinawa.ed.jp）の Google アカウント用の GAS 版
  *
  * 学校のネットワークでは GitHub Pages（github.io）が読めないことがあるので、
- * 個人アカウント版（gas/）とちがい、アプリ本体を外から読みこまずに1枚の HTML にすべて入れる。
+ * アプリ本体を外から読みこまずに1枚の HTML にすべて入れる。
  *   - JS：esbuild で1ファイル（Three.js もふくむ）にまとめ、base64 にして入れる。
  *     そのまま書くと GAS の配信ラッパーの中で「SyntaxError: Invalid or unexpected token」になる
  *     （JS の中の特殊な文字が原因と考えられる）ので、ASCII だけの base64 にしておき、開いたときに戻して実行する
@@ -12,7 +12,7 @@
  * デプロイには、学校のアカウントで clasp にログインしておく（clasp login --user school）。
  */
 
-import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { ROOT, bundleToIife } from './bundle.mjs';
@@ -74,7 +74,6 @@ async function main() {
 
     const banner = '<!-- このファイルは scripts/build-gas-school.mjs による自動生成です。直接編集しないでください。 -->\n';
     await writeFile(resolve(ROOT, 'gas-school', 'index.html'), banner + html);
-    await copyFile(resolve(ROOT, 'gas', 'Code.js'), resolve(ROOT, 'gas-school', 'Code.js'));
     console.log(`[build-gas-school] gas-school/index.html を生成しました（${(Buffer.byteLength(html) / 1024).toFixed(0)}KB、外部ファイルなし）`);
 }
 

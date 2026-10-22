@@ -4,7 +4,7 @@
  * リリースのたびに VERSION を上げてください。
  */
 
-const VERSION = '3.3.3';
+const VERSION = '3.3.4';
 const CACHE = `lever-master-${VERSION}`;
 
 const ASSETS = [

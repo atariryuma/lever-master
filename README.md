@@ -11,7 +11,6 @@
 | 配信先 | URL | 用途 |
 | --- | --- | --- |
 | GitHub Pages（本体） | [atariryuma.github.io/lever-master](https://atariryuma.github.io/lever-master/) | PWA・オフライン対応のフル機能版（てこ・ふりこ両方） |
-| GAS Web アプリ（ミラー） | [script.google.com/.../exec](https://script.google.com/macros/s/AKfycbz_PW1DWZy3svW9yOus-wvuN4et-666Ees99J3Kgjj7ZYxv0VSwGxcl0rVJzriNsR6i6w/exec) | Google サイト / Classroom への埋め込み用（だれでも） |
 | GAS Web アプリ（学校版） | [script.google.com/a/macros/naha-okinawa.ed.jp/.../exec](https://script.google.com/a/macros/naha-okinawa.ed.jp/s/AKfycbw_W64VabALyPOBd9atMR5L4nm97xVbNms4zSv_jUlDVCoSXFNDotX47u11GkhYH9kF1Q/exec) | naha-okinawa.ed.jp のアカウントの人だけ開ける |
 
 ## 6年 てこ：3つのモード
@@ -69,20 +68,18 @@ python3 -m http.server 8080   # http://localhost:8080 で確認
 
 | コマンド | 内容 |
 | --- | --- |
-| `npm run build:gas` | `src/` から `gas/` を生成するだけ |
-| `npm run push:gas` | 生成して Apps Script プロジェクトへ push |
-| `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない） |
-| `npm run deploy:gas:school` | 学校版（naha-okinawa.ed.jp）を更新。学校のアカウントで `clasp login --user school` しておく |
-| `npm run deploy` | `git push`（GitHub Pages は Actions で自動デプロイ。反映後に `deploy:gas`） |
+| `npm run build:gas` | `src/` から `gas-school/index.html`（外のファイルを読まない1枚の HTML）を生成するだけ |
+| `npm run push:gas` | 生成して学校のアカウントの Apps Script プロジェクトへ push |
+| `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない）。学校のアカウントで `clasp login --user school` しておく |
+| `npm run deploy` | `git push`（GitHub Pages は Actions で自動デプロイ） |
 
-| 機能 | GitHub Pages | GAS |
+| 機能 | GitHub Pages | GAS（学校版） |
 | --- | --- | --- |
-| ゲーム本体（3D / 2D） | ✅ | ✅（JS・CSS は GitHub Pages から読み込む） |
+| ゲーム本体（3D / 2D） | ✅ | ✅（JS・CSS・フォントもページの中に入っている） |
 | Service Worker・オフライン | ✅ | ❌ 登録しない |
 | PWA インストール | ✅ | ❌ |
-| アイコン・フォント | ✅ | GitHub Pages を参照 |
+| 開ける人 | だれでも | naha-okinawa.ed.jp のアカウントの人だけ |
 
-GAS 版は GitHub Pages の本体を読み込むので、先に Pages を更新してから GAS をデプロイします。
 リリース時は `sw.js` の `VERSION` を上げてください。
 
 ---

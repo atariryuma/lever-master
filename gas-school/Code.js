@@ -1,8 +1,8 @@
 /**
  * りかラボ（RIKA LAB）— GAS Web アプリ エントリポイント
  *
- * index.html は scripts/build-gas.mjs が自動生成する
- * （アプリ本体の JS・CSS は GitHub Pages から読み込む）。
+ * index.html は scripts/build-gas-school.mjs が自動生成する
+ * （アプリ本体の JS・CSS・フォントもすべて入った1枚の HTML。外のファイルは読まない）。
  * このファイルだけは手書きで管理する。
  */
 

@@ -1,14 +1,6 @@
 # macOS
 .DS_Store
 
-# GAS: 生成物は追跡しない（scripts/build-gas.mjs が src/ から再生成する）
-gas/index.html
-gas/*.css.html
-gas/*.js.html
-
-# GAS: 手書きで管理するため gas/Code.js と gas/appsscript.json は追跡する
-*.gs
-
 # IDE
 .vscode/
 .idea/
@@ -21,6 +13,5 @@ node_modules/
 coverage/
 
 
-# GAS（学校版）：gas/ からコピーする生成物
+# GAS（学校版）：scripts/build-gas-school.mjs が生成する
 gas-school/index.html
-gas-school/Code.js
