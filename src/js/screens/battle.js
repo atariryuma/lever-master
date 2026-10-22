@@ -354,7 +354,8 @@ async function judge({ auto = false } = {}) {
             });
         }));
     }
-    const roll = auto ? 450 : level ? 500 : p.kind === 'cpu' ? 700 : 1000;
+    // ドラムロールは ひと・CPU で同じ長さ（ゲージがたまったあとは短く）
+    const roll = auto ? 450 : level ? 500 : 800;
     play('drumroll', roll / 1000);
     await session.sleep(roll * (ui.fast ? 0.4 : 1));
     const result = release(state, { balanced: level });
@@ -637,12 +638,11 @@ function tryMove(id, to) {
     state = move(base, id, to);
     play('move');
     const what = chain.length > 1 ? `${chain.length}こまとめて` : '';
-    setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした（${isBalanced(state.board) ? 'つり合っている' : 'かたむいている'}）`);
+    setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした`);
     if (pulledBack) toast('動かせるのは1つ。さっき動かしたおもりは元にもどって、いっしょに動いたよ');
     else if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
-    // 動かせるのは1つだけなので、動かしたらもう決める。てこが静まるのを待って、そのまま判定へ
-    //（水平キープのゲージは待たない：静まったときの傾きで決める）
-    run(() => judge({ auto: true }));
+    // 動かせるのは1つだけなので、動かしたらもう決める。CPU と同じ手順で判定（静まる → 水平キープ → 結果）
+    run(() => judge());
 }
 
 function onHookTap(pos) {
