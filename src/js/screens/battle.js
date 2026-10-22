@@ -638,6 +638,9 @@ function tryMove(id, to) {
     setStatus(`${positionLabel(from)} → ${positionLabel(to)} へ${what}動かした（${isBalanced(state.board) ? 'つり合っている' : 'かたむいている'}）`);
     if (pulledBack) toast('動かせるのは1つ。さっき動かしたおもりは元にもどって、いっしょに動いたよ');
     else if (replaced) toast('動かせるのは1つ。さっき動かしたおもりは元にもどしたよ');
+    // 動かせるのは1つだけなので、動かしたらもう決める。てこが静まるのを待って、そのまま判定へ
+    //（水平キープのゲージは待たない：静まったときの傾きで決める）
+    run(() => judge({ auto: true }));
 }
 
 function onHookTap(pos) {
@@ -736,12 +739,7 @@ function onDockClick(e) {
     }
     if (!isHumanTurn()) return;
     play('tap');
-    if (act === 'undo') {
-        undoLast();
-    } else if (act === 'judge') {
-        run(judge);
-        return;
-    }
+    if (act === 'undo') undoLast();
     render();
 }
 
@@ -943,16 +941,14 @@ function fillDock(dock) {
     }
     const balanced = isBalanced(state.board);
     const acted = Boolean(state.hung || state.moved);
+    // 「けってい」ボタンはなし：おもりを動かしたらすぐ判定、動かさないなら水平のまま 2 秒で決まる
     const msg = !balanced
-        ? `${icon('alert')}かたむいている！ おもりをドラッグして水平にしよう`
-        : acted ? '水平のまま 2 秒キープで決定。まだ動かしてもOK'
-            : 'おもりを1つ動かせるよ。このままでよければ「けってい」';
-    // 「もどす」と「けってい」はキーボード・読み上げ用にのこす（ふだんは、てこを直接さわれば足りる）
+        ? `${icon('alert')}かたむいている！ おもりを1つ動かそう（動かしたらすぐ判定）`
+        : '水平のまま 2 秒で決定。動かすなら1つだけ（動かしたらすぐ判定）';
     dock.innerHTML = `
-        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b>${turnSteps(state.moved || (balanced && acted) ? 2 : 1)}<p>${msg}</p></div></div>
+        <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b>${turnSteps(balanced && acted ? 2 : 1)}<p>${msg}</p></div></div>
         <div class="dock-actions">
-            ${acted ? `<button type="button" class="btn" data-act="undo" aria-label="ひとつもどす">${icon('undo')}もどす</button>` : ''}
-            <button type="button" class="btn btn-primary btn-judge${balanced ? ' is-ready btn-release' : ' is-risky'}" data-act="judge">${balanced ? `${icon('check')}けってい` : `${icon('alert')}けってい`}</button>
+            ${state.hung ? `<button type="button" class="btn" data-act="undo" aria-label="つるしたおもりを手にもどす">${icon('undo')}もどす</button>` : ''}
         </div>`;
     updateTimerView();
 }
