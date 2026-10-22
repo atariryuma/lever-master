@@ -23,7 +23,8 @@ export const GRADES = Object.freeze([
 ]);
 
 export function gradeFor(diff) {
-    const d = Math.abs(diff);
+    // 画面に出す差（0.1秒きざみ）で決める。「+0.1秒」なのに PERFECT でない、とならないように
+    const d = Math.abs(round1(diff));
     return GRADES.find(g => d <= g.max + 1e-9);
 }
 
@@ -39,7 +40,7 @@ export function makeTarget(rng = Math.random, prev = null) {
 }
 
 export const targetLabel = target => (target.show === 'one'
-    ? `1往復で ${round1(target.ten / 10).toFixed(2).replace(/0$/, '')}秒`
+    ? `1往復で ${(Math.round(target.ten * 10) / 100).toFixed(2).replace(/0$/, '')}秒`
     : `10往復で ${target.ten.toFixed(1)}秒`);
 
 /**

@@ -48,7 +48,7 @@ function timeHtml(p, hidden) {
     if (hidden) return '<b class="q">？</b><small>秒</small><span class="pside-count">10往復で</span>';
     const t10 = cycleTimeOf(p, COUNT);
     if (t10 !== null) {
-        return `<b class="is-done">${round1(t10).toFixed(1)}</b><small>秒</small><span class="pside-count">10往復<i>・1往復 ${round1(t10 / COUNT).toFixed(2)}秒</i></span>`;
+        return `<b class="is-done">${round1(t10).toFixed(1)}</b><small>秒</small><span class="pside-count">10往復<i>・1往復 ${(t10 / COUNT).toFixed(2)}秒</i></span>`;
     }
     const n = cyclesOf(p);
     const t = elapsedOf(p);

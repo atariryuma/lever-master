@@ -10,6 +10,16 @@ import { play } from './audio.js';
 let lastInput = 0;
 window.addEventListener('pointerdown', () => { lastInput = performance.now(); }, { capture: true, passive: true });
 window.addEventListener('keydown', () => { lastInput = performance.now(); }, { capture: true });
+// 指・マウスを押したままのあいだも数えない（スライダーや＋−を押しっぱなしで決まらないように）
+const pressing = new Set();
+window.addEventListener('pointerdown', e => pressing.add(e.pointerId), { capture: true, passive: true });
+for (const type of ['pointerup', 'pointercancel']) {
+    window.addEventListener(type, e => {
+        pressing.delete(e.pointerId);
+        lastInput = performance.now();
+    }, { capture: true, passive: true });
+}
+window.addEventListener('blur', () => pressing.clear());
 
 /**
  * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void }} opts
@@ -40,8 +50,8 @@ export function watchKeep({ ms, label, isActive, onDone }) {
         frame = requestAnimationFrame(tick);
         const dt = Math.max(0, Math.min(100, now - last));
         last = now;
-        // ダイアログ（ルール・せってい・やめますか？）を開いているあいだや、さわった直後は数えない
-        const paused = document.querySelector('dialog[open]') || now - lastInput < 250;
+        // ダイアログ（ルール・せってい・やめますか？）を開いているあいだや、押しているあいだ・さわった直後は数えない
+        const paused = document.querySelector('dialog[open]') || pressing.size > 0 || now - lastInput < 250;
         held = !paused && isActive() ? held + dt : 0;
         const p = Math.min(1, held / ms);
         // ゲージが 1/4 たまるごとに小さく鳴らす

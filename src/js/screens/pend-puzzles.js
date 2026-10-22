@@ -376,13 +376,13 @@ function resultText(ok) {
         return `A は ${fmt(a)}、B は ${fmt(b)}。${v?.text ?? ''}`;
     }
     if (puzzle.kind === 'tune') {
-        const t = round1(cycleTimeOf(ps[0], COUNT) / COUNT).toFixed(2);
+        const t = (cycleTimeOf(ps[0], COUNT) / COUNT).toFixed(2);
         return ok ? `${ps[0].length}cm → 1往復 ${t}秒。ぴったり！` : `${ps[0].length}cm → 1往復 ${t}秒。ねらいは ${targetText(puzzle)}`;
     }
     if (puzzle.kind === 'choice') {
         const [a, b] = ps;
-        const ta = round1(cycleTimeOf(a, COUNT) / COUNT).toFixed(2);
-        const tb = cycleTimeOf(b, COUNT) !== null ? round1(cycleTimeOf(b, COUNT) / COUNT).toFixed(2) : `まだ ${cyclesOf(b)}往復`;
+        const ta = (cycleTimeOf(a, COUNT) / COUNT).toFixed(2);
+        const tb = cycleTimeOf(b, COUNT) !== null ? (cycleTimeOf(b, COUNT) / COUNT).toFixed(2) : `まだ ${cyclesOf(b)}往復`;
         const faster = periodOf(b.length) < periodOf(a.length);
         return `${a.length}cm（1往復 ${ta}秒）→ ${b.length}cm（${tb}${cycleTimeOf(b, COUNT) !== null ? '秒' : ''}）。${faster ? 'はやくなった' : 'おそくなった'}`;
     }

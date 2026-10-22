@@ -3,7 +3,7 @@
  *
  * 目標（10往復で 16.0秒 など）に合わせて、ふりこの長さを決める。全員決まったら いっせいに手をはなし、
  * 10往復の時間（実測）が目標に近いほど高い点。ラウンドの合計点で勝負。
- * 重さ・ふれはばも変えられるが、時間には関係ない（わな）。
+ * 長さだけで時間が決まる（重さ・ふれはばは関係ない。CPU はときどき重さも変えるが時間はかわらない）。
  */
 
 import {
@@ -135,7 +135,9 @@ export function enter(appCtx, params) {
         // 自分のばんには、自分のおもりを上下にドラッグして長さを変えられる（ものさしと同じ cm）
         canDrag: id => isHumanTurn() && id === currentPlayer(state).id,
         dragMode: () => 'length',
-        onBobLength: (_id, cm, { step = false } = {}) => setLength(Math.round(cm), step ? Math.sign(cm - ui.pick.length) : 0),
+        onBobLength: (id, cm) => {
+            if (isHumanTurn() && id === currentPlayer(state).id) setLength(Math.round(cm));
+        },
         onLengthEnd: () => render(),
     };
     setBgm('battle', 0);
@@ -269,6 +271,8 @@ function applyPick() {
 /** えらんだ長さで決める（ほかの人には、はなすまでないしょ） */
 function decide() {
     stopTimer();
+    // 時間切れのときにドラッグ中でも、ここで手をはなしたことにする（次の人の長さを変えないように）
+    app.view.cancelDrag?.();
     const p = currentPlayer(state);
     applyPick();
     state = choose(state, ui.pick);
@@ -502,11 +506,12 @@ function onDockClick(e) {
     if (!isHumanTurn()) return;
     if (act === 'dec' || act === 'inc') {
         const dir = act === 'inc' ? 1 : -1;
-        setLength(ui.pick.length + dir, dir);
+        setLength(ui.pick.length + dir);
     }
 }
 
 function setLength(len) {
+    if (!isHumanTurn()) return;
     const next = clampLength(len);
     if (next === ui.pick.length) return;
     ui.pick.length = next;

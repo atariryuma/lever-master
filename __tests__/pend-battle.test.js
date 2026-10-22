@@ -39,6 +39,9 @@ describe('createMatch', () => {
         }
         expect(targetLabel({ ten: 16, show: 'ten' })).toBe('10往復で 16.0秒');
         expect(targetLabel({ ten: 16, show: 'one' })).toBe('1往復で 1.6秒');
+        // x.5 秒の目標は 1往復で 2けた（1.65秒）。0.1 にまるめると、計算どおりにしても 0.5秒ずれる
+        expect(targetLabel({ ten: 16.5, show: 'one' })).toBe('1往復で 1.65秒');
+        expect(targetLabel({ ten: 10.5, show: 'one' })).toBe('1往復で 1.05秒');
     });
 });
 
@@ -111,6 +114,10 @@ describe('gradeFor', () => {
         expect(gradeFor(0.5).grade).toBe('GOOD');
         expect(gradeFor(0.9).grade).toBe('OK');
         expect(gradeFor(3).grade).toBe('MISS');
+        // 表に出す差（0.1秒きざみ）と評価がそろう
+        expect(gradeFor(0.121).grade).toBe('PERFECT');
+        expect(gradeFor(-0.149).grade).toBe('PERFECT');
+        expect(gradeFor(0.151).grade).toBe('GREAT');
         expect(GRADES.at(-1).points).toBeGreaterThan(0);
     });
 });
