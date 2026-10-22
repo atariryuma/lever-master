@@ -583,7 +583,11 @@ export class LeverView3D {
             this.beam.localToWorld(p);
             stack.position.copy(p);
             const s = this.swing[pos];
-            if (!still) {
+            if (still) {
+                // 動きを減らす設定では、ゆれを止める（ゆれが残ると「静まった」にならない）
+                s.a = 0;
+                s.v = 0;
+            } else {
                 const acc = -9.8 / 1.6 * Math.sin(s.a) - (angVel * Math.PI / 180) * Math.abs(pos) * 0.04;
                 s.v = (s.v + acc * dt) * Math.pow(0.985, k);
                 s.a = Math.max(-0.5, Math.min(0.5, s.a + s.v * dt * 4));
