@@ -256,6 +256,14 @@ function lessonText(cond, same, ta, tb) {
 
 /* ---------- きろく ---------- */
 
+/** その回にそろえた条件（記録したときの A・B の値。ちがっていたら両方を書く） */
+function keptText(r) {
+    return CONDITIONS.filter(c => c !== r.variable).map(c => {
+        const { short, unit } = CONDITION_META[c];
+        return r.a[c] === r.b[c] ? `${short} ${r.a[c]}${unit}` : `${short} A ${r.a[c]}${unit}・B ${r.b[c]}${unit}`;
+    }).join('<br>');
+}
+
 function openRecords() {
     const dlg = $('#dlg-record');
     const body = dlg.querySelector('.record-body');
@@ -265,7 +273,7 @@ function openRecords() {
         return `
             <tr>
                 <td>${i + 1}</td>
-                <td>${escapeHtml(CONDITION_META[c].short)}</td>
+                <td>${escapeHtml(CONDITION_META[c].short)}<small class="record-kept">${keptText(r)}</small></td>
                 <td><b>A</b> ${r.a[c]}${CONDITION_META[c].unit}<br><b>B</b> ${r.b[c]}${CONDITION_META[c].unit}</td>
                 <td class="num">${r.ta.toFixed(1)}<br>${r.tb.toFixed(1)}</td>
                 <td class="num">${(r.ta / COUNT).toFixed(2)}<br>${(r.tb / COUNT).toFixed(2)}</td>
@@ -276,7 +284,7 @@ function openRecords() {
         ? `<table class="record-table">
             <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>けっか</th></tr></thead>
             <tbody>${rows}</tbody></table>
-            <p class="muted">そろえた条件：${CONDITIONS.filter(c => c !== state.variable).map(c => `${CONDITION_META[c].short} ${BASE[c]}${CONDITION_META[c].unit}`).join('・')}</p>`
+            <p class="muted">「変えた条件」の下の小さい字は、その回にそろえた条件。</p>`
         : '<p class="muted">まだ記録がないよ。おもりを持ち上げて、手をはなしてみよう。</p>';
     dlg.showModal();
 }

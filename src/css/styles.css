@@ -2021,6 +2021,7 @@ h1, h2, h3, p { margin: 0; }
 .record-table .num { font-family: var(--font-display); font-weight: 700; text-align: right; }
 .record-table .is-same { color: var(--ok); font-weight: 800; }
 .record-table .is-diff { color: var(--warn); font-weight: 800; }
+.record-table .record-kept { display: block; white-space: nowrap; color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.4; margin-top: 2px; }
 .record-body { padding-top: 14px; }
 
 /* ふりこのきほんの図 */
