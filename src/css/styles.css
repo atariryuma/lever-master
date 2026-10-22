@@ -2037,6 +2037,13 @@ h1, h2, h3, p { margin: 0; }
 .example-table { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; font-size: 16px; }
 .example-table div { display: flex; align-items: center; gap: 6px; }
 
+/* 小さいスマホの横向き：ふりこの操作のラベルは読み上げだけにして、えらぶボタンを全部見せる */
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 900px) {
+    .pend-controls .option-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    #screen-play .pend-controls { gap: 6px; padding: 0 6px; }
+    #screen-play .pend-controls .option + .option { padding-left: 6px; }
+    #screen-play .pend-controls .seg button { padding: 0 6px; }
+}
 /* たいせんのあそびかた（ふりこ）の絵 */
 .tw-card { fill: rgba(34, 211, 238, 0.12); stroke: var(--accent); stroke-width: 2; }
 .tw-target { fill: var(--accent-2); font-size: 20px; font-weight: 900; text-anchor: middle; font-family: var(--font-display); }
@@ -2067,6 +2074,7 @@ h1, h2, h3, p { margin: 0; }
     .pend-controls .option { min-height: 36px; padding: 2px 0; flex-wrap: nowrap; }
     .pend-controls .option-label { font-size: 13px; white-space: nowrap; }
     .pend-controls .seg { flex-wrap: nowrap; }
+    .pend-controls .seg button { white-space: nowrap; flex: none; }
     #screen-play[data-unit="pendulum"] .mission { flex: 0 1 240px; }
     .choices { flex: 1 1 200px; }
     .pend-controls .option + .option { border-top: 0; border-left: 0.5px solid var(--separator); padding-left: 10px; }
