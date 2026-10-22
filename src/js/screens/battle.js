@@ -7,7 +7,6 @@ import {
     move, moveDestinations, moveRuleFor, playerById, pointsOf, release, undoHang, undoMove,
 } from '../engine/battle.js';
 import { CPU_LEVELS, planTurn } from '../engine/ai.js';
-import { equilibriumAngle, leverLoads } from '../engine/physics.js';
 import {
     POSITIONS, canHang, canHangChain, chainOf, distanceOf, findWeight, isAdjacent, isBalanced, momentOf, moveChain,
     positionLabel,
@@ -330,15 +329,17 @@ async function judge({ auto = false } = {}) {
     const p = currentPlayer(state);
     render();
     app.view.fx?.('judge');
-    // うでが静まるまで（反動でゆれていれば、そのぶん待つ。長くても 5 秒）
+    // うでが静まるまで（反動でゆれていれば、そのぶん待つ。長くても 5 秒）。
+    // 盤面を変えた直後は物理が次のコマで動きだすので、1コマ待ってから見る
+    await session.wrap(new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     if (!app.view.isCalm?.()) {
         setStatus(`${nameOf(p.id)}：てこが静まるのを待っている…`);
         await Promise.race([session.wrap(app.view.settle()), session.sleep(5000)]);
     }
-    // 判定は物理の状態で。万一まだ静まっていなければ、物理のつり合いの角度（静まったときの角度）で決める
-    const level = app.view.isCalm?.()
-        ? app.view.isLevel()
-        : Math.abs(equilibriumAngle(momentOf(state.board), leverLoads(state.board))) < 0.8;
+    // セーフ／アウトは、ルール（左右のはたらきが等しいか）で決める。てこの動きは見せるためのもの
+    //（物理の「静まった・水平」を判定に使うと、動かした直後に前の傾きのまま読まれて、
+    //  つり合っているのにアウトになることがあった）
+    const level = momentOf(state.board).diff === 0;
     if (level && !auto) {
         // 水平のまま静まっているのを、みんなで見とどける（CPU の番でもゲージを出す）
         setStatus(`${nameOf(p.id)}：水平キープ…`);

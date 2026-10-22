@@ -366,6 +366,9 @@ export class LeverView3D {
 
     render(view) {
         const prevBoard = this.board;
+        // おもりが変わったら、物理はもう「静まった」ではない（次のコマで計算しなおすまでの間も）。
+        // これがないと、動かした直後に前の傾きのまま「静まっている」と読まれてしまう
+        if (dropKicks(prevBoard, view.board).length) this.body.resting = false;
         if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
             // つるした・はずしたおもりがフックに当たる反動
             for (const k of dropKicks(prevBoard, view.board)) dropImpulse(this.body, k.x, k.mass, leverLoads(view.board));

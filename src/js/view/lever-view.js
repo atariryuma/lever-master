@@ -259,6 +259,8 @@ export class LeverView {
     }
 
     render(view) {
+        // おもりが変わったら、物理はもう「静まった」ではない（次のコマで計算しなおすまでの間も）
+        if (dropKicks(this.board, view.board).length) this.body.resting = false;
         if (this.held === false && view.held === false && !this.noKick && !reduceMotion()) {
             for (const k of dropKicks(this.board, view.board)) dropImpulse(this.body, k.x, k.mass, leverLoads(view.board));
         }
