@@ -109,8 +109,10 @@ function buildValueSeg() {
 
 function setVariable(cond) {
     state.variable = cond;
-    // B は A と同じにして、変える条件だけ変える
-    state.b = createPendulum({ id: 'B', ...BASE, [cond]: B_DEFAULT[cond], phase: 'held', side: state.a.side });
+    // A の変える条件は基準にもどし、B は A と同じにして、変える条件だけ変える（ほかの条件をそろえる）
+    state.a = { ...state.a, [cond]: BASE[cond] };
+    const same = Object.fromEntries(CONDITIONS.map(c => [c, state.a[c]]));
+    state.b = createPendulum({ id: 'B', ...same, [cond]: B_DEFAULT[cond], phase: 'held', side: state.a.side });
     hold();
     buildValueSeg();
     announce(`変える条件は ${CONDITION_META[cond].name}。B は ${B_DEFAULT[cond]}${CONDITION_META[cond].unit}`);
@@ -153,12 +155,13 @@ function onDockClick(e) {
 /* ---------- おもりをさわる ---------- */
 
 function onBobDrag(id, amplitude, side) {
-    const target = state.variable === 'amplitude' ? [both().find(p => p.id === id)] : both();
-    // ふれはばを調べるとき以外は、2つのふれはばをそろえる（持ち上げる手は1つ）
-    for (const p of target) {
+    // ふれはばを調べるとき以外は、2つのふれはばをそろえる（持ち上げる手は1つ）。
+    // ふれはばを調べるときは、変えるのは B だけ（A は基準の 20° のまま。A をドラッグしても向きだけ）
+    const varying = state.variable === 'amplitude';
+    for (const p of both()) {
         p.phase = 'held';
         p.swing = null;
-        p.amplitude = snapAmplitude(amplitude);
+        if (!varying || (p.id === 'B' && id === 'B')) p.amplitude = snapAmplitude(amplitude);
         p.side = side;
     }
     // 変える条件がふれはばなら、B のつまみも合わせる
@@ -169,10 +172,14 @@ function onBobDrag(id, amplitude, side) {
 }
 
 /** B を上下にドラッグ：長さを 25・50・75・100cm にそろえる */
-function onBobLength(id, cm) {
+function onBobLength(id, cm, { step = false } = {}) {
     if (id !== 'B' || state.variable !== 'length') return;
     const values = CONDITION_META.length.values;
-    const next = values.reduce((best, v) => (Math.abs(v - cm) < Math.abs(best - cm) ? v : best), values[0]);
+    // キー（↑↓）は1cm ずつ来るので、となりの長さへ
+    const i = values.indexOf(state.b.length);
+    const next = step
+        ? values[Math.max(0, Math.min(values.length - 1, i + Math.sign(cm - state.b.length)))]
+        : values.reduce((best, v) => (Math.abs(v - cm) < Math.abs(best - cm) ? v : best), values[0]);
     if (next === state.b.length) return;
     state.b = { ...state.b, length: next };
     hold();

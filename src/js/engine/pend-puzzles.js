@@ -166,15 +166,15 @@ export const PUZZLES = Object.freeze([
         lesson: 'おもりを上げて みじかくすると、はやくなる。本物のふりこ時計も、そうやって合わせるよ。',
     },
     {
-        chapter: 5, kind: 'choice', goal: 'slower', title: 'メトロノーム',
-        text: 'メトロノームのテンポを おそくしたい。おもりはどっちへ？',
+        chapter: 5, kind: 'choice', goal: 'slower', title: 'ゆっくりにしたい',
+        text: 'このふりこを、今より ゆっくりふらせたい。おもりをどっちへずらす？',
         hint: 'おそくする ＝ 1往復の時間を ながくする',
         pendulums: [{ label: 'A', ...P(50) }],
         options: [
             { id: 'up', label: 'おもりを 上に（みじかく）', patch: { length: 25 } },
             { id: 'down', label: 'おもりを 下に（ながく）', patch: { length: 100 } },
         ],
-        lesson: 'おもりを下げて ながくすると、ゆっくりになる。ふりこの決まりは、楽器にも使われている。',
+        lesson: 'おもりを下げて ながくすると、ゆっくりになる。メトロノームは上下さかさまのふりこで、上のおもりを上げる（支点から遠ざける）とゆっくりになるよ。',
     },
 ].map((p, i) => ({ id: i + 1, ...p })));
 

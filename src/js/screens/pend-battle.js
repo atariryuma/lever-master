@@ -280,6 +280,7 @@ function decide() {
     app.view.fx?.('count', { id: p.id, color: cssVar(`--${p.id}`) });
     setStatus(`${nameOf(p.id)}がきめた！（長さはないしょ）`);
     ui.busy = true;
+    ui.intro = true; // つぎのばんの演出まで、はやおくりなどを出さない
     render();
     run(async () => {
         await session.sleep(600);
@@ -314,6 +315,8 @@ async function resolve() {
     }
     play('release');
     app.view.fx?.('release');
+    // 前のばん（CPU のかんがえ中）に はやおくりを押していたら、ふれるのも はやく
+    app.view.timeScale = ui.fast ? 3 : 1;
     ui.intro = false;
     ui.watch = { shown: true, passed: false };
     render();

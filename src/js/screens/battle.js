@@ -233,7 +233,7 @@ async function startTurn() {
     await updateIntensity();
     play('turn', seatOf(p.id));
     app.view.fx?.('turn', { color: cssVar(`--${p.id}`) });
-    const sub = p.kind === 'cpu' ? 'CPU のばん' : p.stock > 0 ? 'おもりをつるせ！' : 'おもりはもうない。動かすか、けってい';
+    const sub = p.kind === 'cpu' ? 'CPU のばん' : p.stock > 0 ? 'おもりをつるせ！' : 'おもりはもうない。動かすか、水平のまま待とう';
     await session.wrap(fx.turnSweep(`${PLAYER_META[p.id].name} TURN`, `${nameOf(p.id)} ─ ${sub}`, `c-${p.id}`));
     ui.intro = false;
     if (p.kind === 'cpu') {
@@ -243,7 +243,7 @@ async function startTurn() {
     ui.busy = false;
     setStatus(p.stock > 0
         ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
-        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、そのまま「けってい」`);
+        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、水平のまま2秒待とう`);
     startTimer();
     startKeep();
     render();
@@ -315,10 +315,10 @@ function hangEffects(pos, owner) {
 }
 
 /**
- * 判定（ひとも CPU も同じ手順。式ではなく、物理シミュレーションのうでの状態で決める）
+ * 判定（ひとも CPU も同じ手順。セーフ／アウトはルール＝左右のはたらきが等しいかで決め、見せるのは物理で）
  *   1. うでが静まるまで待つ（ゆれている最中は決めない）
- *   2. 静まったとき水平でなければ、その場で OUT
- *   3. 水平なら「水平キープ」のゲージがたまるのを待って SAFE
+ *   2. つり合っていなければ、その場で OUT
+ *   3. つり合っていれば「水平キープ」のゲージがたまるのを待って SAFE
  * @param {{ auto?: boolean }} [opts] auto … ひとの水平キープのゲージで決まったとき（ゲージはもうたまっているので待たない）
  */
 async function judge({ auto = false } = {}) {

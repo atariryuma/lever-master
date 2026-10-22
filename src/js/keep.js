@@ -10,16 +10,19 @@ import { play } from './audio.js';
 let lastInput = 0;
 window.addEventListener('pointerdown', () => { lastInput = performance.now(); }, { capture: true, passive: true });
 window.addEventListener('keydown', () => { lastInput = performance.now(); }, { capture: true });
-// 指・マウスを押したままのあいだも数えない（スライダーや＋−を押しっぱなしで決まらないように）
+// 操作ボタン・スライダーを押したままのあいだも数えない（押しっぱなしで決まらないように）。
+// 画面に指を置いているだけ（てこ・ふりこの上など）では止めない（CPU の判定が止まらないように）
 const pressing = new Set();
-window.addEventListener('pointerdown', e => pressing.add(e.pointerId), { capture: true, passive: true });
+window.addEventListener('pointerdown', e => {
+    if (e.target?.closest?.('input, button, select, [role="slider"]')) pressing.add(e.pointerId);
+}, { capture: true, passive: true });
 for (const type of ['pointerup', 'pointercancel']) {
     window.addEventListener(type, e => {
         pressing.delete(e.pointerId);
         lastInput = performance.now();
     }, { capture: true, passive: true });
 }
-window.addEventListener('blur', () => pressing.clear());
+for (const type of ['blur', 'contextmenu']) window.addEventListener(type, () => pressing.clear());
 
 /**
  * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void }} opts
