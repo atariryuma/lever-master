@@ -168,8 +168,9 @@ export function leave() {
 }
 
 export async function back() {
+    const here = session; // 確認のあいだに別の画面へ行っていたら、もどらない
     if (state.phase === 'over' || await app.confirm('たいせんをやめて、準備画面にもどりますか？')) {
-        app.go('pend-setup');
+        if (here.alive) app.go('pend-setup');
     }
 }
 

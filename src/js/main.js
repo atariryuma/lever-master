@@ -511,9 +511,13 @@ function registerServiceWorker() {
  */
 let updateReady = false;
 function watchForUpdate() {
-    const hadController = Boolean(navigator.serviceWorker.controller);
+    let hadController = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!hadController) return; // はじめてのインストールでは読みなおさない
+        // はじめてのインストールでは読みなおさない（そのあとの更新では読みなおす）
+        if (!hadController) {
+            hadController = true;
+            return;
+        }
         // 開いてすぐ（20秒以内）なら、このページはもうネットから取った新しい版なので読みなおさない
         if (performance.now() < 20000) return;
         updateReady = true;

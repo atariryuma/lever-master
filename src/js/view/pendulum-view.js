@@ -127,7 +127,7 @@ export class PendulumView {
         // 台：横棒と両はしの柱
         this.stand.innerHTML = '';
         const x0 = 96;
-        const x1 = W - 14;
+        const x1 = W - 46; // 右の台（はば ±40）が図の外にはみ出さないように
         el('rect', { class: 'pend-post', x: x0 - 8, y: PY - 6, width: 16, height: H - 22 - PY + 6 }, this.stand);
         el('rect', { class: 'pend-post', x: x1 - 8, y: PY - 6, width: 16, height: H - 22 - PY + 6 }, this.stand);
         el('rect', { class: 'pend-bar', x: x0 - 20, y: PY - 11, width: x1 - x0 + 40, height: 18, rx: 6 }, this.stand);

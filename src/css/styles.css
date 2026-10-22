@@ -2060,7 +2060,10 @@ h1, h2, h3, p { margin: 0; }
     .rr-len { display: none; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
-    .pend-controls { display: flex; flex-wrap: nowrap; gap: 12px; padding: 0 10px; }
+    .pend-controls { display: flex; flex-wrap: nowrap; gap: 12px; padding: 0 10px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    /* ふりこは操作エリアが横に長いので、サブのボタンはアイコンだけ（下の操作がボタンにかくれないように） */
+    #screen-play[data-unit="pendulum"] .dock-actions .btn:not(.btn-primary):has(.i) { font-size: 0; min-width: 44px; padding: 0 10px; }
+    #screen-play[data-unit="pendulum"] .dock-actions .btn:not(.btn-primary):has(.i) .i { width: 20px; height: 20px; margin: 0; }
     .pend-controls .option { min-height: 36px; padding: 2px 0; flex-wrap: nowrap; }
     .pend-controls .option-label { font-size: 13px; white-space: nowrap; }
     .pend-controls .seg { flex-wrap: nowrap; }
@@ -2068,8 +2071,9 @@ h1, h2, h3, p { margin: 0; }
     .choices { flex: 1 1 200px; }
     .pend-controls .option + .option { border-top: 0; border-left: 0.5px solid var(--separator); padding-left: 10px; }
     .pend-controls .seg button { min-height: 28px; padding: 0 8px; font-size: 13px; }
-    .choices { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-    .choice { flex: none; min-height: 36px; font-size: 13px; }
+    /* 選択肢は折り返して全部見せる（横スクロールだと、かくれた選択肢に気づけない） */
+    .choices { flex-wrap: wrap; gap: 6px; }
+    .choice { flex: 1 1 auto; min-height: 34px; font-size: 13px; }
     .decoys { display: none; }
     .aim { grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; }
     .aim-target { padding: 4px 10px; }
