@@ -32,7 +32,7 @@ export function cloneBoard(board) {
 export const distanceOf = pos => Math.abs(pos);
 export const sideOf = pos => (pos < 0 ? 'left' : 'right');
 
-/** 左右の「てこをかたむけるはたらき」（きょり × 重さ） */
+/** 左右の「てこをかたむけるはたらき」（重さ × きょり） */
 export function momentOf(board) {
     let left = 0;
     let right = 0;
@@ -128,7 +128,7 @@ export function moveChain(board, id, toPos) {
     return next;
 }
 
-/** 持ち主ごとのはたらき（＝たいせんのポイント） */
+/** 持ち主ごとのはたらき（＝たいせんの点） */
 export function momentByOwner(board, owner) {
     let total = 0;
     for (const pos of POSITIONS) {

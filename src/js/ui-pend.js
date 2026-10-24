@@ -84,15 +84,15 @@ export function compareVerdict(a, b) {
     const ta = cycleTimeOf(a, COUNT);
     const tb = cycleTimeOf(b, COUNT);
     if (ta === null && tb === null) return null;
-    // 片方だけ終わった：先に終わったほうがはやい（長さが同じなら同時に終わる）
+    // 片方だけ終わった：先に終わったほうが先（長さが同じなら同時に終わる）
     if (ta === null || tb === null) {
         const same = Math.abs(periodOf(a.length) - periodOf(b.length)) < 1e-9;
         if (same) return null;
-        return ta !== null ? { state: 'left', sign: '＜', text: 'A がはやい' } : { state: 'right', sign: '＞', text: 'B がはやい' };
+        return ta !== null ? { state: 'left', sign: '＜', text: 'A が先' } : { state: 'right', sign: '＞', text: 'B が先' };
     }
     const d = round1(ta - tb);
     if (Math.abs(d) < 0.15) return { state: 'equal', sign: '＝', text: '同じ時間' };
-    return d < 0 ? { state: 'left', sign: '＜', text: `A が ${Math.abs(d).toFixed(1)}秒 はやい` } : { state: 'right', sign: '＞', text: `B が ${d.toFixed(1)}秒 はやい` };
+    return d < 0 ? { state: 'left', sign: '＜', text: `A が ${Math.abs(d).toFixed(1)}秒 先` } : { state: 'right', sign: '＞', text: `B が ${d.toFixed(1)}秒 先` };
 }
 
 /** 読み上げ用 */

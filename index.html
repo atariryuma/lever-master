@@ -32,7 +32,7 @@
         <header class="home-head">
             <p class="brand" aria-label="りかラボ"><b>RIKA LAB</b><span>りかラボ</span></p>
             <h1 tabindex="-1"><span class="logo-en" data-text="LEVER MASTER">LEVER MASTER</span><span class="logo-ja">てこマスター</span></h1>
-            <p class="tagline">きょり <b>×</b> 重さ で、てこをつり合わせよう</p>
+            <p class="tagline">重さ <b>×</b> きょり で、てこをつり合わせよう</p>
             <span class="pill" id="home-grade">小6 理科「てこのはたらき」</span>
         </header>
 
@@ -42,7 +42,7 @@
 
         <footer class="home-foot">
             <button type="button" class="chip-btn" id="home-learn" data-open="dlg-learn"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>てこのきほん</button>
-            <button type="button" class="chip-btn" id="home-rules" data-open="dlg-rules"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのルール</button>
+            <button type="button" class="chip-btn" id="home-rules" data-open="dlg-rules"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg>たいせんのあそびかた</button>
             <button type="button" class="chip-btn" data-open="dlg-settings"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-gear"></use></svg>せってい</button>
         </footer>
         <p class="install-tip" id="install-tip" hidden></p>
@@ -62,11 +62,11 @@
         <header class="topbar">
             <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
             <div class="topbar-title"><h2 tabindex="-1">たいせんの準備</h2><p class="topbar-sub">だれが参加する？</p></div>
-            <button type="button" class="icon-btn" data-open="dlg-rules" aria-label="たいせんのルール"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
+            <button type="button" class="icon-btn" data-open="dlg-rules" aria-label="たいせんのあそびかた"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
         </header>
         <div class="list-body">
             <div class="seats" id="seats"></div>
-            <div class="setup-options" role="group" aria-label="ルールの設定">
+            <div class="setup-options" role="group" aria-label="ルールのせってい">
                 <div class="option">
                     <span class="option-label" id="lbl-stock">1人のおもりの数</span>
                     <div class="seg" id="opt-stock" role="radiogroup" aria-labelledby="lbl-stock"></div>
@@ -76,7 +76,7 @@
                     <div class="seg" id="opt-timer" role="radiogroup" aria-labelledby="lbl-timer"></div>
                 </div>
                 <div class="option">
-                    <span class="option-label" id="lbl-hints">つり合うヒント</span>
+                    <span class="option-label" id="lbl-hints">ヒント</span>
                     <div class="seg" id="opt-hints" role="radiogroup" aria-labelledby="lbl-hints"></div>
                 </div>
             </div>
@@ -92,17 +92,17 @@
         <header class="topbar">
             <button type="button" class="icon-btn" data-go="home" aria-label="ホームへもどる"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-back"></use></svg></button>
             <div class="topbar-title"><h2 tabindex="-1">たいせんの準備（ジャスト・タイム）</h2><p class="topbar-sub">だれが参加する？</p></div>
-            <button type="button" class="icon-btn" data-open="dlg-rules-pend" aria-label="たいせんのルール"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
+            <button type="button" class="icon-btn" data-open="dlg-rules-pend" aria-label="たいせんのあそびかた"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"></use></svg></button>
         </header>
         <div class="list-body">
             <div class="seats" id="pend-seats"></div>
-            <div class="setup-options" role="group" aria-label="ルールの設定">
+            <div class="setup-options" role="group" aria-label="ルールのせってい">
                 <div class="option">
                     <span class="option-label" id="lbl-prounds">ラウンド数</span>
                     <div class="seg" id="popt-rounds" role="radiogroup" aria-labelledby="lbl-prounds"></div>
                 </div>
                 <div class="option">
-                    <span class="option-label" id="lbl-ptimer">持ち時間（1人）</span>
+                    <span class="option-label" id="lbl-ptimer">持ち時間（1ターン）</span>
                     <div class="seg" id="popt-timer" role="radiogroup" aria-labelledby="lbl-ptimer"></div>
                 </div>
                 <div class="option">
@@ -198,9 +198,9 @@
             <p class="formula-card"><b>おもりの重さ</b> × <b>支点からのきょり</b></p>
             <p>左うでと右うでで、この「はたらき」が<b>等しいとき</b>、てこは水平につり合います。</p>
             <div class="example">
-                <div><span class="ex-side">左</span> 3 × 20g = <b>60</b></div>
+                <div><span class="ex-side">左</span> 20g × 3 = <b>60</b></div>
                 <div class="ex-eq">＝</div>
-                <div><span class="ex-side">右</span> 2 × 30g = <b>60</b></div>
+                <div><span class="ex-side">右</span> 30g × 2 = <b>60</b></div>
             </div>
             <p class="muted">いくつかつるしたときは、それぞれの「はたらき」をたし算します。</p>
         </section>
@@ -211,7 +211,7 @@
                 <li><span class="tool-type">作用点が<b>まん中</b></span>せんぬき・空きかんつぶし</li>
                 <li><span class="tool-type">力点が<b>まん中</b></span>ピンセット・和ばさみ・トング</li>
             </ul>
-            <p class="muted">支点から力点が遠いほど、小さな力で大きな力を出せます。</p>
+            <p class="muted">支点から力点が遠いほど、小さな力で ものを動かせます。</p>
         </section>
     </div>
 </dialog>
@@ -256,7 +256,7 @@
         <text x="94" y="134" class="tw-ngl">となりは✕</text>
     </svg>
                 <h3><span class="tour-no">2</span>うごかす（1つだけ）</h3>
-                <p>どれか1つ動かして、<b>水平</b>にしよう（だれのおもりでもOK）。<br><em>となりの場所（✕）</em>には動かせない。下にぶら下がったおもりは<b>いっしょに</b>動く。<br><b>動かしたら、もうやり直せない。よく考えてから！</b></p>
+                <p>どれか1つ動かして、<b>水平</b>にしよう（だれのおもりでもOK）。<br><em>となりの場所（✕）</em>には動かせない。下にぶら下がったおもりは<b>いっしょに</b>動く。<br><b>動かしたら、もうやりなおせない。よく考えてから！</b></p>
             </section>
             <section class="tour-page" hidden>
                 <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
@@ -279,8 +279,8 @@
         </g>
         <text x="240" y="34" class="tw-out">OUT</text><text x="240" y="128" class="tw-cap">かたむいたら</text>
     </svg>
-                <h3><span class="tour-no">3</span>けってい</h3>
-                <p>おもりを動かしたら、すぐ判定。動かさないときは、水平のまま <b>2秒</b> で決まる。<br>かたむいたら <em>アウト</em>。</p>
+                <h3><span class="tour-no">3</span>ジャッジ</h3>
+                <p>おもりを動かしたら、すぐジャッジ。動かさないときは、<b>さわらずに</b> 水平のまま <b>2秒</b> でジャッジ。<br>かたむいたら <em>アウト</em>。</p>
             </section>
             <section class="tour-page" hidden>
                 <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
@@ -292,12 +292,12 @@
             </g>
             <circle cx="160" cy="66.5" r="5" class="tw-pivot"/>
         </g>
-        <text x="292" y="120" class="tw-score tw-score-mine">6×10=60</text>
-        <text x="204" y="120" class="tw-score">2×10=20</text>
+        <text x="292" y="120" class="tw-score tw-score-mine">10×6=60</text>
+        <text x="204" y="120" class="tw-score">10×2=20</text>
         <path d="M282 12h12v8a6 6 0 01-12 0z M282 15h-5a4 4 0 004 5 M294 15h5a4 4 0 01-4 5 M288 26v5 M283 34h10" class="tw-trophy"/>
     </svg>
                 <h3><span class="tour-no">★</span>勝ち</h3>
-                <p>おもりを使い切ったとき、<b>自分のおもりの「きょり×重さ」</b>の合計がいちばん大きい人の勝ち。<br>外側ほど点が高い。でも、つり合わせるのはむずかしい！</p>
+                <p>おもりを使い切ったとき、<b>自分のおもりの「重さ×きょり」</b>の合計（点）がいちばん大きい人の勝ち。<br>外側ほど点が高い。でも、つり合わせるのはむずかしい！</p>
             </section>
             <div class="tour-nav">
                 <button type="button" class="btn" data-tour="prev">まえへ</button>
@@ -311,10 +311,10 @@
 
         <ol class="steps">
             <li><b>つるす</b><span>自分のおもり（10g）を1つ、好きな場所につるす。</span></li>
-            <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。おもりはドラッグで動かす。動かしたらすぐ判定（やりなおしはできない）。てこの外ではなすと、動かさなかったことになる。<br>・つかんだおもりの<em>下にぶら下がっているおもりも道づれ</em>でいっしょに動く<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
-            <li><b>けってい</b><span>おもりを動かしたら、すぐ判定（動かせるのは1つだけなので）。動かさないときは、水平のまま静まって<em>2秒キープ</em>すると自動で決定（ボタンはない）。てこが静まるのを待って、左右のはたらき（きょり×重さ）が等しければ<em>セーフ</em>、ちがえば<em>アウト</em>（てこは元にもどる）。CPU の番も同じ。<br>時間切れになると、そのままの形で自動で判定（まだつるしていなければ<em>アウト</em>）。</span></li>
+            <li><b>うごかす</b><span>どれか1つだけ動かしてもいい（だれのおもりでもOK）。おもりはドラッグで動かす。動かしたらすぐジャッジ（やりなおしはできない）。てこの外ではなすと、動かさなかったことになる。<br>・つかんだおもりの<em>下にぶら下がっているおもりも、いっしょに</em>動く<br>・今つるした場所のおもりは動かせない<br>・となりの場所へは動かせない（左1⇔右1 もとなり）</span></li>
+            <li><b>ジャッジ</b><span>おもりを動かしたら、すぐジャッジ（動かせるのは1つだけなので）。動かさないときは、さわらずに水平のまま<em>2秒キープ</em>すると自動でジャッジ（ボタンはない）。てこが止まるのを待って、左右のはたらき（重さ×きょり）が等しければ<em>セーフ</em>、ちがえば<em>アウト</em>（てこは元にもどる）。CPU の番も同じ。<br>時間切れになると、そのままの形で自動でジャッジ（まだつるしていなければ<em>アウト</em>）。</span></li>
         </ol>
-        <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>全員がおもりを使い切ったとき、生き残った人の中で<b>自分のおもりのはたらき</b>（きょり×重さの合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
+        <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>全員がおもりを使い切ったとき、生き残った人の中で<b>点</b>（自分のおもりの 重さ×きょり の合計）がいちばん大きい人の勝ち。<br>外側につるすほど大きいけれど、つり合わせるのはむずかしい！</p>
         <p class="muted">1か所には6こまでつるせます。最後の1人になっても勝ちです。持ち時間は準備画面で変えられます（なし・30〜120秒。はじめは90秒）。</p>
     
         </details>
@@ -368,7 +368,7 @@
             <p class="muted">1往復は短くてはかりにくいので、<b>10往復</b>の時間をはかって 10 でわります。何回かはかって平均すると、もっと正確になります。</p>
         </section>
         <section>
-            <h3>正しい実験のしかた</h3>
+            <h3>正しいじっけんのしかた</h3>
             <p>調べたい条件を<b>1つだけ</b>変えて、ほかの条件は<b>そろえます</b>。2つ同時に変えると、どちらのせいで時間が変わったのかわからなくなります。</p>
         </section>
         <section>
@@ -397,7 +397,7 @@
                     <text x="160" y="94" class="tw-target">10往復で 16.0秒</text>
                 </svg>
                 <h3><span class="tour-no">1</span>ねらい</h3>
-                <p>ラウンドごとに <b>目標の時間</b> が出る。「10往復で 16.0秒」や「1往復で 1.6秒」。</p>
+                <p>ラウンドごとに <b>ねらいの時間</b> が出る。「10往復で 16.0秒」や「1往復で 1.6秒」。</p>
             </section>
             <section class="tour-page" hidden>
                 <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
@@ -413,7 +413,7 @@
                     <text x="240" y="122" class="tw-cap">←→ で長さを決める</text>
                 </svg>
                 <h3><span class="tour-no">2</span>長さをえらぶ</h3>
-                <p>順番に、自分のふりこの <b>長さ</b>（10〜100cm）を決める。おもりを上下にドラッグ！ 手をはなして少し待つと決まる（ボタンはない）。<br>長さは <em>みんなにないしょ</em>。はなすときにオープン！</p>
+                <p>じゅんばんに、自分のふりこの <b>長さ</b>（10〜100cm）を決める。おもりを上下にドラッグ！ 手をはなして少し待つと決まる（ボタンはない）。<br>長さは <em>みんなにないしょ</em>。はなすときにオープン！</p>
             </section>
             <section class="tour-page" hidden>
                 <svg viewBox="0 0 320 140" class="tour-art" aria-hidden="true">
@@ -426,7 +426,7 @@
                     <text x="230" y="112" class="tw-cap">MISS +10</text>
                 </svg>
                 <h3><span class="tour-no">3</span>いっせいに はなす</h3>
-                <p>全員のふりこを同時にはなして、<b>10往復の時間</b>をはかる。目標に近いほど高い点！<br>ぴったり（±0.1秒）なら <em>PERFECT</em>。</p>
+                <p>全員のふりこを同時にはなして、<b>10往復の時間</b>をはかる。ねらいに近いほど高い点！<br>ぴったり（±0.1秒）なら <em>PERFECT</em>。</p>
             </section>
             <div class="tour-nav">
                 <button type="button" class="btn" data-tour="prev">まえへ</button>
@@ -438,11 +438,11 @@
         <details class="tour-more">
             <summary>くわしいルール</summary>
             <ol class="steps">
-                <li><b>ねらい</b><span>ラウンドごとに目標の時間が出る（10往復で 10.5〜19.5秒）。</span></li>
-                <li><b>えらぶ</b><span>順番に長さを決める（1cmきざみ）。長さは<em>みんなにないしょ</em>（はなすときに、いっせいにオープン）。同じ長さになってもOK。先頭はラウンドごとに入れかわる。<br>持ち時間が切れると、そのときの長さで決まる。前のラウンドで全員がはかった「長さ → 時間」は、次のラウンドの手がかりとして出る。</span></li>
-                <li><b>はなす</b><span>全員同時にはなして、10往復の時間をはかる。目標との差で点が入る：<em>PERFECT</em>（0.1秒以内）100点・GREAT（0.3秒）70点・GOOD（0.6秒）50点・OK（1秒）30点・MISS 10点。</span></li>
+                <li><b>ねらい</b><span>ラウンドごとにねらいの時間が出る（10往復で 10.5〜19.5秒）。</span></li>
+                <li><b>えらぶ</b><span>じゅんばんに長さを決める（1cmきざみ）。長さは<em>みんなにないしょ</em>（はなすときに、いっせいにオープン）。同じ長さになってもOK。先頭はラウンドごとに入れかわる。<br>持ち時間が切れると、そのときの長さで決まる。前のラウンドで全員がはかった「長さ → 時間」は、つぎのラウンドの手がかりとして出る。</span></li>
+                <li><b>はなす</b><span>全員同時にはなして、10往復の時間をはかる。ねらいとの差で点が入る：<em>PERFECT</em>（0.1秒以内）100点・GREAT（0.3秒）70点・GOOD（0.6秒）50点・OK（1秒）30点・MISS 10点。</span></li>
             </ol>
-            <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>すべてのラウンドが終わったとき、合計点がいちばん大きい人の勝ち。</p>
+            <p class="rule-goal"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-trophy"></use></svg>すべてのラウンドがおわったとき、合計点がいちばん大きい人の勝ち。</p>
             <p class="muted">ヒント「あり」にすると、長さと時間の表（25cm → 10.0秒 …）が出ます。あいだの長さは、表から予想しよう。</p>
         </details>
     </div>
@@ -470,7 +470,7 @@
             <span class="option-label" id="lbl-speed">CPUのはやさ</span>
             <div class="seg" id="set-speed" role="radiogroup" aria-labelledby="lbl-speed"></div>
         </div>
-        <button type="button" class="btn btn-ghost" id="btn-reset-progress">もんだいの記録をリセット</button>
+        <button type="button" class="btn btn-ghost" id="btn-reset-progress">もんだいのきろくをリセット</button>
     </div>
 </dialog>
 

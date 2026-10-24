@@ -32,7 +32,7 @@ const IS_GAS = Boolean(window.LEVER_GAS);
 const UNITS = {
     lever: {
         en: 'LEVER MASTER', ja: 'てこマスター', grade: '小6 理科「てこのはたらき」',
-        tagline: 'きょり <b>×</b> 重さ で、てこをつり合わせよう',
+        tagline: '重さ <b>×</b> きょり で、てこをつり合わせよう',
         learn: 'dlg-learn', rules: 'dlg-rules', learnLabel: 'てこのきほん',
         modes: [
             { go: 'lab', cls: 'mode-lab', icon: 'flask', name: 'じっけん', desc: 'おもりを自由につるして、つり合うしくみを調べよう' },
@@ -46,8 +46,8 @@ const UNITS = {
         learn: 'dlg-learn-pend', rules: 'dlg-rules-pend', learnLabel: 'ふりこのきほん',
         modes: [
             { go: 'pend-lab', cls: 'mode-lab', icon: 'flask', name: 'じっけん', desc: '変える条件は1つだけ。10往復の時間をくらべよう' },
-            { go: 'pend-puzzles', cls: 'mode-puzzle', icon: 'puzzle', name: 'もんだい', desc: 'どっちがはやい？ 予想してからたしかめよう。全<span data-count></span>問', progress: pendPuzzles },
-            { go: 'pend-setup', cls: 'mode-battle', icon: 'target', name: 'たいせん', desc: 'ジャスト・タイム。目標の時間になる長さをねらえ！ 2〜4人・CPUとも' },
+            { go: 'pend-puzzles', cls: 'mode-puzzle', icon: 'puzzle', name: 'もんだい', desc: 'どっちが先に 10往復する？ 予想してからたしかめよう。全<span data-count></span>問', progress: pendPuzzles },
+            { go: 'pend-setup', cls: 'mode-battle', icon: 'target', name: 'たいせん', desc: 'ジャスト・タイム。ねらいの時間になる長さを当てろ！ 2〜4人・CPUとも' },
         ],
     },
 };
@@ -250,7 +250,7 @@ function enterPlay(mode, params) {
     const rules = helpId.startsWith('dlg-rules');
     help.dataset.open = helpId;
     help.innerHTML = icon(rules ? 'help' : 'book');
-    help.setAttribute('aria-label', rules ? 'たいせんのルール' : UNITS[playUnit].learnLabel);
+    help.setAttribute('aria-label', rules ? 'たいせんのあそびかた' : UNITS[playUnit].learnLabel);
     showScreen('screen-play');
     u.v2d.reset?.();
     u.v3d?.reset?.();
@@ -466,7 +466,7 @@ function bindSettings() {
     });
     $('#btn-reset-progress').addEventListener('click', async () => {
         $('#dlg-settings').close();
-        if (await confirm('もんだいの記録（★）をぜんぶ消しますか？（てこ・ふりこ両方）', { yes: 'けす', no: 'けさない' })) {
+        if (await confirm('もんだいのきろく（★）をぜんぶ消しますか？（てこ・ふりこ両方）', { yes: 'けす', no: 'けさない' })) {
             save('progress', { stars: {} });
             save('pendProgress', { stars: {} });
             puzzles.reloadProgress();

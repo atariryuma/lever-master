@@ -91,7 +91,7 @@ export function renderSetup(appCtx) {
         },
     });
     segmented($('#opt-hints'), {
-        options: [['off', 'なし'], ['on', 'あり（✓で教える）']],
+        options: [['off', 'なし'], ['on', 'あり（つり合う場所に✓）']],
         value: setup.hints,
         onChange: v => {
             setup.hints = v;
@@ -213,8 +213,8 @@ async function updateIntensity() {
         ui.finalShown = true;
         play('finalRound');
         fx.flash('danger');
-        announce('ファイナルラウンド。これがラストの1周！');
-        await session.wrap(fx.turnSweep('FINAL ROUND', 'これがラストの1周！', 'c-final'));
+        announce('ファイナルラウンド。さいごのラウンド！');
+        await session.wrap(fx.turnSweep('FINAL ROUND', 'さいごのラウンド！', 'c-final'));
     }
 }
 
@@ -234,7 +234,7 @@ async function startTurn() {
     await updateIntensity();
     play('turn', seatOf(p.id));
     app.view.fx?.('turn', { color: cssVar(`--${p.id}`) });
-    const sub = p.kind === 'cpu' ? 'CPU のばん' : p.stock > 0 ? 'おもりをつるせ！' : 'おもりはもうない。動かすか、水平のまま待とう';
+    const sub = p.kind === 'cpu' ? 'CPU のばん' : p.stock > 0 ? 'おもりをつるせ！' : 'おもりはもうない。動かすか、さわらずに待とう';
     await session.wrap(fx.turnSweep(`${PLAYER_META[p.id].name} TURN`, `${nameOf(p.id)} ─ ${sub}`, `c-${p.id}`));
     ui.intro = false;
     if (p.kind === 'cpu') {
@@ -244,7 +244,7 @@ async function startTurn() {
     ui.busy = false;
     setStatus(p.stock > 0
         ? `${nameOf(p.id)}のばん：おもりを1つつるそう`
-        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、水平のまま2秒待とう`);
+        : `${nameOf(p.id)}のばん：おもりはもうないよ。動かすか、さわらずに2秒待とう`);
     startTimer();
     startKeep();
     render();
@@ -319,10 +319,11 @@ function hangEffects(pos, owner) {
  * 判定（ひとも CPU も同じ手順。セーフ／アウトはルール＝左右のはたらきが等しいかで決め、見せるのは物理で）
  *   1. うでが静まるまで待つ（ゆれている最中は決めない）
  *   2. つり合っていなければ、その場で OUT
- *   3. つり合っていれば「水平キープ」のゲージがたまるのを待って SAFE
- * @param {{ auto?: boolean }} [opts] auto … ひとの水平キープのゲージで決まったとき（ゲージはもうたまっているので待たない）
+ *   3. つり合っていれば「ジャッジ」のゲージがたまるのを待って SAFE
+ * @param {{ auto?: boolean, call?: boolean }} [opts] auto … ひとの水平キープのゲージで決まったとき（ゲージはもうたまっているので待たない）
+ *   call … 「JUDGE!」を出す（時間切れの帯のあとは出さない）
  */
-async function judge({ auto = false } = {}) {
+async function judge({ auto = false, call = true } = {}) {
     stopTimer();
     app.view.cancelDrag?.(); // 押したままの指が、次の人の手番で効かないように
     ui.busy = true;
@@ -330,25 +331,32 @@ async function judge({ auto = false } = {}) {
     const p = currentPlayer(state);
     render();
     app.view.fx?.('judge');
+    // ここからはゲームが決める番。「JUDGE!」は、てこが止まるのを待つあいだに重ねて出す
+    let called = null;
+    if (call) {
+        play('whoosh');
+        called = fx.slam('JUDGE!', { tone: 'gold', sub: 'つり合ってる？', ms: ui.fast ? 500 : 900 });
+    }
     // うでが静まるまで（反動でゆれていれば、そのぶん待つ。長くても 5 秒）。
     // 盤面を変えた直後は物理が次のコマで動きだすので、1コマ待ってから見る
     await session.wrap(new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     if (!app.view.isCalm?.()) {
-        setStatus(`${nameOf(p.id)}：てこが静まるのを待っている…`);
+        setStatus(`${nameOf(p.id)}：ジャッジ中…てこが止まるのを待っている`);
         await Promise.race([session.wrap(app.view.settle()), session.sleep(5000)]);
     }
+    if (called) await session.wrap(called);
     // セーフ／アウトは、ルール（左右のはたらきが等しいか）で決める。てこの動きは見せるためのもの
     //（物理の「静まった・水平」を判定に使うと、動かした直後に前の傾きのまま読まれて、
     //  つり合っているのにアウトになることがあった）
     const level = momentOf(state.board).diff === 0;
     if (level && !auto) {
         // 水平のまま静まっているのを、みんなで見とどける（CPU の番でもゲージを出す）
-        setStatus(`${nameOf(p.id)}：水平キープ…`);
+        setStatus(`${nameOf(p.id)}：ジャッジ中…`);
         await session.wrap(new Promise(resolve => {
             stopKeep();
             ui.keep = watchKeep({
                 ms: JUDGE_KEEP_MS * (ui.fast ? 0.4 : 1),
-                label: '水平キープ',
+                label: 'ジャッジ',
                 isActive: () => app.view.isLevel?.() ?? true,
                 onDone: resolve,
             });
@@ -363,7 +371,7 @@ async function judge({ auto = false } = {}) {
     await (result.balanced ? showSafe(result) : showOut(result));
 }
 
-/** 判定のときの水平キープ（ひとのゲージ 2 秒より短く） */
+/** ジャッジのゲージ（ひとの水平キープ 2 秒より短く） */
 const JUDGE_KEEP_MS = 1200;
 
 async function showSafe(result) {
@@ -389,7 +397,7 @@ async function showSafe(result) {
     }
     await session.wrap(slamDone);
     state = result.state;
-    ui.intro = true; // 次のターンの準備中（前の人の「判定中」を出さない）
+    ui.intro = true; // 次のターンの準備中（前の人の「ジャッジ中」を出さない）
     render();
     await startTurn();
 }
@@ -432,9 +440,9 @@ async function timeUp() {
     }
     play('whoosh');
     fx.flash('danger');
-    setStatus('時間切れ！ このままの形で判定');
-    await session.wrap(fx.turnSweep('TIME UP!', 'このままの形で判定！', 'c-final'));
-    await judge();
+    setStatus('時間切れ！ このままの形でジャッジ');
+    await session.wrap(fx.turnSweep('TIME UP!', 'このままの形でジャッジ！', 'c-final'));
+    await judge({ call: false });
 }
 
 /* ---------- 持ち時間 ---------- */
@@ -558,7 +566,7 @@ function doHang(pos) {
     state = hang(state, pos);
     hangEffects(pos, currentPlayer(state).id);
     setStatus(isBalanced(state.board)
-        ? `${positionLabel(pos)} につるした。水平のまま 2 秒で決定！`
+        ? `${positionLabel(pos)} につるした。さわらずに 2秒 待てばジャッジ！`
         : `${positionLabel(pos)} につるした。おもりを1つ動かして水平にしよう`);
 }
 
@@ -745,7 +753,7 @@ function onDockClick(e) {
     render();
 }
 
-/* ---------- 水平キープで自動けってい ---------- */
+/* ---------- 水平キープで自動ジャッジ ---------- */
 
 const KEEP_MS = 2000;
 
@@ -754,6 +762,7 @@ function startKeep() {
     ui.keep = watchKeep({
         ms: KEEP_MS,
         label: '水平キープ',
+        touchHint: 'さわると、水平キープは さいしょから。さわらずに待とう',
         // 自分で何かしたあと（つるした・動かした）、つり合ったまま静まっていて、さわっていないとき
         isActive: () => isHumanTurn() && state.phase === 'move' && Boolean(state.hung || state.moved)
             && !ui.selected && !app.view.drag && !app.view.press && (app.view.isLevel?.() ?? isBalanced(state.board)),
@@ -872,11 +881,11 @@ function renderPlayers() {
         const sub = p.kind === 'cpu' ? `CPU・${CPU_LEVELS[p.level]?.label ?? ''}` : (humanCount() === 1 ? 'あなた' : 'ひと');
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}${p.out ? ' is-out' : ''}" role="group"
-                aria-label="${PLAYER_META[id].name} ${sub}、のこり${p.stock}こ、はたらき${p.out ? 'アウト' : pointsOf(state, id)}${id === turnId ? '、いまのばん' : ''}">
+                aria-label="${PLAYER_META[id].name} ${sub}、のこり${p.stock}こ、${p.out ? 'アウト' : `${pointsOf(state, id)}点`}${id === turnId ? '、いまのばん' : ''}">
                 <span class="pchip-sym" aria-hidden="true">${icon(id)}</span>
                 <span class="pchip-name">${PLAYER_META[id].name}<small>${sub}</small></span>
                 <span class="pchip-stock" aria-hidden="true">${stock}</span>
-                <span class="pchip-pts">${p.out ? 'OUT' : `<small>はたらき</small>${pointsOf(state, id)}`}</span>
+                <span class="pchip-pts">${p.out ? 'OUT' : `<small>点</small>${pointsOf(state, id)}`}</span>
             </div>`;
     }).join('');
     // 手番の人が横スクロールの外にいたら見えるところへ（スマホでは全員は入りきらない）
@@ -927,7 +936,7 @@ function fillDock(dock) {
         return;
     }
     if (ui.busy) {
-        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>判定中…</p></div></div>`;
+        dock.innerHTML = `<div class="turn-info c-${p.id}">${chip}<div><b>${escapeHtml(nameOf(p.id))}</b><p>ジャッジ中…</p></div></div>`;
         return;
     }
     const timer = ui.timer ? '<div class="timer" role="timer" aria-label="のこり時間"><span></span></div>' : '';
@@ -943,10 +952,10 @@ function fillDock(dock) {
     }
     const balanced = isBalanced(state.board);
     const acted = Boolean(state.hung || state.moved);
-    // 「けってい」ボタンはなし：おもりを動かしたらすぐ判定、動かさないなら水平のまま 2 秒で決まる
+    // 「けってい」ボタンはなし：おもりを動かしたらすぐジャッジ、動かさないならさわらずに 2 秒でジャッジ
     const msg = !balanced
-        ? `${icon('alert')}かたむいている！ おもりを1つ動かそう（動かしたらすぐ判定）`
-        : '水平のまま 2 秒で決定。動かすなら1つだけ（動かしたらすぐ判定）';
+        ? `${icon('alert')}かたむいている！ おもりを1つ動かそう（動かしたらすぐジャッジ）`
+        : 'さわらずに 2秒 待てばジャッジ。動かすなら1つだけ（動かしたらすぐジャッジ）';
     dock.innerHTML = `
         <div class="turn-info c-${p.id}">${timer}${chip}<div><b>${balanced ? 'つり合ってる！' : 'ピンチ！'} ${streak}</b>${turnSteps(balanced && acted ? 2 : 1)}<p>${msg}</p></div></div>
         <div class="dock-actions">
@@ -961,9 +970,9 @@ function cpuLine(p) {
     return text.startsWith(nameOf(p.id)) ? text.slice(nameOf(p.id).length).replace(/^が\s*/, '') : 'かんがえ中…';
 }
 
-/** いまどのステップか（0: つるす、1: うごかす、2: けってい） */
+/** いまどのステップか（0: つるす、1: うごかす、2: ジャッジ） */
 function turnSteps(now) {
-    const names = ['つるす', 'うごかす', 'けってい'];
+    const names = ['つるす', 'うごかす', 'ジャッジ'];
     return `<ol class="turn-steps" aria-label="いまのステップ：${names[now]}">${names.map((n, i) =>
         `<li class="${i < now ? 'is-done' : i === now ? 'is-now' : ''}">${i + 1} ${n}</li>`).join('')}</ol>`;
 }
@@ -973,7 +982,7 @@ function turnSteps(now) {
 function ownFormula(id) {
     const terms = [];
     for (const pos of POSITIONS) {
-        for (const w of state.board[pos]) if (w.owner === id) terms.push(`${distanceOf(pos)}×${w.mass}`);
+        for (const w of state.board[pos]) if (w.owner === id) terms.push(`${w.mass}×${distanceOf(pos)}`);
     }
     return terms.join(' + ');
 }
@@ -994,7 +1003,7 @@ async function showResult() {
     $('#result-title').textContent = title;
     $('#result-sub').textContent = lastOne
         ? 'さいごまで生き残った！'
-        : 'はたらき（きょり × 重さ）の合計で勝負！';
+        : '点（重さ × きょり）の合計で勝負！';
     $('#result-ranking').innerHTML = rows.map(r => `
         <li class="rank-row c-${r.playerId}${r.out ? ' is-out' : ''}">
             <span class="rank-no">${r.rank}</span>

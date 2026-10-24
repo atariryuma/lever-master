@@ -256,7 +256,7 @@ function finish() {
 }
 
 function lessonText(cond, same, ta, tb) {
-    if (cond === 'length') return same ? '長さが同じなら、時間も同じ！' : tb > ta ? '長いほど ゆっくり！' : 'みじかいほど はやい！';
+    if (cond === 'length') return same ? '長さが同じなら、時間も同じ！' : tb > ta ? '長いほど 時間が長い！' : 'みじかいほど 時間がみじかい！';
     if (cond === 'mass') return same ? '重さを変えても 同じ時間！' : 'あれ？ 重さは関係ないはず…';
     return same ? 'ふれはばを変えても 同じ時間！' : 'あれ？ ふれはばは関係ないはず…';
 }
@@ -284,7 +284,7 @@ function openRecords() {
                 <td><b>A</b> ${r.a[c]}${CONDITION_META[c].unit}<br><b>B</b> ${r.b[c]}${CONDITION_META[c].unit}</td>
                 <td class="num">${r.ta.toFixed(1)}<br>${r.tb.toFixed(1)}</td>
                 <td class="num">${(r.ta / COUNT).toFixed(2)}<br>${(r.tb / COUNT).toFixed(2)}</td>
-                <td class="${same ? 'is-same' : 'is-diff'}">${same ? '同じ' : r.ta < r.tb ? 'A がはやい' : 'B がはやい'}</td>
+                <td class="${same ? 'is-same' : 'is-diff'}">${same ? '同じ' : r.ta < r.tb ? 'A が先' : 'B が先'}</td>
             </tr>`;
     }).join('');
     body.innerHTML = state.records.length
@@ -292,7 +292,7 @@ function openRecords() {
             <thead><tr><th>回</th><th>変えた条件</th><th>A / B</th><th>10往復<small>（秒）</small></th><th>1往復<small>（秒）</small></th><th>けっか</th></tr></thead>
             <tbody>${rows}</tbody></table>
             <p class="muted">「変えた条件」の下の小さい字は、その回にそろえた条件。</p>`
-        : '<p class="muted">まだ記録がないよ。おもりを持ち上げて、手をはなしてみよう。</p>';
+        : '<p class="muted">まだきろくがないよ。おもりを持ち上げて、手をはなしてみよう。</p>';
     dlg.showModal();
 }
 

@@ -116,7 +116,7 @@ function areaSvg(terms, side, scale) {
     const flip = side === 'left';
     const body = rects.map(({ x: rx, w, h, t }) => {
         const px = flip ? width - rx - w : rx;
-        const label = w > 26 && h > 13 ? `<text x="${px + w / 2}" y="${height - h / 2}">${t.distance}×${t.mass}</text>` : '';
+        const label = w > 26 && h > 13 ? `<text x="${px + w / 2}" y="${height - h / 2}">${t.mass}×${t.distance}</text>` : '';
         return `<rect x="${px}" y="${height - h}" width="${w}" height="${h}" rx="2"/>${label}`;
     }).join('');
     return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="area-${side}">${body}</svg>`;
@@ -168,11 +168,11 @@ export function renderReadout(root, board, { hidden = false, reveal = 'all', ver
             continue;
         }
         const expr = terms.length
-            ? terms.map(t => `<span class="term">${t.distance}<i>×</i>${t.mass}</span>`).join('<i class="plus">+</i>')
+            ? terms.map(t => `<span class="term">${t.mass}<i>×</i>${t.distance}</span>`).join('<i class="plus">+</i>')
             : '<span class="term empty">なし</span>';
         formula.innerHTML = `${expr}<span class="sum"><i class="eq">=</i><b class="total">${total}</b></span>`;
         bar.style.width = `${(total / max) * 100}%`;
-        box.setAttribute('aria-label', `${side === 'left' ? '左' : '右'}うで：${terms.map(t => `${t.distance}かける${t.mass}`).join('たす') || 'なし'}、合計 ${total}`);
+        box.setAttribute('aria-label', `${side === 'left' ? '左' : '右'}うで：${terms.map(t => `${t.mass}かける${t.distance}`).join('たす') || 'なし'}、合計 ${total}`);
     }
     const verdict = root.querySelector('.verdict');
     const state = (hidden && reveal !== 'side') || verdictHidden ? 'unknown' : verdictOf(m.diff);
@@ -189,6 +189,6 @@ export function renderReadout(root, board, { hidden = false, reveal = 'all', ver
 
 export function formulaText(board) {
     const m = momentOf(board);
-    const side = s => termsOf(board, s).map(t => `${t.distance}×${t.mass}`).join(' + ') || '0';
+    const side = s => termsOf(board, s).map(t => `${t.mass}×${t.distance}`).join(' + ') || '0';
     return `左 ${side('left')} = ${m.left}、右 ${side('right')} = ${m.right}`;
 }

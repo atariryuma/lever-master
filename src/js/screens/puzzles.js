@@ -352,7 +352,10 @@ function startAutoCheck() {
 function keepLevel(ms) {
     stopKeep();
     return new Promise(resolve => {
-        state.keep = watchKeep({ ms, label: '水平キープ', isActive: () => app.view.isCalm?.() ?? true, onDone: resolve });
+        state.keep = watchKeep({
+            ms, label: '水平キープ', isActive: () => app.view.isCalm?.() ?? true, onDone: resolve,
+            touchHint: 'さわると、水平キープは さいしょから。さわらずに見ていよう',
+        });
     });
 }
 

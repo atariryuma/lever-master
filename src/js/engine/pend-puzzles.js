@@ -2,7 +2,7 @@
  * ふりこの もんだい（予想してからたしかめる）
  *
  * kind
- *   compare … 2つのふりこ A・B。どちらがはやく往復するか（はやい＝1往復の時間が短い）を予想する
+ *   compare … 2つのふりこ A・B。どちらが先に 10往復するか（1往復の時間が短いほうが先）を予想する
  *   control … 調べたい条件（goal）を調べるのに「正しい実験」（その条件だけがちがう組み合わせ）をえらぶ
  *   tune    … 1往復（または10往復）がねらいの時間になる長さをえらぶ
  *   choice  … 身の回りのふりこ。はやく／おそくするには長さをどうするか
@@ -16,7 +16,7 @@ export const CHAPTERS = Object.freeze([
     { id: 1, title: '長さがちがう', lead: 'ふりこが長いほど、1往復の時間は長くなる' },
     { id: 2, title: '重さは関係ある？', lead: 'おもりの重さを変えても、1往復の時間は変わらない' },
     { id: 3, title: 'ふれはばは？', lead: 'ふれはばを変えても、1往復の時間は変わらない' },
-    { id: 4, title: '正しい実験は？', lead: '調べたい条件だけを変えて、ほかの条件はそろえる' },
+    { id: 4, title: '正しいじっけんは？', lead: '調べたい条件だけを変えて、ほかの条件はそろえる' },
     { id: 5, title: 'ちょうどの時間', lead: '長さを決めれば、1往復の時間が決まる' },
 ]);
 
@@ -24,32 +24,32 @@ export const CHAPTERS = Object.freeze([
 const P = (length, mass = 10, amplitude = 20) => ({ length, mass, amplitude });
 const AB = (a, b) => [{ label: 'A', ...a }, { label: 'B', ...b }];
 
-/** ふれはばの選択肢（2つのふりこ用）：はやい・同じ・はやい */
+/** 2つのふりこの選択肢：A が先・同時・B が先（「はやい」は第3章の「速さ」とまぎらわしいので使わない） */
 export const COMPARE_OPTIONS = Object.freeze([
-    { id: 'a', label: 'A のほうが はやい' },
-    { id: 'same', label: 'どちらも 同じ' },
-    { id: 'b', label: 'B のほうが はやい' },
+    { id: 'a', label: 'A が 先に 10往復' },
+    { id: 'same', label: 'どちらも 同時' },
+    { id: 'b', label: 'B が 先に 10往復' },
 ]);
 
 export const PUZZLES = Object.freeze([
     // ---- 1章 長さ ----
     {
         chapter: 1, kind: 'compare', title: 'みじかい と ながい',
-        text: 'A は 25cm、B は 100cm。どっちが はやく 10往復するかな？',
+        text: 'A は 25cm、B は 100cm。先に 10往復するのは どっちかな？',
         hint: 'ふりこが長いと、1往復にかかる時間はどうなる？',
         pendulums: AB(P(25), P(100)),
-        lesson: 'みじかいふりこは はやく、ながいふりこは ゆっくり往復する。',
+        lesson: 'みじかいふりこほど、1往復の時間は みじかい。ながいふりこは ゆっくり往復する。',
     },
     {
         chapter: 1, kind: 'compare', title: '75cm と 50cm',
-        text: 'A は 75cm、B は 50cm。はやいのはどっち？',
-        hint: 'みじかいほうが はやい',
+        text: 'A は 75cm、B は 50cm。先に 10往復するのは どっち？',
+        hint: 'みじかいほうが、1往復の時間も みじかい',
         pendulums: AB(P(75), P(50)),
         lesson: '長さが少しちがうだけでも、時間はちがう。',
     },
     {
         chapter: 1, kind: 'compare', title: 'おなじ長さ',
-        text: 'A も B も 50cm。はやいのはどっち？',
+        text: 'A も B も 50cm。先に 10往復するのは どっち？',
         hint: '長さが同じなら…',
         pendulums: AB(P(50), P(50)),
         lesson: '長さが同じなら、1往復の時間も同じ。ずっと そろって ふれる。',
@@ -57,21 +57,21 @@ export const PUZZLES = Object.freeze([
     // ---- 2章 重さ ----
     {
         chapter: 2, kind: 'compare', title: 'おもい おもり',
-        text: '長さは同じ 50cm。B のおもりは 30g で おもい。はやいのはどっち？',
-        hint: 'おもいから はやい？ 本当にそうかな。たしかめてみよう',
+        text: '長さは同じ 50cm。B のおもりは 30g で おもい。先に 10往復するのは どっち？',
+        hint: 'おもいほうが 先に往復する？ 本当にそうかな。たしかめてみよう',
         pendulums: AB(P(50, 10), P(50, 30)),
         lesson: 'おもりの重さを変えても、1往復の時間は変わらない！',
     },
     {
         chapter: 2, kind: 'compare', title: 'かるい おもり',
-        text: 'どちらも 75cm。A は 30g、B は 10g。はやいのはどっち？',
+        text: 'どちらも 75cm。A は 30g、B は 10g。先に 10往復するのは どっち？',
         hint: '重さは時間に関係ある？',
         pendulums: AB(P(75, 30), P(75, 10)),
         lesson: 'かるくても おもくても、同じ長さなら同じ時間。',
     },
     {
         chapter: 2, kind: 'compare', title: '重さも長さもちがう',
-        text: 'A は 50cm・30g、B は 100cm・10g。はやいのはどっち？',
+        text: 'A は 50cm・30g、B は 100cm・10g。先に 10往復するのは どっち？',
         hint: '重さは関係ない。長さだけを見よう',
         pendulums: AB(P(50, 30), P(100, 10)),
         lesson: '重さは関係なし。長さだけで決まる。',
@@ -79,21 +79,21 @@ export const PUZZLES = Object.freeze([
     // ---- 3章 ふれはば ----
     {
         chapter: 3, kind: 'compare', title: '大きく ふる',
-        text: 'どちらも 50cm。B は 30° と大きくふる。はやいのはどっち？',
+        text: 'どちらも 50cm。B は 30° と大きくふる。先に 10往復するのは どっち？',
         hint: '大きくふると、動くきょりは長い。でも、速さも…？',
         pendulums: AB(P(50, 10, 10), P(50, 10, 30)),
         lesson: 'ふれはばを変えても、1往復の時間は変わらない！ 大きくふると、そのぶん速く動く。',
     },
     {
         chapter: 3, kind: 'compare', title: 'ふれはば と 長さ',
-        text: 'A は 25cm で 30°、B は 100cm で 10°。はやいのはどっち？',
+        text: 'A は 25cm で 30°、B は 100cm で 10°。先に 10往復するのは どっち？',
         hint: 'ふれはばは関係ない。長さだけを見よう',
         pendulums: AB(P(25, 10, 30), P(100, 10, 10)),
-        lesson: 'ふれはばが大きくても、みじかいふりこのほうが はやい。',
+        lesson: 'ふれはばが大きくても、みじかいふりこのほうが 先に 10往復する。',
     },
     {
         chapter: 3, kind: 'compare', title: '重さも ふれはばも',
-        text: 'どちらも 75cm。A は 20g・30°、B は 10g・10°。はやいのはどっち？',
+        text: 'どちらも 75cm。A は 20g・30°、B は 10g・10°。先に 10往復するのは どっち？',
         hint: '時間を決めるのは、3つの条件のうち1つだけ',
         pendulums: AB(P(75, 20, 30), P(75, 10, 10)),
         lesson: '重さとふれはばをどう変えても、長さが同じなら時間は同じ。',
@@ -101,7 +101,7 @@ export const PUZZLES = Object.freeze([
     // ---- 4章 正しい実験 ----
     {
         chapter: 4, kind: 'control', goal: 'length', title: '長さを調べたい',
-        text: '「長さ」と時間の関係を調べたい。正しい実験はどれ？',
+        text: '「長さ」と時間の関係を調べたい。正しいじっけんはどれ？',
         hint: '長さ だけ を変えて、重さ・ふれはば はそろえる',
         options: [
             { id: 'p1', pendulums: AB(P(50, 10, 20), P(100, 10, 20)) },
@@ -112,7 +112,7 @@ export const PUZZLES = Object.freeze([
     },
     {
         chapter: 4, kind: 'control', goal: 'mass', title: '重さを調べたい',
-        text: '「重さ」と時間の関係を調べたい。正しい実験はどれ？',
+        text: '「重さ」と時間の関係を調べたい。正しいじっけんはどれ？',
         hint: '重さ だけ がちがう組み合わせをえらぼう',
         options: [
             { id: 'p1', pendulums: AB(P(50, 10, 20), P(100, 30, 20)) },
@@ -123,29 +123,29 @@ export const PUZZLES = Object.freeze([
     },
     {
         chapter: 4, kind: 'control', goal: 'amplitude', title: 'ふれはばを調べたい',
-        text: '「ふれはば」と時間の関係を調べたい。正しい実験はどれ？',
+        text: '「ふれはば」と時間の関係を調べたい。正しいじっけんはどれ？',
         hint: 'ふれはば だけ がちがう組み合わせをえらぼう',
         options: [
             { id: 'p1', pendulums: AB(P(50, 10, 10), P(100, 10, 30)) },
             { id: 'p2', pendulums: AB(P(50, 10, 20), P(50, 30, 20)) },
             { id: 'p3', pendulums: AB(P(50, 10, 10), P(50, 10, 30)) },
         ],
-        lesson: '変える条件は1つ。これが「条件をそろえる」実験の考え方。',
+        lesson: '変える条件は1つ。これが「条件をそろえる」じっけんの考え方。',
     },
     // ---- 5章 ちょうどの時間 ----
     {
         chapter: 5, kind: 'tune', target: { period: 1 }, title: '1往復 1秒',
         text: '1往復が ちょうど 1秒 になるふりこを作ろう。長さは？',
-        hint: 'みじかいほど はやい。10往復で 10秒 になる長さ',
+        hint: 'みじかいほど 1往復の時間は みじかい。10往復で 10秒 になる長さ',
         pendulums: [{ label: 'A', ...P(50) }],
-        lesson: '約 25cm のふりこは、1往復 1秒。時計の「秒」のもとになった長さだよ。',
+        lesson: '約 25cm のふりこは、1往復が ほぼ 1秒。',
     },
     {
         chapter: 5, kind: 'tune', target: { period: 2 }, title: 'ふりこ時計',
         text: 'ふりこ時計は 1往復 2秒。その長さは？',
         hint: '1秒の 2倍の時間。長さは 2倍ではないよ',
         pendulums: [{ label: 'A', ...P(50) }],
-        lesson: '1往復 2秒 は 約 1m。時間を 2倍にするには、長さは 4倍 いる。',
+        lesson: '1往復 2秒（かた道 1秒）は 約 1m。時間を 2倍にするには、長さは 4倍 いる。むかし、この長さを「1m」にしようという案もあったよ。',
     },
     {
         chapter: 5, kind: 'tune', target: { ten: 14 }, title: '10往復で 14秒',

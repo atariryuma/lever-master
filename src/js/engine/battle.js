@@ -9,7 +9,7 @@
  *      - となりの位置へは動かせない（左1⇔右1 もとなり）
  *   3. はなす … 手をはなして判定。かたむいたらアウト（てこはターン前にもどる）
  *
- * 全員がおもりを使い切ったら、生き残りの中で「はたらき」（きょり×重さの合計）が一番大きい人の勝ち。
+ * 全員がおもりを使い切ったら、生き残りの中で「点」（自分のおもりの 重さ×きょり の合計）が一番大きい人の勝ち。
  * 1人だけ生き残った場合はその人の勝ち。
  */
 
@@ -233,7 +233,7 @@ function advance(state) {
 
 export const pointsOf = (state, playerId) => momentByOwner(state.board, playerId);
 
-/** 順位表。生き残り（はたらきの大きい順）→ アウトになった人（あとまで残った順） */
+/** 順位表。生き残り（点の大きい順）→ アウトになった人（あとまで残った順） */
 export function computeResult(state) {
     const rows = state.players.map(p => ({
         playerId: p.id,

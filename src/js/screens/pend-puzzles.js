@@ -300,8 +300,8 @@ async function releaseHands() {
     play('miss');
     fx.shake('soft');
     render();
-    announce(`ちがった。${state.result}`);
-    await session.wrap(banner('ちがった…', { tone: 'warn', sub: state.result, duration: 1800 }));
+    announce(`よそうと ちがった。${state.result}`);
+    await session.wrap(banner('よそうと ちがった…', { tone: 'warn', sub: state.result, duration: 1800 }));
     state.pendulums = stagePendulums(state.puzzle, state.selected);
     state.selected = null;
     state.fast = false;

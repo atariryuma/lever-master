@@ -579,11 +579,11 @@ function renderPlayers() {
         const grade = ui.grades[id] ? `<span class="pchip-grade is-${ui.grades[id].toLowerCase()}">${ui.grades[id]}</span>` : decided || (dots ? `<span class="pchip-dots" aria-hidden="true">${dots}</span>` : '');
         return `
             <div class="pchip c-${id}${id === turnId ? ' is-turn' : ''}" role="group"
-                aria-label="${PLAYER_META[id].name} ${sub}、${p.total}ポイント${id === turnId ? '、いまのばん' : ''}">
+                aria-label="${PLAYER_META[id].name} ${sub}、${p.total}点${id === turnId ? '、いまのばん' : ''}">
                 <span class="pchip-sym" aria-hidden="true">${icon(id)}</span>
                 <span class="pchip-name">${PLAYER_META[id].name}<small>${sub}</small></span>
                 ${grade}
-                <span class="pchip-pts"><small>ポイント</small>${p.total}</span>
+                <span class="pchip-pts"><small>点</small>${p.total}</span>
             </div>`;
     }).join('');
 }
@@ -732,7 +732,7 @@ async function revealRound() {
                     <span class="rv-pts">+${r.points}</span>
                 </li>`).join('')}
             </ol>
-            <div class="reveal-totals" aria-label="合計ポイント">${totals.map(t => `
+            <div class="reveal-totals" aria-label="合計点">${totals.map(t => `
                 <div class="rv-total c-${t.id}">
                     <span class="rank-chip" aria-hidden="true">${icon(t.id)}</span>
                     <span class="rv-bar"><i style="width:${((t.total - t.gained) / maxTotal) * 100}%" data-to="${(t.total / maxTotal) * 100}%"></i></span>
@@ -819,7 +819,7 @@ async function showResult() {
     else title = `${PLAYER_META[winners[0]].name} の勝ち！`;
     $('#result-emoji').innerHTML = icon(humanWon || noHumans ? 'trophy' : 'robot');
     $('#result-title').textContent = title;
-    $('#result-sub').textContent = `${state.rounds}ラウンドの合計ポイントで勝負！`;
+    $('#result-sub').textContent = `${state.rounds}ラウンドの合計点で勝負！`;
     $('#result-ranking').innerHTML = rows.map(r => `
         <li class="rank-row c-${r.playerId}">
             <span class="rank-no">${r.rank}</span>
@@ -846,5 +846,5 @@ async function showResult() {
         await session.wrap(fx.slam('LOSE…', { tone: 'danger', sub: title, ms: 1600 }));
     }
     $('#dlg-result').showModal();
-    announce(`${title} ${rows.map(r => `${r.rank}位 ${nameOf(r.playerId)} ${r.total}ポイント`).join('、')}`);
+    announce(`${title} ${rows.map(r => `${r.rank}位 ${nameOf(r.playerId)} ${r.total}点`).join('、')}`);
 }

@@ -61,7 +61,7 @@ export function isFairTest(a, b, goal) {
     return diff.length === 1 && diff[0] === goal;
 }
 
-/** どちらがはやく往復するか（1往復の時間が短いほうが「はやい」） @returns {'a'|'b'|'same'} */
+/** どちらが先に往復するか（1往復の時間が短いほうが先） @returns {'a'|'b'|'same'} */
 export function compareSpeed(a, b) {
     const ta = periodOf(a.length);
     const tb = periodOf(b.length);

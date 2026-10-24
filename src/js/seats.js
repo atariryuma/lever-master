@@ -65,7 +65,7 @@ export function normalizeSeats(seats, defaults, levels) {
 }
 
 /** 参加人数の案内。2人未満なら始められない @returns {{ ok: boolean, note: string }} */
-export function seatsNote(seats, what = '対戦') {
+export function seatsNote(seats, what = 'たいせん') {
     const joined = seats.filter(s => s.kind !== 'none');
     const ok = joined.length >= 2;
     const humans = joined.filter(s => s.kind === 'human').length;

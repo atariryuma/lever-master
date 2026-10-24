@@ -5,6 +5,7 @@
  */
 
 import { play } from './audio.js';
+import { toast } from './ui.js';
 
 // さわった（タップ・キー）ら、ゲージは 0 から。「さわらずに待つ」を数えるため
 let lastInput = 0;
@@ -24,11 +25,15 @@ for (const type of ['pointerup', 'pointercancel']) {
 }
 for (const type of ['blur', 'contextmenu']) window.addEventListener(type, () => pressing.clear());
 
+// 「さわると さいしょから」の案内は、ページを開いているあいだに1回だけ
+const hinted = new Set();
+
 /**
- * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void }} opts
+ * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void, touchHint?: string }} opts
+ *   touchHint … たまりかけたゲージを、さわってもどしてしまったときに出す案内
  * @returns {{ stop: () => void }}
  */
-export function watchKeep({ ms, label, isActive, onDone }) {
+export function watchKeep({ ms, label, isActive, onDone, touchHint }) {
     const box = document.getElementById('keep');
     const text = document.getElementById('keep-label');
     let held = 0;
@@ -54,7 +59,12 @@ export function watchKeep({ ms, label, isActive, onDone }) {
         const dt = Math.max(0, Math.min(100, now - last));
         last = now;
         // ダイアログ（ルール・せってい・やめますか？）を開いているあいだや、押しているあいだ・さわった直後は数えない
-        const paused = document.querySelector('dialog[open]') || pressing.size > 0 || now - lastInput < 250;
+        const touched = pressing.size > 0 || now - lastInput < 250;
+        const paused = document.querySelector('dialog[open]') || touched;
+        if (touched && touchHint && held >= ms / 4 && !hinted.has(touchHint)) {
+            hinted.add(touchHint);
+            toast(touchHint);
+        }
         held = !paused && isActive() ? held + dt : 0;
         const p = Math.min(1, held / ms);
         // ゲージが 1/4 たまるごとに小さく鳴らす
