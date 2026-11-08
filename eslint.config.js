@@ -67,6 +67,7 @@ export default [
                 HtmlService: 'readonly',
                 Logger: 'readonly',
                 PropertiesService: 'readonly',
+                UrlFetchApp: 'readonly',
                 Session: 'readonly',
                 Utilities: 'readonly',
             },

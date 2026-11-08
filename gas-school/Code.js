@@ -6,11 +6,18 @@
  * このファイルだけは手書きで管理する。
  */
 
+/* global opsGuard_ */ // OpsReport.js で定義（GAS は全ファイルが同じグローバル）
+
+/** ops-monitor 用の入口。例外の「場所」だけを報告し、元の例外は投げ直す（OpsReport.js） */
+function doGet() {
+    return opsGuard_('doGet', function () { return doGet_(); });
+}
+
 /**
  * Web アプリのエントリポイント。
  * @returns {GoogleAppsScript.HTML.HtmlOutput} 描画するページ
  */
-function doGet() {
+function doGet_() {
     return HtmlService.createHtmlOutputFromFile('index')
         .setTitle('りかラボ – RIKA LAB')
         // GAS は <head> 内の meta を除去するため、ここで再指定する。
