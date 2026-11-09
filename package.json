@@ -12,8 +12,8 @@
     "vendor": "node scripts/vendor.mjs",
     "deploy": "git push && echo \"GitHub Pages の反映後に npm run deploy:gas を実行してください\"",
     "build:gas": "node scripts/build-gas-school.mjs",
-    "push:gas": "npm run build:gas && clasp --user school -P \"$PWD/gas-school\" push -f",
-    "deploy:gas": "npm run push:gas && clasp --user school -P \"$PWD/gas-school\" redeploy $npm_package_config_gasDeploymentId --description \"sync from src\""
+    "push:gas": "npm run build:gas && node scripts/deploy-gas.mjs push",
+    "deploy:gas": "npm run build:gas && node scripts/deploy-gas.mjs deploy"
   },
   "keywords": [
     "education",

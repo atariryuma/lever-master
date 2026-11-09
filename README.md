@@ -70,7 +70,7 @@ python3 -m http.server 8080   # http://localhost:8080 で確認
 | --- | --- |
 | `npm run build:gas` | `src/` から `gas-school/index.html`（外のファイルを読まない1枚の HTML）を生成するだけ |
 | `npm run push:gas` | 生成して学校のアカウントの Apps Script プロジェクトへ push |
-| `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない）。学校のアカウントで `clasp login --user school` しておく |
+| `npm run deploy:gas` | push して既存デプロイを更新（URL は変わらない）。学校のアカウントで `clasp login --user naha` しておく |
 | `npm run deploy` | `git push`（GitHub Pages は Actions で自動デプロイ） |
 
 | 機能 | GitHub Pages | GAS（学校版） |

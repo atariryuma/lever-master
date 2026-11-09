@@ -45,7 +45,8 @@ function opsReport_(where, err) {
             headers: { Authorization: 'Bearer ' + token },
             payload: JSON.stringify({ where: String(where), kind: kind, file: place.file, line: place.line }),
             muteHttpExceptions: true,
-            timeoutSeconds: 5,
+            // UrlFetchApp には待ち時間の上限の指定が無い（timeoutSeconds などは効かない）。
+            // 受け口が遅いと、そのぶん元のエラーの応答も遅れる
         });
     } catch (ignored) {
     // 報告の失敗で本来の処理を止めない。ここで投げると元の例外が隠れる

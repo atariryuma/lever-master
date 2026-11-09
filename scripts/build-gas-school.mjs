@@ -9,7 +9,8 @@
  *   - CSS：<style> にそのまま入れる。フォントは data: URL にする
  *   - PWA の manifest・アイコン・Service Worker は使わない（window.LEVER_GAS = true）
  * 公開範囲は gas-school/appsscript.json の "DOMAIN"（学校のアカウントの人だけ）。
- * デプロイには、学校のアカウントで clasp にログインしておく（clasp login --user school）。
+ * デプロイには、学校のアカウントで clasp にログインしておく（clasp login --user naha）。
+ * 配信は npm run push:gas / deploy:gas（scripts/deploy-gas.mjs）。
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -71,6 +72,10 @@ async function main() {
         'app script',
     );
     if (/(?:src|href)="(?:src|public)\//.test(html)) throw new Error('[build-gas-school] 外のファイルへの参照が残っています');
+    // CSS の url() も確かめる（相対パスの画像・フォントは GAS では読めない）
+    if (/url\(\s*['"]?(?:\.{1,2}\/|src\/|public\/)/.test(html)) {
+        throw new Error('[build-gas-school] CSS の url() に外のファイルへの参照が残っています');
+    }
 
     const banner = '<!-- このファイルは scripts/build-gas-school.mjs による自動生成です。直接編集しないでください。 -->\n';
     await writeFile(resolve(ROOT, 'gas-school', 'index.html'), banner + html);

@@ -107,7 +107,7 @@ npm run check   # 両方
 - `<head>` の最後に `window.LEVER_GAS = true` を入れ、アプリ側で Service Worker 登録とインストール案内を止める
 - 置換対象が見つからない・外のファイルへの参照が残っていると、ビルドはエラーで止まる（黙って壊れた出力を作らない）
 - 公開範囲は `gas-school/appsscript.json` の `"DOMAIN"`（学校のアカウントの人だけ）
-- clasp は名前つきログイン（`--user school`）。デプロイ ID は `package.json` の `config.gasDeploymentId` で、同じ ID へ再デプロイするので URL は変わらない
+- clasp は名前つきログイン（`--user naha`）。Windows でも動くように、clasp の呼び出しは `scripts/deploy-gas.mjs` で組み立てる。デプロイ ID は `package.json` の `config.gasDeploymentId` で、同じ ID へ再デプロイするので URL は変わらない
 
 （以前は個人アカウントにも GitHub Pages から読みこむ形の GAS 版があったが、学校版にまとめて削除した）
 
