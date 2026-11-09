@@ -51,7 +51,7 @@ const UNITS = {
         ],
     },
 };
-let unit = UNITS[settings.unit] ? settings.unit : 'lever';
+let unit = Object.hasOwn(UNITS, settings.unit) ? settings.unit : 'lever';
 
 /* ---------- てこ・ふりこのビュー ----------
  * 2D（SVG）は常に用意。WebGL が使えれば 3D も作り、ふだんは 3D を使う。
@@ -518,9 +518,10 @@ function watchForUpdate() {
             hadController = true;
             return;
         }
-        // 開いてすぐ（20秒以内）なら、このページはもうネットから取った新しい版なので読みなおさない
-        if (performance.now() < 20000) return;
         updateReady = true;
+        // 開いてすぐ（20秒以内）なら、このページはもうネットから取った新しい版のはずなので、今すぐは読みなおさない。
+        // ただし印は残し、次にホーム（か一覧）へもどったときに読みなおす（取りちがえていても取りこぼさない）
+        if (performance.now() < 20000) return;
         reloadIfIdle();
     });
 }

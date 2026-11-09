@@ -72,10 +72,11 @@ self.addEventListener('activate', event => {
     );
 });
 
-function putInCache(request, response) {
+// cache.put は event.waitUntil に渡して、書き終わる前に Service Worker が止められないようにする
+function putInCache(event, request, response) {
     if (response && response.ok && response.type === 'basic') {
         const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(request, copy));
+        event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {}));
     }
     return response;
 }
@@ -89,7 +90,7 @@ self.addEventListener('fetch', event => {
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
-                .then(res => putInCache(request, res))
+                .then(res => putInCache(event, request, res))
                 .catch(() => caches.match(request).then(hit => hit || caches.match('index.html'))),
         );
         return;
@@ -99,7 +100,7 @@ self.addEventListener('fetch', event => {
     // 古いモジュールが組み合わさることがある。オフラインならキャッシュを使う
     event.respondWith(
         fetch(request, { cache: 'no-cache' })
-            .then(res => putInCache(request, res))
+            .then(res => putInCache(event, request, res))
             .catch(() => caches.match(request).then(hit => hit || Response.error())),
     );
 });

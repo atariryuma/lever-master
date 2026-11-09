@@ -357,6 +357,8 @@ async function judge({ auto = false, call = true } = {}) {
             ui.keep = watchKeep({
                 ms: JUDGE_KEEP_MS * (ui.fast ? 0.4 : 1),
                 label: 'ジャッジ',
+                // ジャッジは見とどけるだけ。画面をたたいても止めない（手番が進まなくなるため）
+                ignoreTouch: true,
                 isActive: () => app.view.isLevel?.() ?? true,
                 onDone: resolve,
             });

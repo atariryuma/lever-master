@@ -29,11 +29,13 @@ for (const type of ['blur', 'contextmenu']) window.addEventListener(type, () => 
 const hinted = new Set();
 
 /**
- * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void, touchHint?: string }} opts
+ * @param {{ ms: number, label: string, isActive: () => boolean, onDone: () => void, touchHint?: string, ignoreTouch?: boolean }} opts
  *   touchHint … たまりかけたゲージを、さわってもどしてしまったときに出す案内
+ *   ignoreTouch … さわっても 0 にもどさない（CPU の番のジャッジなど、だれも操作しないゲージ用。
+ *                 画面をたたきつづけると、いつまでも手番が進まなくなるため）
  * @returns {{ stop: () => void }}
  */
-export function watchKeep({ ms, label, isActive, onDone, touchHint }) {
+export function watchKeep({ ms, label, isActive, onDone, touchHint, ignoreTouch = false }) {
     const box = document.getElementById('keep');
     const text = document.getElementById('keep-label');
     let held = 0;
@@ -59,7 +61,7 @@ export function watchKeep({ ms, label, isActive, onDone, touchHint }) {
         const dt = Math.max(0, Math.min(100, now - last));
         last = now;
         // ダイアログ（ルール・せってい・やめますか？）を開いているあいだや、押しているあいだ・さわった直後は数えない
-        const touched = pressing.size > 0 || now - lastInput < 250;
+        const touched = !ignoreTouch && (pressing.size > 0 || now - lastInput < 250);
         const paused = document.querySelector('dialog[open]') || touched;
         if (touched && touchHint && held >= ms / 4 && !hinted.has(touchHint)) {
             hinted.add(touchHint);
