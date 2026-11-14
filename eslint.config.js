@@ -8,7 +8,14 @@ const browserGlobals = Object.fromEntries([
 ].map(name => [name, 'readonly']));
 
 export default [
-    { ignores: ['node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**', 'src/vendor/**', 'gas-school/index.html'] },
+    {
+        ignores: [
+            'node_modules/**', 'coverage/**', '.git/**', '.claude/**', 'dist/**', 'src/vendor/**', 'gas-school/index.html',
+            // ops-monitor の clients/gas/OpsReport.js をそのまま写したファイル。ここでは編集しない
+            // （このリポジトリの書き方に直すと、元のファイルとの差が見えなくなり、直しが届かなくなる）
+            'gas-school/OpsReport.js',
+        ],
+    },
 
     js.configs.recommended,
 
